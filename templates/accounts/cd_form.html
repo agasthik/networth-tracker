@@ -1,0 +1,109 @@
+<!-- CD Account Form -->
+<form id="cdAccountForm" onsubmit="submitAccountForm(event, 'CD')">
+    <input type="hidden" id="cdAccountId" name="account_id">
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="cdAccountName" class="form-label">Account Name *</label>
+                <input type="text" class="form-control" id="cdAccountName" name="name" required
+                    placeholder="e.g., 12-Month CD">
+                <div class="form-text">A descriptive name for this CD account</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="cdInstitution" class="form-label">Institution *</label>
+                <input type="text" class="form-control" id="cdInstitution" name="institution" required
+                    placeholder="e.g., Chase Bank">
+                <div class="form-text">Bank or financial institution name</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="cdPrincipalAmount" class="form-label">Principal Amount *</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" id="cdPrincipalAmount" name="principal_amount" required
+                        min="0" step="0.01" placeholder="10000.00">
+                </div>
+                <div class="form-text">Initial deposit amount</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="cdCurrentValue" class="form-label">Current Value *</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" id="cdCurrentValue" name="current_value" required min="0"
+                        step="0.01" placeholder="10250.00">
+                </div>
+                <div class="form-text">Current account value including accrued interest</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="cdInterestRate" class="form-label">Interest Rate *</label>
+                <div class="input-group">
+                    <input type="number" class="form-control" id="cdInterestRate" name="interest_rate" required min="0"
+                        max="100" step="0.01" placeholder="2.50">
+                    <span class="input-group-text">%</span>
+                </div>
+                <div class="form-text">Annual percentage yield (APY)</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="cdMaturityDate" class="form-label">Maturity Date *</label>
+                <input type="date" class="form-control" id="cdMaturityDate" name="maturity_date" required>
+                <div class="form-text">When the CD reaches full maturity</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>CD Account Information:</strong> Certificate of Deposit accounts are time deposits with fixed interest
+        rates.
+        Early withdrawal may result in penalties.
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i><span id="cdSubmitText">Save CD Account</span>
+        </button>
+    </div>
+</form>
+
+<script>
+    // Auto-calculate current value based on principal and interest
+    document.getElementById('cdPrincipalAmount').addEventListener('input', calculateCDValue);
+    document.getElementById('cdInterestRate').addEventListener('input', calculateCDValue);
+    document.getElementById('cdMaturityDate').addEventListener('input', calculateCDValue);
+
+    function calculateCDValue() {
+        const principal = parseFloat(document.getElementById('cdPrincipalAmount').value) || 0;
+        const rate = parseFloat(document.getElementById('cdInterestRate').value) || 0;
+        const maturityDate = document.getElementById('cdMaturityDate').value;
+
+        if (principal > 0 && rate > 0 && maturityDate) {
+            const today = new Date();
+            const maturity = new Date(maturityDate);
+            const monthsToMaturity = Math.max(0, (maturity - today) / (1000 * 60 * 60 * 24 * 30.44));
+
+            // Simple interest calculation for demonstration
+            const estimatedValue = principal * (1 + (rate / 100) * (monthsToMaturity / 12));
+
+            if (!document.getElementById('cdCurrentValue').value) {
+                document.getElementById('cdCurrentValue').value = estimatedValue.toFixed(2);
+            }
+        }
+    }
+</script>

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found - Networth Tracker{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Page Not Found
+                    </h4>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-search fa-5x text-muted mb-3"></i>
+                        <h2 class="text-muted">404</h2>
+                    </div>
+
+                    <h5 class="mb-3">The page you're looking for doesn't exist</h5>
+                    <p class="text-muted mb-4">
+                        The page you requested could not be found. It may have been moved, deleted, or you may have
+                        entered an incorrect URL.
+                    </p>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-primary me-md-2">
+                            <i class="fas fa-home me-2"></i>
+                            Go to Dashboard
+                        </a>
+                        <button onclick="history.back()" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            Go Back
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 text-center">
+                <small class="text-muted">
+                    If you believe this is an error, please check the URL or contact support.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

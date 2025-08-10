@@ -1,0 +1,674 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Networth Tracker{% endblock %}
+
+{% block content %}
+
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
+
+<!-- Networth Summary Card -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card networth-summary">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h2 class="card-title mb-1">
+                            <i class="fas fa-chart-line text-success me-2"></i>
+                            Total Net Worth
+                        </h2>
+                        <h1 class="display-4 text-success mb-0 currency" id="totalNetworth">
+                            $<span id="networthAmount">0.00</span>
+                        </h1>
+                        <p class="text-muted mb-0">
+                            <span id="networthChange" class="me-3">
+                                <i class="fas fa-arrow-up text-success"></i> +$0.00 (0.00%)
+                            </span>
+                            <small>Last updated: <span id="lastUpdated">Never</span></small>
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button class="btn btn-primary btn-lg" onclick="refreshNetworth()">
+                            <i class="fas fa-sync-alt me-2"></i>Refresh
+                        </button>
+                        <button class="btn btn-outline-primary btn-lg ms-2" onclick="updateStockPrices()">
+                            <i class="fas fa-chart-bar me-2"></i>Update Stocks
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Account Type Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card text-center account-type-card" data-type="summary">
+            <div class="card-body">
+                <i class="fas fa-chart-pie fa-2x text-primary mb-2"></i>
+                <h6 class="card-title">Summary</h6>
+                <p class="card-text small">All Accounts</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center account-type-card" data-type="CD">
+            <div class="card-body">
+                <i class="fas fa-certificate fa-2x text-info mb-2"></i>
+                <h6 class="card-title">CDs</h6>
+                <p class="card-text small currency">$<span id="cdTotal">0.00</span></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center account-type-card" data-type="SAVINGS">
+            <div class="card-body">
+                <i class="fas fa-piggy-bank fa-2x text-success mb-2"></i>
+                <h6 class="card-title">Savings</h6>
+                <p class="card-text small currency">$<span id="savingsTotal">0.00</span></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center account-type-card" data-type="401K">
+            <div class="card-body">
+                <i class="fas fa-briefcase fa-2x text-warning mb-2"></i>
+                <h6 class="card-title">401k</h6>
+                <p class="card-text small currency">$<span id="401kTotal">0.00</span></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center account-type-card" data-type="TRADING">
+            <div class="card-body">
+                <i class="fas fa-chart-bar fa-2x text-danger mb-2"></i>
+                <h6 class="card-title">Trading</h6>
+                <p class="card-text small currency">$<span id="tradingTotal">0.00</span></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center account-type-card" data-type="I_BONDS">
+            <div class="card-body">
+                <i class="fas fa-university fa-2x text-secondary mb-2"></i>
+                <h6 class="card-title">I-Bonds</h6>
+                <p class="card-text small currency">$<span id="ibondsTotal">0.00</span></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabbed Interface for Account Details -->
+<div class="card">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" id="accountTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary"
+                    type="button" role="tab">
+                    <i class="fas fa-chart-pie me-2"></i>Summary
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="cd-tab" data-bs-toggle="tab" data-bs-target="#cd" type="button" role="tab">
+                    <i class="fas fa-certificate me-2"></i>CDs
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="savings-tab" data-bs-toggle="tab" data-bs-target="#savings" type="button"
+                    role="tab">
+                    <i class="fas fa-piggy-bank me-2"></i>Savings
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="retirement401k-tab" data-bs-toggle="tab" data-bs-target="#retirement401k"
+                    type="button" role="tab">
+                    <i class="fas fa-briefcase me-2"></i>401k
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="trading-tab" data-bs-toggle="tab" data-bs-target="#trading" type="button"
+                    role="tab">
+                    <i class="fas fa-chart-bar me-2"></i>Trading
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="ibonds-tab" data-bs-toggle="tab" data-bs-target="#ibonds" type="button"
+                    role="tab">
+                    <i class="fas fa-university me-2"></i>I-Bonds
+                </button>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content" id="accountTabContent">
+            <!-- Summary Tab -->
+            <div class="tab-pane fade show active" id="summary" role="tabpanel">
+                <!-- Demo Account Management Section -->
+                <div id="demoManagementSection" class="demo-management" style="display: none;">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h6 class="mb-1">
+                                <i class="fas fa-flask demo-icon"></i>
+                                Demo Account Management
+                            </h6>
+                            <p class="mb-0 text-muted">
+                                You have <span id="demoAccountCount">0</span> demo account(s) in your portfolio.
+                                Demo accounts are sample data for exploring the application.
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-warning btn-sm me-2" onclick="toggleDemoFilter()">
+                                <i class="fas fa-filter me-1"></i>
+                                <span id="demoFilterText">Show Demo Only</span>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="confirmDeleteDemoAccounts()">
+                                <i class="fas fa-trash me-1"></i>Delete All Demo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-8">
+                        <h5>Portfolio Overview</h5>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-chart-pie me-2"></i>
+                                            Asset Allocation
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="portfolioChart">
+                                            <canvas id="portfolioDonutChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-list me-2"></i>
+                                            Account Summary
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="portfolioSummaryList">
+                                            <!-- Portfolio summary list will be populated here -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Account Type</th>
+                                        <th>Total Value</th>
+                                        <th>Percentage</th>
+                                        <th>Monthly Change</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="summaryTableBody">
+                                    <!-- Summary data will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h5>Quick Stats</h5>
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-6">
+                                        <h4 id="totalAccounts" class="number">0</h4>
+                                        <small class="text-muted">Total Accounts</small>
+                                    </div>
+                                    <div class="col-6">
+                                        <h4 id="totalInstitutions" class="number">0</h4>
+                                        <small class="text-muted">Institutions</small>
+                                    </div>
+                                </div>
+                                <hr>
+                                <div class="row text-center">
+                                    <div class="col-6">
+                                        <h4 id="monthlyGain" class="text-success currency">+$0</h4>
+                                        <small class="text-muted">This Month</small>
+                                    </div>
+                                    <div class="col-6">
+                                        <h4 id="yearlyGain" class="text-success currency">+$0</h4>
+                                        <small class="text-muted">This Year</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <h6>Recent Activity</h6>
+                            <div id="recentActivity" class="list-group list-group-flush">
+                                <!-- Recent activity will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CD Accounts Tab -->
+            <div class="tab-pane fade" id="cd" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5>Certificate of Deposit Accounts</h5>
+                    <button class="btn btn-primary" onclick="showAccountForm('CD')">
+                        <i class="fas fa-plus me-2"></i>Add CD Account
+                    </button>
+                </div>
+                <div id="cdAccountsList">
+                    <!-- CD accounts will be populated here -->
+                </div>
+            </div>
+
+            <!-- Savings Accounts Tab -->
+            <div class="tab-pane fade" id="savings" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5>Savings Accounts</h5>
+                    <button class="btn btn-primary" onclick="showAccountForm('SAVINGS')">
+                        <i class="fas fa-plus me-2"></i>Add Savings Account
+                    </button>
+                </div>
+                <div id="savingsAccountsList">
+                    <!-- Savings accounts will be populated here -->
+                </div>
+            </div>
+
+            <!-- 401k Accounts Tab -->
+            <div class="tab-pane fade" id="retirement401k" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5>401k Retirement Accounts</h5>
+                    <button class="btn btn-primary" onclick="showAccountForm('401K')">
+                        <i class="fas fa-plus me-2"></i>Add 401k Account
+                    </button>
+                </div>
+                <div id="retirement401kAccountsList">
+                    <!-- 401k accounts will be populated here -->
+                </div>
+            </div>
+
+            <!-- Trading Accounts Tab -->
+            <div class="tab-pane fade" id="trading" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5>Trading & Investment Accounts</h5>
+                    <button class="btn btn-primary" onclick="showAccountForm('TRADING')">
+                        <i class="fas fa-plus me-2"></i>Add Trading Account
+                    </button>
+                </div>
+                <div id="tradingAccountsList">
+                    <!-- Trading accounts will be populated here -->
+                </div>
+            </div>
+
+            <!-- I-Bonds Accounts Tab -->
+            <div class="tab-pane fade" id="ibonds" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5>I-Bonds Treasury Securities</h5>
+                    <button class="btn btn-primary" onclick="showAccountForm('I_BONDS')">
+                        <i class="fas fa-plus me-2"></i>Add I-Bonds Account
+                    </button>
+                </div>
+                <div id="ibondsAccountsList">
+                    <!-- I-Bonds accounts will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Account Form Modal -->
+<div class="modal fade" id="accountFormModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="accountFormTitle">Add Account</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="accountFormBody">
+                <!-- Account forms will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Session Info Modal -->
+<div class="modal fade" id="sessionInfoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Session Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>Authenticated:</strong></td>
+                        <td>{{ session_info.authenticated if session_info else 'Yes' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Session ID:</strong></td>
+                        <td><code>{{ session_info.session_id if session_info else 'N/A' }}</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Created At:</strong></td>
+                        <td>{{ session_info.created_at if session_info else 'N/A' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Last Activity:</strong></td>
+                        <td>{{ session_info.last_activity if session_info else 'N/A' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Expires At:</strong></td>
+                        <td>{{ session_info.expires_at if session_info else 'N/A' }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Data Modal -->
+<div class="modal fade" id="importDataModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Import Data</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="importForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="importFile" class="form-label">Select backup file</label>
+                        <input type="file" class="form-control" id="importFile" accept=".json,.enc" required>
+                        <div class="form-text">Select an encrypted backup file to restore your data.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="importPassword" class="form-label">Backup password</label>
+                        <input type="password" class="form-control" id="importPassword"
+                            placeholder="Enter the password used to encrypt this backup">
+                        <div class="form-text">
+                            Leave empty to use your current master password.
+                            For demo backups, use: <code>demo123</code>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="overwriteExisting">
+                            <label class="form-check-label" for="overwriteExisting">
+                                Overwrite existing accounts with same ID
+                            </label>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning">
+                        <strong>Warning:</strong> Importing data will add accounts to your current data.
+                        Check "Overwrite existing accounts" if you want to replace accounts with the same ID.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="importData()">Import Data</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Demo Accounts Modal -->
+<div class="modal fade" id="deleteDemoAccountsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                    Delete Demo Accounts
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> This action will permanently delete all demo accounts and their historical
+                    data.
+                </div>
+                <p>You are about to delete <strong id="confirmDemoCount">0</strong> demo account(s):</p>
+                <ul id="demoAccountsList" class="list-unstyled">
+                    <!-- Demo accounts will be listed here -->
+                </ul>
+                <p class="text-muted">
+                    <strong>Note:</strong> Your real accounts and data will not be affected. This action cannot be
+                    undone.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="deleteDemoAccounts()">
+                    <i class="fas fa-trash me-2"></i>Delete Demo Accounts
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Dashboard initialization
+    document.addEventListener('DOMContentLoaded', function () {
+        initializeDashboard();
+        loadAccountData();
+
+        // Auto-dismiss success messages after 5 seconds
+        const successAlerts = document.querySelectorAll('.alert-success');
+        successAlerts.forEach(function (alert) {
+            setTimeout(function () {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 5000);
+        });
+
+        // Make account type cards clickable
+        document.querySelectorAll('.account-type-card').forEach(card => {
+            card.addEventListener('click', function () {
+                const type = this.dataset.type;
+                if (type === 'summary') {
+                    document.getElementById('summary-tab').click();
+                } else {
+                    // Handle special cases for tab ID mapping
+                    let tabId;
+                    if (type === '401K') {
+                        tabId = 'retirement401k-tab';
+                    } else if (type === 'I_BONDS') {
+                        tabId = 'ibonds-tab';
+                    } else {
+                        tabId = type.toLowerCase() + '-tab';
+                    }
+                    const tabElement = document.getElementById(tabId);
+                    if (tabElement) {
+                        tabElement.click();
+                    } else {
+                        console.error('Tab element not found:', tabId);
+                    }
+                }
+            });
+        });
+    });
+
+    function initializeDashboard() {
+        // Initialize dashboard components
+        console.log('Dashboard initialized');
+    }
+
+    function loadAccountData() {
+        // This will be implemented in task 13 (JavaScript functionality)
+        console.log('Loading account data...');
+
+        // Update demo management section when data is loaded
+        // This will be called after actual data loading is implemented
+        setTimeout(() => {
+            updateDemoManagementSection();
+        }, 100);
+    }
+
+    function showSessionInfo() {
+        const modal = new bootstrap.Modal(document.getElementById('sessionInfoModal'));
+        modal.show();
+    }
+
+    function showAccountForm(accountType) {
+        // This will be implemented in task 13 (JavaScript functionality)
+        console.log('Show account form for:', accountType);
+    }
+
+    function refreshNetworth() {
+        // This will be implemented in task 13 (JavaScript functionality)
+        console.log('Refreshing networth...');
+    }
+
+    function updateStockPrices() {
+        // This will be implemented in task 13 (JavaScript functionality)
+        console.log('Updating stock prices...');
+    }
+
+    function exportData() {
+        // This will be implemented in task 13 (JavaScript functionality)
+        console.log('Exporting data...');
+    }
+
+    function showImportModal() {
+        const modal = new bootstrap.Modal(document.getElementById('importDataModal'));
+        modal.show();
+    }
+
+    function importData() {
+        // This will be implemented in task 13 (JavaScript functionality)
+        console.log('Importing data...');
+    }
+
+    // Demo Account Management Functions
+    let demoFilterActive = false;
+
+    function toggleDemoFilter() {
+        demoFilterActive = !demoFilterActive;
+        const filterText = document.getElementById('demoFilterText');
+
+        if (demoFilterActive) {
+            filterText.textContent = 'Show All';
+            // Filter to show only demo accounts
+            filterAccountsByDemo(true);
+        } else {
+            filterText.textContent = 'Show Demo Only';
+            // Show all accounts
+            filterAccountsByDemo(false);
+        }
+    }
+
+    function filterAccountsByDemo(demoOnly) {
+        // This will filter the account displays based on demo status
+        // Implementation will be added when account rendering is updated
+        console.log('Filtering accounts by demo status:', demoOnly);
+
+        // Update account tabs with filtered data
+        updateAccountTabs();
+    }
+
+    function confirmDeleteDemoAccounts() {
+        // Get demo accounts from current state
+        const demoAccounts = AppState.accounts.filter(account => account.is_demo);
+
+        if (demoAccounts.length === 0) {
+            showNotification('No demo accounts found to delete.', 'info');
+            return;
+        }
+
+        // Update modal with demo account information
+        document.getElementById('confirmDemoCount').textContent = demoAccounts.length;
+
+        const demoAccountsList = document.getElementById('demoAccountsList');
+        demoAccountsList.innerHTML = demoAccounts.map(account => `
+            <li class="mb-1">
+                <i class="fas fa-flask demo-icon"></i>
+                <strong>${account.name}</strong> (${account.institution})
+            </li>
+        `).join('');
+
+        // Show confirmation modal
+        const modal = new bootstrap.Modal(document.getElementById('deleteDemoAccountsModal'));
+        modal.show();
+    }
+
+    function deleteDemoAccounts() {
+        // Show loading state
+        const button = document.querySelector('button[onclick="deleteDemoAccounts()"]');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Deleting...';
+        button.disabled = true;
+
+        fetch('/api/demo/accounts', {
+            method: 'DELETE'
+        })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => Promise.reject(err));
+                }
+                return response.json();
+            })
+            .then(data => {
+                showNotification(`Successfully deleted ${data.deleted_count} demo accounts.`, 'success');
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteDemoAccountsModal'));
+                modal.hide();
+
+                // Refresh account data
+                loadAccountData();
+            })
+            .catch(error => {
+                console.error('Error deleting demo accounts:', error);
+                showNotification(error.message || 'Error deleting demo accounts. Please try again.', 'danger');
+            })
+            .finally(() => {
+                button.innerHTML = originalText;
+                button.disabled = false;
+            });
+    }
+
+    function updateDemoManagementSection() {
+        const demoAccounts = AppState.accounts.filter(account => account.is_demo);
+        const demoSection = document.getElementById('demoManagementSection');
+        const demoCountElement = document.getElementById('demoAccountCount');
+
+        if (demoAccounts.length > 0) {
+            demoSection.style.display = 'block';
+            demoCountElement.textContent = demoAccounts.length;
+        } else {
+            demoSection.style.display = 'none';
+            // Reset demo filter if no demo accounts
+            if (demoFilterActive) {
+                demoFilterActive = false;
+                document.getElementById('demoFilterText').textContent = 'Show Demo Only';
+            }
+        }
+    }
+</script>
+{% endblock %}

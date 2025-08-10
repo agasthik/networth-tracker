@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Networth Tracker{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card mt-5">
+            <div class="card-header">
+                <h4 class="mb-0">Login</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-4">
+                    Enter your master password to access your financial data.
+                </p>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show"
+                    role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Master Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required
+                            autocomplete="current-password" autofocus>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Login</button>
+                </form>
+
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        Your data is encrypted and stored locally on your device.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Auto-focus password field
+        document.getElementById('password').focus();
+
+        // Handle form submission
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function (e) {
+            const password = document.getElementById('password').value;
+            if (!password.trim()) {
+                e.preventDefault();
+                alert('Please enter your password');
+            }
+        });
+    });
+</script>
+{% endblock %}

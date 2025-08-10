@@ -1,0 +1,115 @@
+<!-- Savings Account Form -->
+<form id="savingsAccountForm" onsubmit="submitAccountForm(event, 'SAVINGS')">
+    <input type="hidden" id="savingsAccountId" name="account_id">
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="savingsAccountName" class="form-label">Account Name *</label>
+                <input type="text" class="form-control" id="savingsAccountName" name="name" required
+                    placeholder="e.g., High Yield Savings">
+                <div class="form-text">A descriptive name for this savings account</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="savingsInstitution" class="form-label">Institution *</label>
+                <input type="text" class="form-control" id="savingsInstitution" name="institution" required
+                    placeholder="e.g., Ally Bank">
+                <div class="form-text">Bank or financial institution name</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="savingsCurrentBalance" class="form-label">Current Balance *</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" id="savingsCurrentBalance" name="current_balance" required
+                        min="0" step="0.01" placeholder="5000.00">
+                </div>
+                <div class="form-text">Current account balance</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="savingsInterestRate" class="form-label">Interest Rate *</label>
+                <div class="input-group">
+                    <input type="number" class="form-control" id="savingsInterestRate" name="interest_rate" required
+                        min="0" max="100" step="0.01" placeholder="1.50">
+                    <span class="input-group-text">%</span>
+                </div>
+                <div class="form-text">Annual percentage yield (APY)</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label for="savingsAccountNumber" class="form-label">Account Number (Optional)</label>
+        <input type="text" class="form-control" id="savingsAccountNumber" name="account_number"
+            placeholder="Last 4 digits for reference">
+        <div class="form-text">Optional: Last 4 digits for identification (will be encrypted)</div>
+    </div>
+
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Savings Account Information:</strong> Savings accounts typically offer variable interest rates and
+        easy access to funds. Interest is usually compounded monthly.
+    </div>
+
+    <!-- Interest Calculation Preview -->
+    <div class="card bg-light mb-3">
+        <div class="card-body">
+            <h6 class="card-title">Interest Projection</h6>
+            <div class="row text-center">
+                <div class="col-4">
+                    <strong id="monthlyInterest">$0.00</strong>
+                    <small class="d-block text-muted">Monthly</small>
+                </div>
+                <div class="col-4">
+                    <strong id="yearlyInterest">$0.00</strong>
+                    <small class="d-block text-muted">Yearly</small>
+                </div>
+                <div class="col-4">
+                    <strong id="projectedBalance">$0.00</strong>
+                    <small class="d-block text-muted">After 1 Year</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i><span id="savingsSubmitText">Save Savings Account</span>
+        </button>
+    </div>
+</form>
+
+<script>
+    // Auto-calculate interest projections
+    document.getElementById('savingsCurrentBalance').addEventListener('input', calculateSavingsProjections);
+    document.getElementById('savingsInterestRate').addEventListener('input', calculateSavingsProjections);
+
+    function calculateSavingsProjections() {
+        const balance = parseFloat(document.getElementById('savingsCurrentBalance').value) || 0;
+        const rate = parseFloat(document.getElementById('savingsInterestRate').value) || 0;
+
+        if (balance > 0 && rate > 0) {
+            const monthlyRate = rate / 100 / 12;
+            const monthlyInterest = balance * monthlyRate;
+            const yearlyInterest = balance * (rate / 100);
+            const projectedBalance = balance * (1 + rate / 100);
+
+            document.getElementById('monthlyInterest').textContent = '$' + monthlyInterest.toFixed(2);
+            document.getElementById('yearlyInterest').textContent = '$' + yearlyInterest.toFixed(2);
+            document.getElementById('projectedBalance').textContent = '$' + projectedBalance.toFixed(2);
+        } else {
+            document.getElementById('monthlyInterest').textContent = '$0.00';
+            document.getElementById('yearlyInterest').textContent = '$0.00';
+            document.getElementById('projectedBalance').textContent = '$0.00';
+        }
+    }
+</script>

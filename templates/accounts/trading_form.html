@@ -1,0 +1,288 @@
+<!-- Trading Account Form -->
+<form id="tradingAccountForm" onsubmit="submitAccountForm(event, 'TRADING')">
+    <input type="hidden" id="tradingAccountId" name="account_id">
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="tradingAccountName" class="form-label">Account Name *</label>
+                <input type="text" class="form-control" id="tradingAccountName" name="name" required
+                    placeholder="e.g., Individual Trading Account">
+                <div class="form-text">A descriptive name for this trading account</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="tradingBrokerName" class="form-label">Broker Name *</label>
+                <input type="text" class="form-control" id="tradingBrokerName" name="broker_name" required
+                    placeholder="e.g., Fidelity, Charles Schwab">
+                <div class="form-text">Brokerage firm or platform name</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="tradingCashBalance" class="form-label">Cash Balance *</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" id="tradingCashBalance" name="cash_balance" required
+                        min="0" step="0.01" placeholder="5000.00">
+                </div>
+                <div class="form-text">Available cash in the account</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="tradingAccountType" class="form-label">Account Type</label>
+                <select class="form-select" id="tradingAccountType" name="account_type">
+                    <option value="individual">Individual Taxable</option>
+                    <option value="joint">Joint Taxable</option>
+                    <option value="ira">Traditional IRA</option>
+                    <option value="roth_ira">Roth IRA</option>
+                    <option value="margin">Margin Account</option>
+                </select>
+                <div class="form-text">Type of trading account</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label for="tradingAccountNumber" class="form-label">Account Number (Optional)</label>
+        <input type="text" class="form-control" id="tradingAccountNumber" name="account_number"
+            placeholder="Last 4 digits for reference">
+        <div class="form-text">Optional: Last 4 digits for identification (will be encrypted)</div>
+    </div>
+
+    <!-- Stock Positions Section -->
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Stock Positions</h6>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addStockPosition()">
+                <i class="fas fa-plus me-1"></i>Add Position
+            </button>
+        </div>
+        <div class="card-body">
+            <div id="stockPositionsList">
+                <div class="text-muted text-center py-3">
+                    <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                    <p>No stock positions added yet. Click "Add Position" to get started.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Trading Account Information:</strong> Trading accounts allow you to buy and sell stocks, ETFs,
+        and other securities. Stock prices will be automatically updated from market data.
+    </div>
+
+    <!-- Account Summary -->
+    <div class="card bg-light mb-3">
+        <div class="card-body">
+            <h6 class="card-title">Account Summary</h6>
+            <div class="row text-center">
+                <div class="col-3">
+                    <strong id="totalCashBalance">$0.00</strong>
+                    <small class="d-block text-muted">Cash</small>
+                </div>
+                <div class="col-3">
+                    <strong id="totalStockValue">$0.00</strong>
+                    <small class="d-block text-muted">Stocks</small>
+                </div>
+                <div class="col-3">
+                    <strong id="totalAccountValue">$0.00</strong>
+                    <small class="d-block text-muted">Total Value</small>
+                </div>
+                <div class="col-3">
+                    <strong id="totalGainLoss" class="text-muted">$0.00</strong>
+                    <small class="d-block text-muted">Gain/Loss</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i><span id="tradingSubmitText">Save Trading Account</span>
+        </button>
+    </div>
+</form>
+
+<!-- Stock Position Template -->
+<template id="stockPositionTemplate">
+    <div class="stock-position border rounded p-3 mb-3">
+        <div class="row align-items-center">
+            <div class="col-md-2">
+                <label class="form-label">Symbol *</label>
+                <input type="text" class="form-control stock-symbol" name="symbol" required placeholder="AAPL"
+                    style="text-transform: uppercase;">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Shares *</label>
+                <input type="number" class="form-control stock-shares" name="shares" required min="0" step="0.001"
+                    placeholder="100">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Purchase Price *</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control stock-purchase-price" name="purchase_price" required
+                        min="0" step="0.01" placeholder="150.00">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Purchase Date *</label>
+                <input type="date" class="form-control stock-purchase-date" name="purchase_date" required>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Current Price</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control stock-current-price" name="current_price" readonly
+                        placeholder="0.00">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Actions</label>
+                <div>
+                    <button type="button" class="btn btn-sm btn-outline-info me-1" onclick="fetchStockPrice(this)">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeStockPosition(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-2">
+            <div class="col-md-12">
+                <small class="text-muted">
+                    Total Value: $<span class="position-total-value">0.00</span> |
+                    Gain/Loss: <span class="position-gain-loss text-muted">$0.00 (0.00%)</span>
+                </small>
+            </div>
+        </div>
+    </div>
+</template>
+
+<script>
+    let stockPositionCount = 0;
+
+    // Auto-calculate account summary
+    document.getElementById('tradingCashBalance').addEventListener('input', calculateTradingSummary);
+
+    function addStockPosition() {
+        const template = document.getElementById('stockPositionTemplate');
+        const clone = template.content.cloneNode(true);
+
+        // Set default purchase date to today
+        const today = new Date().toISOString().split('T')[0];
+        clone.querySelector('.stock-purchase-date').value = today;
+
+        // Add event listeners for calculations
+        const inputs = clone.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.addEventListener('input', calculateTradingSummary);
+        });
+
+        // Convert symbol to uppercase
+        clone.querySelector('.stock-symbol').addEventListener('input', function () {
+            this.value = this.value.toUpperCase();
+        });
+
+        const container = document.getElementById('stockPositionsList');
+        if (container.querySelector('.text-muted')) {
+            container.innerHTML = '';
+        }
+        container.appendChild(clone);
+
+        stockPositionCount++;
+        calculateTradingSummary();
+    }
+
+    function removeStockPosition(button) {
+        const position = button.closest('.stock-position');
+        position.remove();
+        stockPositionCount--;
+
+        if (stockPositionCount === 0) {
+            document.getElementById('stockPositionsList').innerHTML = `
+                <div class="text-muted text-center py-3">
+                    <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                    <p>No stock positions added yet. Click "Add Position" to get started.</p>
+                </div>
+            `;
+        }
+
+        calculateTradingSummary();
+    }
+
+    function fetchStockPrice(button) {
+        const position = button.closest('.stock-position');
+        const symbol = position.querySelector('.stock-symbol').value;
+
+        if (!symbol) {
+            alert('Please enter a stock symbol first');
+            return;
+        }
+
+        // This will be implemented in task 13 (JavaScript functionality)
+        console.log('Fetching price for:', symbol);
+
+        // Simulate price fetch for now
+        const mockPrice = (Math.random() * 200 + 50).toFixed(2);
+        position.querySelector('.stock-current-price').value = mockPrice;
+        calculatePositionValue(position);
+    }
+
+    function calculatePositionValue(position) {
+        const shares = parseFloat(position.querySelector('.stock-shares').value) || 0;
+        const purchasePrice = parseFloat(position.querySelector('.stock-purchase-price').value) || 0;
+        const currentPrice = parseFloat(position.querySelector('.stock-current-price').value) || purchasePrice;
+
+        const totalValue = shares * currentPrice;
+        const totalCost = shares * purchasePrice;
+        const gainLoss = totalValue - totalCost;
+        const gainLossPercent = totalCost > 0 ? (gainLoss / totalCost * 100) : 0;
+
+        position.querySelector('.position-total-value').textContent = totalValue.toFixed(2);
+
+        const gainLossElement = position.querySelector('.position-gain-loss');
+        gainLossElement.textContent = `$${gainLoss.toFixed(2)} (${gainLossPercent.toFixed(2)}%)`;
+        gainLossElement.className = `position-gain-loss ${gainLoss >= 0 ? 'text-success' : 'text-danger'}`;
+    }
+
+    function calculateTradingSummary() {
+        const cashBalance = parseFloat(document.getElementById('tradingCashBalance').value) || 0;
+        let totalStockValue = 0;
+        let totalGainLoss = 0;
+
+        document.querySelectorAll('.stock-position').forEach(position => {
+            calculatePositionValue(position);
+
+            const shares = parseFloat(position.querySelector('.stock-shares').value) || 0;
+            const purchasePrice = parseFloat(position.querySelector('.stock-purchase-price').value) || 0;
+            const currentPrice = parseFloat(position.querySelector('.stock-current-price').value) || purchasePrice;
+
+            const positionValue = shares * currentPrice;
+            const positionCost = shares * purchasePrice;
+
+            totalStockValue += positionValue;
+            totalGainLoss += (positionValue - positionCost);
+        });
+
+        const totalAccountValue = cashBalance + totalStockValue;
+
+        document.getElementById('totalCashBalance').textContent = '$' + cashBalance.toFixed(2);
+        document.getElementById('totalStockValue').textContent = '$' + totalStockValue.toFixed(2);
+        document.getElementById('totalAccountValue').textContent = '$' + totalAccountValue.toFixed(2);
+
+        const gainLossElement = document.getElementById('totalGainLoss');
+        gainLossElement.textContent = '$' + totalGainLoss.toFixed(2);
+        gainLossElement.className = totalGainLoss >= 0 ? 'text-success' : 'text-danger';
+    }
+</script>

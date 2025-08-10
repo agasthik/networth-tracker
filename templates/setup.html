@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Setup - Networth Tracker{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card mt-5">
+            <div class="card-header">
+                <h4 class="mb-0">Initial Setup</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-4">
+                    Set up your master password to secure your financial data.
+                    This password will encrypt all your information locally.
+                </p>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show"
+                    role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Master Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required
+                            minlength="12" autocomplete="new-password">
+                        <div class="form-text">
+                            Password must be at least 12 characters with uppercase, lowercase, numbers, and special
+                            characters.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">Confirm Password</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password"
+                            required minlength="12" autocomplete="new-password">
+                    </div>
+
+                    <div class="alert alert-warning" role="alert">
+                        <strong>Important:</strong> There is no password recovery option.
+                        Make sure to remember your master password or store it securely.
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Set Master Password</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const password = document.getElementById('password');
+        const confirmPassword = document.getElementById('confirm_password');
+
+        function validatePassword() {
+            const value = password.value;
+            const hasUpper = /[A-Z]/.test(value);
+            const hasLower = /[a-z]/.test(value);
+            const hasNumber = /\d/.test(value);
+            const hasSpecial = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(value);
+            const isLongEnough = value.length >= 12;
+
+            const isValid = hasUpper && hasLower && hasNumber && hasSpecial && isLongEnough;
+
+            if (value.length > 0) {
+                password.classList.toggle('is-valid', isValid);
+                password.classList.toggle('is-invalid', !isValid);
+            }
+
+            return isValid;
+        }
+
+        function validateConfirmPassword() {
+            const isMatch = password.value === confirmPassword.value;
+
+            if (confirmPassword.value.length > 0) {
+                confirmPassword.classList.toggle('is-valid', isMatch);
+                confirmPassword.classList.toggle('is-invalid', !isMatch);
+            }
+
+            return isMatch;
+        }
+
+        password.addEventListener('input', validatePassword);
+        confirmPassword.addEventListener('input', validateConfirmPassword);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,992 @@
+/* Networth Tracker Styles */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 400;
+    line-height: 1.6;
+    color: #2c3e50;
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #2c3e50;
+}
+
+h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+}
+
+h2 {
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+h3 {
+    font-size: 1.75rem;
+    font-weight: 600;
+}
+
+h4 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+h5 {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+h6 {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.display-1,
+.display-2,
+.display-3,
+.display-4,
+.display-5,
+.display-6 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+/* Monospace for numbers and codes */
+.currency,
+.percentage,
+.number,
+code,
+pre {
+    font-family: 'JetBrains Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-weight: 500;
+}
+
+/* Button typography */
+.btn {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.025em;
+}
+
+/* Form labels */
+.form-label {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    color: #2c3e50;
+    letter-spacing: 0.025em;
+}
+
+/* Navigation */
+.navbar-brand {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: -0.025em;
+}
+
+.nav-link {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+.navbar-nav .nav-link {
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.navbar-nav .nav-link:hover {
+    transform: translateY(-1px);
+}
+
+/* Custom Navbar Styling */
+.navbar.bg-primary {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%) !important;
+    border-bottom: 3px solid #3498db;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Card Styling */
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    font-family: 'Inter', sans-serif;
+    border-radius: 0.75rem;
+}
+
+.card-title {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    color: #2c3e50;
+    letter-spacing: -0.01em;
+}
+
+.card-text {
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    line-height: 1.6;
+}
+
+/* Button Styling */
+.btn {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: #ffffff;
+    box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #2980b9 0%, #21618c 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(52, 152, 219, 0.4);
+    color: #ffffff;
+}
+
+.btn-outline-primary {
+    border: 2px solid #3498db;
+    color: #3498db;
+    background: transparent;
+}
+
+.btn-outline-primary:hover {
+    background-color: #3498db;
+    border-color: #3498db;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+    color: #ffffff;
+    box-shadow: 0 2px 4px rgba(46, 204, 113, 0.3);
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(46, 204, 113, 0.4);
+    color: #ffffff;
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    color: #ffffff;
+    box-shadow: 0 2px 4px rgba(243, 156, 18, 0.3);
+}
+
+.btn-warning:hover {
+    background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(243, 156, 18, 0.4);
+    color: #ffffff;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: #ffffff;
+    box-shadow: 0 2px 4px rgba(231, 76, 60, 0.3);
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.4);
+    color: #ffffff;
+}
+
+color: #ffffff !important;
+text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+font-size: 1.5rem;
+}
+
+.navbar-brand:hover {
+    color: #3498db !important;
+    transform: translateY(-1px);
+    transition: all 0.3s ease;
+}
+
+.navbar-brand .fas {
+    color: #3498db !important;
+}
+
+.navbar-nav .nav-link {
+    color: #ecf0f1 !important;
+    font-weight: 500;
+    padding: 0.75rem 1rem !important;
+    border-radius: 0.375rem;
+    margin: 0 0.25rem;
+    transition: all 0.3s ease;
+}
+
+.navbar-nav .nav-link:hover {
+    color: #ffffff !important;
+    background-color: rgba(52, 152, 219, 0.2);
+    transform: translateY(-1px);
+}
+
+.navbar-nav .nav-link.active {
+    color: #3498db !important;
+    background-color: rgba(52, 152, 219, 0.1);
+}
+
+.navbar-nav .nav-link .fas {
+    color: #3498db !important;
+    margin-right: 0.5rem;
+}
+
+.dropdown-menu {
+    background-color: #34495e;
+    border: 1px solid #3498db;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.dropdown-item {
+    color: #ecf0f1 !important;
+    padding: 0.75rem 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.dropdown-item:hover {
+    background-color: #3498db !important;
+    color: #ffffff !important;
+}
+
+.dropdown-item .fas {
+    color: #3498db !important;
+    width: 1.2rem;
+    text-align: center;
+}
+
+.dropdown-item:hover .fas {
+    color: #ffffff !important;
+}
+
+.dropdown-divider {
+    border-color: #3498db !important;
+    opacity: 0.3;
+}
+
+.navbar-toggler {
+    border-color: #3498db !important;
+}
+
+.navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%2852, 152, 219, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+}
+
+.card {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.btn-primary {
+    background-color: #3498db;
+    border-color: #3498db;
+    color: #ffffff;
+    font-weight: 500;
+    border-radius: 0.375rem;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+    border-color: #2980b9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+}
+
+.btn-outline-primary {
+    border-color: #3498db;
+    color: #3498db;
+    font-weight: 500;
+    border-radius: 0.375rem;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-primary:hover {
+    background-color: #3498db;
+    border-color: #3498db;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+}
+
+/* Table Styling */
+.table {
+    font-family: 'Inter', sans-serif;
+}
+
+.table th {
+    border-top: none;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    color: #2c3e50;
+    letter-spacing: 0.025em;
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.table td {
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    vertical-align: middle;
+}
+
+.table .currency,
+.table .number {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+}
+
+/* Alert Styling */
+.alert {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    border-radius: 0.75rem;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.alert-success {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    color: #155724;
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    color: #721c24;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    color: #856404;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+    color: #0c5460;
+}
+
+/* Dashboard Styles */
+.networth-summary {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    color: white;
+    border: none;
+}
+
+.networth-summary .card-body {
+    padding: 2rem;
+}
+
+.networth-summary .display-4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    color: #ffffff !important;
+    letter-spacing: -0.01em;
+}
+
+/* Quick Stats Widget Styling */
+.card .card-body .row.text-center h4 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.2;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.card .card-body .row.text-center small {
+    font-size: 0.75rem;
+    line-height: 1.1;
+    display: block;
+    white-space: nowrap;
+}
+
+/* Specific styling for quick stats numbers */
+#totalAccounts,
+#totalInstitutions,
+#monthlyGain,
+#yearlyGain {
+    font-size: 1.4rem !important;
+    font-weight: 600;
+    line-height: 1.1;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.networth-summary .card-title {
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.networth-summary .text-success {
+    color: #2ecc71 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.networth-summary .text-muted {
+    color: #ecf0f1 !important;
+    opacity: 0.9;
+}
+
+.networth-summary .btn-primary {
+    background-color: #3498db;
+    border-color: #3498db;
+    color: #ffffff;
+    font-weight: 600;
+    text-shadow: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.networth-summary .btn-primary:hover {
+    background-color: #2980b9;
+    border-color: #2980b9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.networth-summary .btn-outline-primary {
+    background-color: transparent;
+    border-color: #ffffff;
+    color: #ffffff;
+    font-weight: 600;
+    text-shadow: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.networth-summary .btn-outline-primary:hover {
+    background-color: #ffffff;
+    border-color: #ffffff;
+    color: #2c3e50;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.networth-summary .fas {
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.networth-summary #networthChange {
+    color: #ffffff !important;
+    font-weight: 500;
+}
+
+.networth-summary #networthChange .text-success {
+    color: #2ecc71 !important;
+}
+
+.networth-summary #networthChange .fas {
+    color: #2ecc71 !important;
+}
+
+.networth-summary small {
+    color: #bdc3c7 !important;
+    font-weight: 400;
+}
+
+.account-type-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.account-type-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #3498db;
+    background-color: #f8fbff;
+}
+
+.account-type-card.active {
+    border-color: #3498db;
+    background-color: #f0f8ff;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+}
+
+/* Account type card content styling */
+.account-type-card .card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+}
+
+.account-type-card .card-text {
+    font-size: 0.8rem;
+    line-height: 1.2;
+    margin-bottom: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.account-type-card .currency {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    font-size: 0.8rem;
+}
+
+/* Tab Styles */
+.nav-tabs .nav-link {
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #6c757d;
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    border-bottom-color: #bdc3c7;
+    color: #2c3e50;
+    background-color: #f8fbff;
+}
+
+.nav-tabs .nav-link.active {
+    border-bottom-color: #3498db;
+    color: #3498db;
+    background-color: transparent;
+    font-weight: 600;
+}
+
+.nav-tabs .nav-link .fas {
+    color: inherit;
+    margin-right: 0.5rem;
+}
+
+/* Account Form Styles */
+.modal-lg {
+    max-width: 900px;
+}
+
+.stock-position {
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.stock-position:hover {
+    background-color: #e9ecef;
+}
+
+/* Form Styling */
+.form-label {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.025em;
+}
+
+.form-control {
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    border-radius: 0.5rem;
+    border: 2px solid #e9ecef;
+    transition: all 0.2s ease;
+}
+
+.form-control:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+.form-control[type="number"] {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+}
+
+.form-text {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+    color: #6c757d;
+    font-weight: 400;
+}
+
+.form-select {
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    border-radius: 0.5rem;
+    border: 2px solid #e9ecef;
+}
+
+.form-select:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+/* Demo Mode Banner */
+.demo-banner {
+    border-left: 4px solid #ffc107;
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+}
+
+/* Demo Account Indicators */
+.demo-badge {
+    background-color: #ffc107;
+    color: #212529;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.demo-icon {
+    color: #ffc107;
+    margin-right: 0.5rem;
+}
+
+.demo-account-card {
+    border-left: 4px solid #ffc107;
+    background-color: #fffbf0;
+}
+
+.demo-account-card:hover {
+    background-color: #fff8e1;
+}
+
+/* Demo Management Section */
+.demo-management {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.demo-management .btn-warning {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+}
+
+.demo-management .btn-warning:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+    color: #212529;
+}
+
+/* Demo Filter Toggle */
+.demo-filter-toggle {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 0.5rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.demo-filter-toggle .form-check-input:checked {
+    background-color: #ffc107;
+    border-color: #ffc107;
+}
+
+.demo-filter-toggle .form-check-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+/* Portfolio Chart */
+#portfolioChart {
+    height: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+#portfolioChart canvas {
+    max-height: 100%;
+}
+
+#portfolioSummaryList {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+/* Modern Typography Enhancements */
+.small {
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+}
+
+.text-muted {
+    color: #6c757d !important;
+    font-weight: 400;
+}
+
+.badge {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    border-radius: 0.5rem;
+}
+
+/* Modal Styling */
+.modal-content {
+    border-radius: 1rem;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 1rem 1rem 0 0;
+}
+
+.modal-title {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    body {
+        font-size: 0.9rem;
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+
+    h2 {
+        font-size: 1.75rem;
+    }
+
+    h3 {
+        font-size: 1.5rem;
+    }
+
+    h4 {
+        font-size: 1.25rem;
+    }
+
+    h5 {
+        font-size: 1.1rem;
+    }
+
+    h6 {
+        font-size: 1rem;
+    }
+
+    .networth-summary .card-body {
+        padding: 1rem;
+    }
+
+    .networth-summary .display-4 {
+        font-size: 2rem;
+    }
+
+    .networth-summary .btn-lg {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+
+    .account-type-card {
+        margin-bottom: 1rem;
+    }
+
+    .modal-lg {
+        max-width: 95%;
+    }
+
+    .navbar-brand {
+        font-size: 1.25rem;
+    }
+
+    /* Quick stats responsive adjustments */
+    #totalAccounts,
+    #totalInstitutions,
+    #monthlyGain,
+    #yearlyGain {
+        font-size: 1.2rem !important;
+    }
+
+    .card .card-body .row.text-center small {
+        font-size: 0.7rem;
+    }
+
+    /* Account type cards responsive adjustments */
+    .account-type-card .card-title {
+        font-size: 0.8rem;
+    }
+
+    .account-type-card .card-text,
+    .account-type-card .currency {
+        font-size: 0.75rem;
+    }
+}
+
+/* Additional responsive breakpoint for very small screens */
+@media (max-width: 576px) {
+
+    #totalAccounts,
+    #totalInstitutions,
+    #monthlyGain,
+    #yearlyGain {
+        font-size: 1rem !important;
+    }
+
+    .card .card-body .row.text-center small {
+        font-size: 0.65rem;
+    }
+
+    /* Very small screen adjustments for account type cards */
+    .account-type-card .card-title {
+        font-size: 0.75rem;
+    }
+
+    .account-type-card .card-text,
+    .account-type-card .currency {
+        font-size: 0.7rem;
+    }
+}
+
+/* Animation Classes */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(-100%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
+/* Loading States */
+.loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #007bff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    z-index: 1;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Success/Error States */
+.success-highlight {
+    background-color: #d4edda !important;
+    border-color: #c3e6cb !important;
+    animation: successPulse 2s ease-in-out;
+}
+
+.error-highlight {
+    background-color: #f8d7da !important;
+    border-color: #f5c6cb !important;
+    animation: errorPulse 2s ease-in-out;
+}
+
+@keyframes successPulse {
+
+    0%,
+    100% {
+        background-color: #d4edda;
+    }
+
+    50% {
+        background-color: #c3e6cb;
+    }
+}
+
+@keyframes errorPulse {
+
+    0%,
+    100% {
+        background-color: #f8d7da;
+    }
+
+    50% {
+        background-color: #f5c6cb;
+    }
+}

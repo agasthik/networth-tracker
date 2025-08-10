@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*/__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+
+# Virtual environments
+venv/
+env/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Application data
+#*.db
+*.sqlite
+*.sqlite3
+*.pid
+
+# Application directories
+data/
+backups/
+logs/
+temp/
+
+# Project specific
+scratchpad-do-not-delete.txt

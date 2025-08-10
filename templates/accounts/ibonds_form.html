@@ -1,0 +1,237 @@
+<!-- I-Bonds Account Form -->
+<form id="ibondsAccountForm" onsubmit="submitAccountForm(event, 'I_BONDS')">
+    <input type="hidden" id="ibondsAccountId" name="account_id">
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="ibondsAccountName" class="form-label">Account Name *</label>
+                <input type="text" class="form-control" id="ibondsAccountName" name="name" required
+                    placeholder="e.g., I-Bonds 2024">
+                <div class="form-text">A descriptive name for this I-Bonds account</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="ibondsInstitution" class="form-label">Institution *</label>
+                <input type="text" class="form-control" id="ibondsInstitution" name="institution" required
+                    value="U.S. Treasury" readonly>
+                <div class="form-text">I-Bonds are issued by the U.S. Treasury</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="ibondsPurchaseAmount" class="form-label">Purchase Amount *</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" id="ibondsPurchaseAmount" name="purchase_amount" required
+                        min="25" max="10000" step="25" placeholder="1000.00">
+                </div>
+                <div class="form-text">Amount invested (minimum $25, maximum $10,000 per year)</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="ibondsPurchaseDate" class="form-label">Purchase Date *</label>
+                <input type="date" class="form-control" id="ibondsPurchaseDate" name="purchase_date" required>
+                <div class="form-text">Date when I-Bonds were purchased</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="ibondsFixedRate" class="form-label">Fixed Rate *</label>
+                <div class="input-group">
+                    <input type="number" class="form-control" id="ibondsFixedRate" name="fixed_rate" required min="0"
+                        max="10" step="0.01" placeholder="0.90">
+                    <span class="input-group-text">%</span>
+                </div>
+                <div class="form-text">Fixed rate component (set at purchase, never changes)</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="ibondsInflationRate" class="form-label">Current Inflation Rate *</label>
+                <div class="input-group">
+                    <input type="number" class="form-control" id="ibondsInflationRate" name="inflation_rate" required
+                        min="0" max="20" step="0.01" placeholder="3.24">
+                    <span class="input-group-text">%</span>
+                </div>
+                <div class="form-text">Current variable inflation rate (updated semi-annually)</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="ibondsCurrentValue" class="form-label">Current Value *</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" id="ibondsCurrentValue" name="current_value" required
+                        min="0" step="0.01" placeholder="1050.00">
+                </div>
+                <div class="form-text">Current redemption value of the I-Bonds</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="ibondsMaturityDate" class="form-label">Maturity Date</label>
+                <input type="date" class="form-control" id="ibondsMaturityDate" name="maturity_date" readonly>
+                <div class="form-text">I-Bonds mature 30 years from purchase date</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>I-Bonds Information:</strong> Series I Savings Bonds are inflation-protected securities issued by
+        the U.S. Treasury. They earn interest for 30 years and cannot be redeemed for the first 12 months.
+    </div>
+
+    <!-- I-Bonds Analysis -->
+    <div class="card bg-light mb-3">
+        <div class="card-body">
+            <h6 class="card-title">I-Bonds Analysis</h6>
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>Composite Rate</strong>
+                    <div id="compositeRate" class="h5 text-primary">0.00%</div>
+                    <small class="text-muted">Fixed + Inflation</small>
+                </div>
+                <div class="col-md-3">
+                    <strong>Annual Interest</strong>
+                    <div id="annualInterest" class="h5 text-success">$0.00</div>
+                    <small class="text-muted">At current rate</small>
+                </div>
+                <div class="col-md-3">
+                    <strong>Time Held</strong>
+                    <div id="timeHeld" class="h5 text-info">0 months</div>
+                    <small class="text-muted">Since purchase</small>
+                </div>
+                <div class="col-md-3">
+                    <strong>Early Penalty</strong>
+                    <div id="earlyPenalty" class="h5 text-warning">3 months</div>
+                    <small class="text-muted">If redeemed early</small>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Minimum Hold Period:</strong>
+                        <span id="minHoldDate" class="text-muted">12 months from purchase</span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Penalty-Free Date:</strong>
+                        <span id="penaltyFreeDate" class="text-muted">5 years from purchase</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interest Rate History -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h6 class="mb-0">Interest Rate Information</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Fixed Rate:</strong> Set at purchase and never changes for the life of the bond.</p>
+                    <p><strong>Inflation Rate:</strong> Updated every 6 months (May 1 and November 1) based on CPI-U.
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Composite Rate Formula:</strong></p>
+                    <code>Composite Rate = Fixed Rate + (2 × Inflation Rate) + (Fixed Rate × Inflation Rate)</code>
+                    <p class="mt-2"><small class="text-muted">The composite rate can never go below 0.00%</small></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i><span id="ibondsSubmitText">Save I-Bonds Account</span>
+        </button>
+    </div>
+</form>
+
+<script>
+    // Auto-calculate maturity date and analysis
+    document.getElementById('ibondsPurchaseDate').addEventListener('input', calculateIBondsAnalysis);
+    document.getElementById('ibondsPurchaseAmount').addEventListener('input', calculateIBondsAnalysis);
+    document.getElementById('ibondsFixedRate').addEventListener('input', calculateIBondsAnalysis);
+    document.getElementById('ibondsInflationRate').addEventListener('input', calculateIBondsAnalysis);
+
+    function calculateIBondsAnalysis() {
+        const purchaseDate = document.getElementById('ibondsPurchaseDate').value;
+        const purchaseAmount = parseFloat(document.getElementById('ibondsPurchaseAmount').value) || 0;
+        const fixedRate = parseFloat(document.getElementById('ibondsFixedRate').value) || 0;
+        const inflationRate = parseFloat(document.getElementById('ibondsInflationRate').value) || 0;
+
+        if (purchaseDate) {
+            // Calculate maturity date (30 years from purchase)
+            const purchase = new Date(purchaseDate);
+            const maturity = new Date(purchase);
+            maturity.setFullYear(maturity.getFullYear() + 30);
+            document.getElementById('ibondsMaturityDate').value = maturity.toISOString().split('T')[0];
+
+            // Calculate time held
+            const today = new Date();
+            const monthsHeld = Math.max(0, (today - purchase) / (1000 * 60 * 60 * 24 * 30.44));
+            document.getElementById('timeHeld').textContent = Math.floor(monthsHeld) + ' months';
+
+            // Calculate minimum hold and penalty-free dates
+            const minHold = new Date(purchase);
+            minHold.setFullYear(minHold.getFullYear() + 1);
+            document.getElementById('minHoldDate').textContent = minHold.toLocaleDateString();
+
+            const penaltyFree = new Date(purchase);
+            penaltyFree.setFullYear(penaltyFree.getFullYear() + 5);
+            document.getElementById('penaltyFreeDate').textContent = penaltyFree.toLocaleDateString();
+        }
+
+        // Calculate composite rate using I-Bonds formula
+        const compositeRate = fixedRate + (2 * inflationRate) + (fixedRate * inflationRate / 100);
+        const annualInterest = purchaseAmount * (compositeRate / 100);
+
+        document.getElementById('compositeRate').textContent = compositeRate.toFixed(2) + '%';
+        document.getElementById('annualInterest').textContent = '$' + annualInterest.toFixed(2);
+
+        // Auto-calculate current value if not set
+        if (purchaseDate && purchaseAmount > 0 && !document.getElementById('ibondsCurrentValue').value) {
+            const purchase = new Date(purchaseDate);
+            const today = new Date();
+            const yearsHeld = Math.max(0, (today - purchase) / (1000 * 60 * 60 * 24 * 365.25));
+
+            // Simple compound interest calculation (approximation)
+            const estimatedValue = purchaseAmount * Math.pow(1 + compositeRate / 100, yearsHeld);
+            document.getElementById('ibondsCurrentValue').value = estimatedValue.toFixed(2);
+        }
+    }
+
+    // Set default values
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set purchase date to today if not set
+        if (!document.getElementById('ibondsPurchaseDate').value) {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('ibondsPurchaseDate').value = today;
+        }
+
+        // Set default inflation rate (this would typically come from an API)
+        if (!document.getElementById('ibondsInflationRate').value) {
+            document.getElementById('ibondsInflationRate').value = '3.24'; // Example current rate
+        }
+
+        calculateIBondsAnalysis();
+    });
+</script>
