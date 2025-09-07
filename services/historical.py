@@ -448,11 +448,9 @@ class HistoricalDataService:
 
         # Delete old snapshots
         if old_snapshot_ids:
-            placeholders = ','.join('?' * len(old_snapshot_ids))
-            cursor.execute(f'''
-                DELETE FROM historical_snapshots
-                WHERE id IN ({placeholders})
-            ''', old_snapshot_ids)
+            # Use individual DELETE statements for security
+            for snapshot_id in old_snapshot_ids:
+                cursor.execute('DELETE FROM historical_snapshots WHERE id = ?', (snapshot_id,))
 
             self.db_service.connection.commit()
 

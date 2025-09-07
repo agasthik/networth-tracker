@@ -1,8 +1,8 @@
 #!/bin/bash
-"""
-Unix/Linux/macOS startup script for Networth Tracker.
-Provides convenient commands for starting the application.
-"""
+#
+# Unix/Linux/macOS startup script for Networth Tracker.
+# Provides convenient commands for starting the application.
+#
 
 set -e  # Exit on any error
 
@@ -80,7 +80,10 @@ check_prerequisites() {
 
     # Check Python version (3.8+)
     python_version=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-    if [[ $(echo "$python_version < 3.8" | bc -l) -eq 1 ]]; then
+    major_version=$(echo "$python_version" | cut -d. -f1)
+    minor_version=$(echo "$python_version" | cut -d. -f2)
+
+    if [[ $major_version -lt 3 ]] || [[ $major_version -eq 3 && $minor_version -lt 8 ]]; then
         print_error "Python 3.8 or higher is required (found: $python_version)"
         exit 1
     fi
@@ -93,9 +96,9 @@ check_prerequisites() {
     fi
 
     # Check if requirements are installed
-    if [[ ! -f "$PROJECT_DIR/venv/lib/python*/site-packages/flask/__init__.py" ]]; then
+    source "$PROJECT_DIR/venv/bin/activate"
+    if ! python3 -c "import flask" &>/dev/null; then
         print_info "Installing requirements..."
-        source "$PROJECT_DIR/venv/bin/activate"
         pip install -r "$PROJECT_DIR/requirements.txt"
     fi
 

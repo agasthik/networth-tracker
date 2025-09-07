@@ -2386,12 +2386,19 @@ def export_data():
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f'networth_backup_{timestamp}.nwb'
 
-        # Return encrypted backup as downloadable file
-        from flask import make_response
-        response = make_response(encrypted_backup)
-        response.headers['Content-Type'] = 'application/octet-stream'
-        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
-        response.headers['Content-Length'] = len(encrypted_backup)
+        # Return encrypted backup as downloadable file using secure method
+        from flask import Response
+        from werkzeug.http import dump_header
+
+        # Use Werkzeug's secure header generation to prevent injection
+        response = Response(
+            encrypted_backup,
+            mimetype='application/octet-stream',
+            headers={
+                'Content-Disposition': dump_header('attachment', filename=filename),
+                'Content-Length': len(encrypted_backup)
+            }
+        )
 
         return response
 

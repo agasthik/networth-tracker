@@ -456,18 +456,13 @@ class DatabaseService:
                 return 0
 
             # Delete related data first (due to foreign key constraints)
-            # Delete historical snapshots for demo accounts
-            placeholders = ','.join(['?' for _ in demo_account_ids])
-            cursor.execute(f'''
-                DELETE FROM historical_snapshots
-                WHERE account_id IN ({placeholders})
-            ''', demo_account_ids)
+            # Delete historical snapshots for demo accounts - use individual deletes for security
+            for account_id in demo_account_ids:
+                cursor.execute('DELETE FROM historical_snapshots WHERE account_id = ?', (account_id,))
 
-            # Delete stock positions for demo trading accounts
-            cursor.execute(f'''
-                DELETE FROM stock_positions
-                WHERE trading_account_id IN ({placeholders})
-            ''', demo_account_ids)
+            # Delete stock positions for demo trading accounts - use individual deletes for security
+            for account_id in demo_account_ids:
+                cursor.execute('DELETE FROM stock_positions WHERE trading_account_id = ?', (account_id,))
 
             # Finally, delete the demo accounts themselves
             cursor.execute('DELETE FROM accounts WHERE is_demo = 1')
@@ -790,28 +785,27 @@ class DatabaseService:
         """
         cursor = self.connect().cursor()
 
-        # Build dynamic update query
-        set_clauses = []
-        params = []
+        # Use explicit field updates for maximum security - no dynamic SQL
+        updated = False
 
-        for field, value in updates.items():
-            if field in ['shares', 'purchase_price', 'purchase_date', 'current_price']:
-                set_clauses.append(f"{field} = ?")
-                params.append(value)
+        if 'shares' in updates:
+            cursor.execute('UPDATE stock_positions SET shares = ? WHERE id = ?', (updates['shares'], position_id))
+            updated = True
 
-        if not set_clauses:
+        if 'purchase_price' in updates:
+            cursor.execute('UPDATE stock_positions SET purchase_price = ? WHERE id = ?', (updates['purchase_price'], position_id))
+            updated = True
+
+        if 'purchase_date' in updates:
+            cursor.execute('UPDATE stock_positions SET purchase_date = ? WHERE id = ?', (updates['purchase_date'], position_id))
+            updated = True
+
+        if 'current_price' in updates:
+            cursor.execute('UPDATE stock_positions SET current_price = ? WHERE id = ?', (updates['current_price'], position_id))
+            updated = True
+
+        if not updated:
             return False
-
-        # Add position_id to params
-        params.append(position_id)
-
-        query = f'''
-            UPDATE stock_positions
-            SET {", ".join(set_clauses)}
-            WHERE id = ?
-        '''
-
-        cursor.execute(query, params)
 
         if cursor.rowcount > 0:
             self.connection.commit()

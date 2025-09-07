@@ -16,8 +16,8 @@ scripts\start.bat   # Windows
 # Or manually
 python3 -m venv venv
 source venv/bin/activate  # macOS/Linux: venv\Scripts\activate on Windows
-pip install -r requirements.txt
-python scripts/start.py
+./venv/bin/pip install -r requirements.txt
+./venv/bin/python scripts/start.py
 ```
 
 Open your browser to `http://127.0.0.1:5000`
@@ -131,18 +131,6 @@ networth-tracker/
 | **I-bonds** | Purchase amount, inflation adjustments, maturity |
 
 ## 🚦 Getting Help
-
-### Quick Diagnostics
-```bash
-# Check application status
-./scripts/start.sh --status
-
-# Validate configuration
-python scripts/start.py --validate-only
-
-# Verify database
-python scripts/init_db.py --verify
-```
 
 ### Support Resources
 1. **[FAQ](docs/faq.md)** - Common questions and answers

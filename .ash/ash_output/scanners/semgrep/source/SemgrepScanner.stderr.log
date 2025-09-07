@@ -1,0 +1,37 @@
+/Users/akothurk/.local/share/uv/tools/semgrep/lib/python3.13/site-packages/opentelemetry/instrumentation/dependencies.py:4: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import (
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 80 files tracked by git with 1063 Code rules:
+                                                                                                                        
+  Language      Rules   Files          Origin      Rules                                                                
+ ─────────────────────────────        ───────────────────                                                               
+  <multilang>      62      80          Community    1062                                                                
+  python          243      19          Custom          1                                                                
+  html              1      11                                                                                           
+  json              4       9                                                                                           
+  js              156       1                                                                                           
+  yaml             31       1                                                                                           
+  bash              4       1                                                                                           
+                                                                                                                        
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+✅ Scan completed successfully.
+ • Findings: 20 (20 blocking)
+ • Rules run: 497
+ • Targets scanned: 80
+ • Parsed lines: ~99.9%
+ • Scan skipped: 
+   ◦ Files larger than  files 1.0 MB: 1
+   ◦ Files matching .semgrepignore patterns: 17
+ • Scan was limited to files tracked by git
+ • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+Ran 497 rules on 80 files: 20 findings.
+
+A new version of Semgrep is available. See https://semgrep.dev/docs/upgrading

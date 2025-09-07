@@ -94,13 +94,29 @@ function loadAccountForm(accountType, container, accountId = null) {
         })
         .catch(error => {
             console.error('Error loading form:', error);
-            container.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Error loading account form. Please try again.
-                    <br><small class="text-muted">Error: ${error.message}</small>
-                </div>
-            `;
+
+            // Create error alert safely
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger';
+
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-exclamation-triangle me-2';
+
+            const mainText = document.createTextNode('Error loading account form. Please try again.');
+            const lineBreak = document.createElement('br');
+
+            const smallText = document.createElement('small');
+            smallText.className = 'text-muted';
+            smallText.textContent = `Error: ${error.message}`;
+
+            errorDiv.appendChild(icon);
+            errorDiv.appendChild(mainText);
+            errorDiv.appendChild(lineBreak);
+            errorDiv.appendChild(smallText);
+
+            // Clear container and add error message
+            container.innerHTML = '';
+            container.appendChild(errorDiv);
         });
 }
 
@@ -279,10 +295,18 @@ function submitAccountForm(event, accountType) {
 function showNotification(message, type = 'info') {
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
+
+    // Safely set text content to prevent XSS
+    alertDiv.textContent = message;
+
+    // Create and append close button safely
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'btn-close';
+    closeButton.setAttribute('data-bs-dismiss', 'alert');
+    closeButton.setAttribute('aria-label', 'Close');
+
+    alertDiv.appendChild(closeButton);
 
     // Insert at the top of the container
     const container = document.querySelector('.container');
@@ -416,7 +440,9 @@ function updateDashboardSummary() {
             'I_BONDS': 'I-Bonds Treasury'
         };
 
-        let summaryHTML = '';
+        // Clear existing content
+        summaryTableBody.innerHTML = '';
+
         Object.keys(accountTotals).forEach(type => {
             const allAccounts = AppState.accounts.filter(acc => acc.account_type === type);
             const filteredAccounts = getFilteredAccounts(AppState.accounts, type);
@@ -426,28 +452,50 @@ function updateDashboardSummary() {
             const percentage = total > 0 ? (value / total * 100) : 0;
 
             if (count > 0) {
-                let accountInfo = `${accountTypeNames[type]}`;
+                // Create table row safely
+                const row = document.createElement('tr');
+
+                // Account info cell
+                const accountInfoCell = document.createElement('td');
+                accountInfoCell.textContent = accountTypeNames[type] || 'Unknown';
                 if (demoCount > 0 && !demoFilterActive) {
-                    accountInfo += ` <small class="text-muted">(${demoCount} demo)</small>`;
+                    const demoText = document.createElement('small');
+                    demoText.className = 'text-muted';
+                    demoText.textContent = ` (${demoCount} demo)`;
+                    accountInfoCell.appendChild(demoText);
                 }
 
-                summaryHTML += `
-                    <tr>
-                        <td>${accountInfo}</td>
-                        <td>${count}</td>
-                        <td>${formatCurrency(value)}</td>
-                        <td>${percentage.toFixed(1)}%</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary" onclick="showAccountTab('${type}')">
-                                View Details
-                            </button>
-                        </td>
-                    </tr>
-                `;
+                // Count cell
+                const countCell = document.createElement('td');
+                countCell.textContent = count;
+
+                // Value cell
+                const valueCell = document.createElement('td');
+                valueCell.textContent = formatCurrency(value);
+
+                // Percentage cell
+                const percentageCell = document.createElement('td');
+                percentageCell.textContent = `${percentage.toFixed(1)}%`;
+
+                // Action cell
+                const actionCell = document.createElement('td');
+                const button = document.createElement('button');
+                button.className = 'btn btn-sm btn-outline-primary';
+                button.textContent = 'View Details';
+                button.onclick = () => showAccountTab(type);
+                actionCell.appendChild(button);
+
+                // Append all cells to row
+                row.appendChild(accountInfoCell);
+                row.appendChild(countCell);
+                row.appendChild(valueCell);
+                row.appendChild(percentageCell);
+                row.appendChild(actionCell);
+
+                // Append row to table body
+                summaryTableBody.appendChild(row);
             }
         });
-
-        summaryTableBody.innerHTML = summaryHTML;
     }
 
     // Update quick stats
@@ -948,10 +996,16 @@ function updatePortfolioSummary(data) {
         const changePercent = data.performance.monthly_change_percent;
         const isPositive = change >= 0;
 
-        networthChange.innerHTML = `
-            <i class="fas fa-arrow-${isPositive ? 'up' : 'down'} text-${isPositive ? 'success' : 'danger'}"></i>
-            ${isPositive ? '+' : ''}${formatCurrency(change)} (${changePercent.toFixed(2)}%)
-        `;
+        // Clear and rebuild safely
+        networthChange.innerHTML = '';
+
+        const icon = document.createElement('i');
+        icon.className = `fas fa-arrow-${isPositive ? 'up' : 'down'} text-${isPositive ? 'success' : 'danger'}`;
+
+        const changeText = document.createTextNode(` ${isPositive ? '+' : ''}${formatCurrency(change)} (${changePercent.toFixed(2)}%)`);
+
+        networthChange.appendChild(icon);
+        networthChange.appendChild(changeText);
         networthChange.className = `me-3 text-${isPositive ? 'success' : 'danger'}`;
     }
 
@@ -978,28 +1032,54 @@ function updatePortfolioSummary(data) {
                     monthlyChange += account.monthly_change || 0;
                 });
 
-                summaryHTML += `
-                    <tr>
-                        <td>
-                            <strong>${accountTypeNames[type]}</strong>
-                            <br><small class="text-muted">${typeData.count} account${typeData.count > 1 ? 's' : ''}</small>
-                        </td>
-                        <td>${formatCurrency(typeData.value)}</td>
-                        <td>${percentage.toFixed(1)}%</td>
-                        <td class="${monthlyChange >= 0 ? 'text-success' : 'text-danger'}">
-                            ${monthlyChange >= 0 ? '+' : ''}${formatCurrency(monthlyChange)}
-                        </td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary" onclick="showAccountTab('${type}')">
-                                View Details
-                            </button>
-                        </td>
-                    </tr>
-                `;
+                // Create table row safely
+                const row = document.createElement('tr');
+
+                // Account type cell
+                const typeCell = document.createElement('td');
+                const strongEl = document.createElement('strong');
+                strongEl.textContent = accountTypeNames[type] || 'Unknown';
+                const brEl = document.createElement('br');
+                const smallEl = document.createElement('small');
+                smallEl.className = 'text-muted';
+                smallEl.textContent = `${typeData.count} account${typeData.count > 1 ? 's' : ''}`;
+                typeCell.appendChild(strongEl);
+                typeCell.appendChild(brEl);
+                typeCell.appendChild(smallEl);
+
+                // Value cell
+                const valueCell = document.createElement('td');
+                valueCell.textContent = formatCurrency(typeData.value);
+
+                // Percentage cell
+                const percentageCell = document.createElement('td');
+                percentageCell.textContent = `${percentage.toFixed(1)}%`;
+
+                // Change cell
+                const changeCell = document.createElement('td');
+                changeCell.className = monthlyChange >= 0 ? 'text-success' : 'text-danger';
+                changeCell.textContent = `${monthlyChange >= 0 ? '+' : ''}${formatCurrency(monthlyChange)}`;
+
+                // Action cell
+                const actionCell = document.createElement('td');
+                const button = document.createElement('button');
+                button.className = 'btn btn-sm btn-outline-primary';
+                button.textContent = 'View Details';
+                button.onclick = () => showAccountTab(type);
+                actionCell.appendChild(button);
+
+                // Append all cells
+                row.appendChild(typeCell);
+                row.appendChild(valueCell);
+                row.appendChild(percentageCell);
+                row.appendChild(changeCell);
+                row.appendChild(actionCell);
+
+                summaryTableBody.appendChild(row);
             }
         });
 
-        summaryTableBody.innerHTML = summaryHTML;
+        // summaryTableBody is populated above with DOM elements
     }
 
     // Update quick stats
@@ -1146,36 +1226,73 @@ function updatePortfolioSummaryList(data, colorMap, typeNames) {
             const percentage = totalValue > 0 ? ((typeData.value / totalValue) * 100).toFixed(1) : 0;
             const color = colorMap[type];
 
-            summaryHTML += `
-                <div class="d-flex align-items-center mb-3">
-                    <div class="me-3">
-                        <div style="width: 16px; height: 16px; background-color: ${color}; border-radius: 50%;"></div>
-                    </div>
-                    <div class="flex-grow-1">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span class="fw-medium">${typeNames[type]}</span>
-                            <span class="text-muted small">${percentage}%</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">${typeData.count} account${typeData.count > 1 ? 's' : ''}</small>
-                            <span class="fw-bold">${formatCurrency(typeData.value)}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
+            // Create portfolio item safely
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'd-flex align-items-center mb-3';
+
+            // Color indicator
+            const colorDiv = document.createElement('div');
+            colorDiv.className = 'me-3';
+            const colorIndicator = document.createElement('div');
+            colorIndicator.style.cssText = `width: 16px; height: 16px; background-color: ${color}; border-radius: 50%;`;
+            colorDiv.appendChild(colorIndicator);
+
+            // Content area
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'flex-grow-1';
+
+            // Top row
+            const topRow = document.createElement('div');
+            topRow.className = 'd-flex justify-content-between align-items-center';
+            const typeSpan = document.createElement('span');
+            typeSpan.className = 'fw-medium';
+            typeSpan.textContent = typeNames[type] || 'Unknown';
+            const percentSpan = document.createElement('span');
+            percentSpan.className = 'text-muted small';
+            percentSpan.textContent = `${percentage}%`;
+            topRow.appendChild(typeSpan);
+            topRow.appendChild(percentSpan);
+
+            // Bottom row
+            const bottomRow = document.createElement('div');
+            bottomRow.className = 'd-flex justify-content-between align-items-center';
+            const countSmall = document.createElement('small');
+            countSmall.className = 'text-muted';
+            countSmall.textContent = `${typeData.count} account${typeData.count > 1 ? 's' : ''}`;
+            const valueSpan = document.createElement('span');
+            valueSpan.className = 'fw-bold';
+            valueSpan.textContent = formatCurrency(typeData.value);
+            bottomRow.appendChild(countSmall);
+            bottomRow.appendChild(valueSpan);
+
+            // Assemble content
+            contentDiv.appendChild(topRow);
+            contentDiv.appendChild(bottomRow);
+
+            // Assemble item
+            itemDiv.appendChild(colorDiv);
+            itemDiv.appendChild(contentDiv);
+
+            container.appendChild(itemDiv);
         }
     });
 
-    if (summaryHTML === '') {
-        summaryHTML = `
-            <div class="text-center text-muted py-3">
-                <i class="fas fa-info-circle mb-2"></i>
-                <p class="mb-0">No accounts to display</p>
-            </div>
-        `;
-    }
+    // Check if no items were added
+    if (container.children.length === 0) {
+        const noDataDiv = document.createElement('div');
+        noDataDiv.className = 'text-center text-muted py-3';
 
-    container.innerHTML = summaryHTML;
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-info-circle mb-2';
+
+        const text = document.createElement('p');
+        text.className = 'mb-0';
+        text.textContent = 'No accounts to display';
+
+        noDataDiv.appendChild(icon);
+        noDataDiv.appendChild(text);
+        container.appendChild(noDataDiv);
+    }
 }
 
 function updateRecentActivity() {
@@ -1216,7 +1333,9 @@ function updateRecentActivity() {
         return;
     }
 
-    let html = '';
+    // Clear container
+    container.innerHTML = '';
+
     activities.forEach(activity => {
         const isPositive = activity.change >= 0;
         const typeIcons = {
@@ -1227,28 +1346,64 @@ function updateRecentActivity() {
             'I_BONDS': 'fas fa-university'
         };
 
-        html += `
-            <div class="list-group-item list-group-item-action border-0 px-0">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center">
-                        <i class="${typeIcons[activity.type]} text-muted me-2"></i>
-                        <div>
-                            <small class="fw-bold">${activity.account_name}</small>
-                            <br><small class="text-muted">${activity.institution}</small>
-                        </div>
-                    </div>
-                    <div class="text-end">
-                        <small class="${isPositive ? 'text-success' : 'text-danger'}">
-                            ${isPositive ? '+' : ''}${formatCurrency(activity.change)}
-                        </small>
-                        <br><small class="text-muted">${activity.change_percent.toFixed(1)}%</small>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
+        // Create activity item safely
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'list-group-item list-group-item-action border-0 px-0';
 
-    container.innerHTML = html;
+        const mainDiv = document.createElement('div');
+        mainDiv.className = 'd-flex justify-content-between align-items-center';
+
+        // Left side
+        const leftDiv = document.createElement('div');
+        leftDiv.className = 'd-flex align-items-center';
+
+        const icon = document.createElement('i');
+        icon.className = `${typeIcons[activity.type] || 'fas fa-question'} text-muted me-2`;
+
+        const textDiv = document.createElement('div');
+
+        const accountName = document.createElement('small');
+        accountName.className = 'fw-bold';
+        accountName.textContent = activity.account_name || 'Unknown Account';
+
+        const lineBreak = document.createElement('br');
+
+        const institution = document.createElement('small');
+        institution.className = 'text-muted';
+        institution.textContent = activity.institution || 'Unknown Institution';
+
+        textDiv.appendChild(accountName);
+        textDiv.appendChild(lineBreak);
+        textDiv.appendChild(institution);
+
+        leftDiv.appendChild(icon);
+        leftDiv.appendChild(textDiv);
+
+        // Right side
+        const rightDiv = document.createElement('div');
+        rightDiv.className = 'text-end';
+
+        const changeAmount = document.createElement('small');
+        changeAmount.className = isPositive ? 'text-success' : 'text-danger';
+        changeAmount.textContent = `${isPositive ? '+' : ''}${formatCurrency(activity.change)}`;
+
+        const lineBreak2 = document.createElement('br');
+
+        const changePercent = document.createElement('small');
+        changePercent.className = 'text-muted';
+        changePercent.textContent = `${activity.change_percent.toFixed(1)}%`;
+
+        rightDiv.appendChild(changeAmount);
+        rightDiv.appendChild(lineBreak2);
+        rightDiv.appendChild(changePercent);
+
+        // Assemble
+        mainDiv.appendChild(leftDiv);
+        mainDiv.appendChild(rightDiv);
+        itemDiv.appendChild(mainDiv);
+
+        container.appendChild(itemDiv);
+    });
 }
 
 function initializeCharts() {
@@ -1461,48 +1616,97 @@ function updateCDAccountsList() {
         return;
     }
 
-    let html = '';
+    // Clear container
+    container.innerHTML = '';
+
     cdAccounts.forEach(account => {
         const maturityDate = new Date(account.maturity_date);
         const daysToMaturity = Math.ceil((maturityDate - new Date()) / (1000 * 60 * 60 * 24));
 
-        html += `
-            <div class="card mb-3 ${getDemoCardClass(account)}">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h6 class="card-title mb-1">
-                                ${getDemoIndicatorHTML(account)}
-                                ${account.name}
-                            </h6>
-                            <p class="text-muted mb-1">${account.institution}</p>
-                            <small class="text-muted">
-                                Principal: ${formatCurrency(account.principal_amount)} |
-                                Rate: ${account.interest_rate}% |
-                                Matures in ${daysToMaturity} days
-                            </small>
-                        </div>
-                        <div class="col-md-2 text-end">
-                            <h5 class="mb-0">${formatCurrency(account.current_value)}</h5>
-                        </div>
-                        <div class="col-md-2 text-end">
-                            <button class="btn btn-sm btn-outline-info me-1" onclick="showAccountDetails('${account.id}')" title="View Details">
-                                <i class="fas fa-chart-line"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="showAccountForm('CD', '${account.id}')" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAccount('${account.id}')" title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
+        // Create card element safely
+        const cardDiv = document.createElement('div');
+        cardDiv.className = `card mb-3 ${getDemoCardClass(account)}`;
 
-    container.innerHTML = html;
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body';
+
+        const row = document.createElement('div');
+        row.className = 'row align-items-center';
+
+        // Left column
+        const leftCol = document.createElement('div');
+        leftCol.className = 'col-md-8';
+
+        const title = document.createElement('h6');
+        title.className = 'card-title mb-1';
+        // Create demo indicator safely - assuming getDemoIndicatorHTML returns safe HTML
+        // If it contains user data, this should be refactored to use DOM methods
+        const demoIndicator = document.createElement('span');
+        demoIndicator.innerHTML = getDemoIndicatorHTML(account);
+        title.appendChild(demoIndicator);
+        title.appendChild(document.createTextNode(account.name || 'Unnamed Account'));
+
+        const institution = document.createElement('p');
+        institution.className = 'text-muted mb-1';
+        institution.textContent = account.institution || 'Unknown Institution';
+
+        const details = document.createElement('small');
+        details.className = 'text-muted';
+        details.textContent = `Principal: ${formatCurrency(account.principal_amount)} | Rate: ${account.interest_rate}% | Matures in ${daysToMaturity} days`;
+
+        leftCol.appendChild(title);
+        leftCol.appendChild(institution);
+        leftCol.appendChild(details);
+
+        // Value column
+        const valueCol = document.createElement('div');
+        valueCol.className = 'col-md-2 text-end';
+        const valueH5 = document.createElement('h5');
+        valueH5.className = 'mb-0';
+        valueH5.textContent = formatCurrency(account.current_value);
+        valueCol.appendChild(valueH5);
+
+        // Actions column
+        const actionsCol = document.createElement('div');
+        actionsCol.className = 'col-md-2 text-end';
+
+        // Details button
+        const detailsBtn = document.createElement('button');
+        detailsBtn.className = 'btn btn-sm btn-outline-info me-1';
+        detailsBtn.title = 'View Details';
+        detailsBtn.onclick = () => showAccountDetails(account.id);
+        detailsBtn.innerHTML = '<i class="fas fa-chart-line"></i>';
+
+        // Edit button
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-sm btn-outline-primary me-1';
+        editBtn.title = 'Edit';
+        editBtn.onclick = () => showAccountForm('CD', account.id);
+        editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+
+        // Delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-sm btn-outline-danger';
+        deleteBtn.title = 'Delete';
+        deleteBtn.onclick = () => deleteAccount(account.id);
+        deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+
+        actionsCol.appendChild(detailsBtn);
+        actionsCol.appendChild(editBtn);
+        actionsCol.appendChild(deleteBtn);
+
+        // Assemble row
+        row.appendChild(leftCol);
+        row.appendChild(valueCol);
+        row.appendChild(actionsCol);
+
+        // Assemble card
+        cardBody.appendChild(row);
+        cardDiv.appendChild(cardBody);
+
+        // Add to container
+        container.appendChild(cardDiv);
+    });
 }
 
 function updateSavingsAccountsList() {
@@ -1526,41 +1730,92 @@ function updateSavingsAccountsList() {
         return;
     }
 
-    let html = '';
-    savingsAccounts.forEach(account => {
-        html += `
-            <div class="card mb-3 ${getDemoCardClass(account)}">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h6 class="card-title mb-1">
-                                ${getDemoIndicatorHTML(account)}
-                                ${account.name}
-                            </h6>
-                            <p class="text-muted mb-1">${account.institution}</p>
-                            <small class="text-muted">Interest Rate: ${account.interest_rate}%</small>
-                        </div>
-                        <div class="col-md-2 text-end">
-                            <h5 class="mb-0">${formatCurrency(account.current_balance)}</h5>
-                        </div>
-                        <div class="col-md-2 text-end">
-                            <button class="btn btn-sm btn-outline-info me-1" onclick="showAccountDetails('${account.id}')" title="View Details">
-                                <i class="fas fa-chart-line"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="showAccountForm('SAVINGS', '${account.id}')" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAccount('${account.id}')" title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
+    // Clear container
+    container.innerHTML = '';
 
-    container.innerHTML = html;
+    savingsAccounts.forEach(account => {
+        // Create card element safely
+        const cardDiv = document.createElement('div');
+        cardDiv.className = `card mb-3 ${getDemoCardClass(account)}`;
+
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body';
+
+        const row = document.createElement('div');
+        row.className = 'row align-items-center';
+
+        // Left column
+        const leftCol = document.createElement('div');
+        leftCol.className = 'col-md-8';
+
+        const title = document.createElement('h6');
+        title.className = 'card-title mb-1';
+        const demoIndicator = document.createElement('span');
+        demoIndicator.innerHTML = getDemoIndicatorHTML(account);
+        title.appendChild(demoIndicator);
+        title.appendChild(document.createTextNode(account.name || 'Unnamed Account'));
+
+        const institution = document.createElement('p');
+        institution.className = 'text-muted mb-1';
+        institution.textContent = account.institution || 'Unknown Institution';
+
+        const details = document.createElement('small');
+        details.className = 'text-muted';
+        details.textContent = `Interest Rate: ${account.interest_rate}%`;
+
+        leftCol.appendChild(title);
+        leftCol.appendChild(institution);
+        leftCol.appendChild(details);
+
+        // Value column
+        const valueCol = document.createElement('div');
+        valueCol.className = 'col-md-2 text-end';
+        const valueH5 = document.createElement('h5');
+        valueH5.className = 'mb-0';
+        valueH5.textContent = formatCurrency(account.current_balance);
+        valueCol.appendChild(valueH5);
+
+        // Actions column
+        const actionsCol = document.createElement('div');
+        actionsCol.className = 'col-md-2 text-end';
+
+        // Details button
+        const detailsBtn = document.createElement('button');
+        detailsBtn.className = 'btn btn-sm btn-outline-info me-1';
+        detailsBtn.title = 'View Details';
+        detailsBtn.onclick = () => showAccountDetails(account.id);
+        detailsBtn.innerHTML = '<i class="fas fa-chart-line"></i>';
+
+        // Edit button
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-sm btn-outline-primary me-1';
+        editBtn.title = 'Edit';
+        editBtn.onclick = () => showAccountForm('SAVINGS', account.id);
+        editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+
+        // Delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-sm btn-outline-danger';
+        deleteBtn.title = 'Delete';
+        deleteBtn.onclick = () => deleteAccount(account.id);
+        deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+
+        actionsCol.appendChild(detailsBtn);
+        actionsCol.appendChild(editBtn);
+        actionsCol.appendChild(deleteBtn);
+
+        // Assemble row
+        row.appendChild(leftCol);
+        row.appendChild(valueCol);
+        row.appendChild(actionsCol);
+
+        // Assemble card
+        cardBody.appendChild(row);
+        cardDiv.appendChild(cardBody);
+
+        // Add to container
+        container.appendChild(cardDiv);
+    });
 }
 
 function update401kAccountsList() {
@@ -1815,13 +2070,26 @@ function showNotification(message, type = 'info', duration = 5000) {
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
     alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    alertDiv.innerHTML = `
-        <div class="d-flex align-items-center">
-            <i class="fas fa-${getNotificationIcon(type)} me-2"></i>
-            <span>${message}</span>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
+    // Create content safely
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'd-flex align-items-center';
+
+    const icon = document.createElement('i');
+    icon.className = `fas fa-${getNotificationIcon(type)} me-2`;
+
+    const messageSpan = document.createElement('span');
+    messageSpan.textContent = message;
+
+    contentDiv.appendChild(icon);
+    contentDiv.appendChild(messageSpan);
+
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'btn-close';
+    closeButton.setAttribute('data-bs-dismiss', 'alert');
+
+    alertDiv.appendChild(contentDiv);
+    alertDiv.appendChild(closeButton);
 
     document.body.appendChild(alertDiv);
 

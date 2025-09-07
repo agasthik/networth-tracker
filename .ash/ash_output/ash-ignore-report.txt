@@ -1,0 +1,57 @@
+######### START CONTENTS: ${SOURCE_DIR}/.gitignore #########
+# Python
+__pycache__/
+*/__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+
+# Virtual environments
+venv/
+env/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Application data
+#*.db
+*.sqlite
+*.sqlite3
+*.pid
+
+# Application directories
+data/
+backups/
+logs/
+temp/
+
+# Project specific
+scratchpad-do-not-delete.txt
+######### END CONTENTS: ${SOURCE_DIR}/.gitignore #########
+
+######### START CONTENTS: ${SOURCE_DIR}/venv/.gitignore #########
+# Created by venv; see https://docs.python.org/3/library/venv.html
+*
+######### END CONTENTS: ${SOURCE_DIR}/venv/.gitignore #########
+
+######### START CONTENTS: ASH_INCLUSIONS #########
+.git
+**/cdk.out/asset.*
+!**/*.template.json
+######### END CONTENTS: ASH_INCLUSIONS #########

@@ -45,7 +45,10 @@ class BaseConfig:
 
     # File permissions (Unix/Linux/macOS)
     DATABASE_FILE_MODE = 0o600  # Owner read/write only
-    LOG_FILE_MODE = 0o644  # Owner read/write, group/others read
+    LOG_FILE_MODE = 0o600  # Owner read/write only - secure for financial data
+    BACKUP_FILE_MODE = 0o600  # Owner read/write only
+    TEMP_FILE_MODE = 0o600  # Owner read/write only
+    SECURE_DIR_MODE = 0o700  # Owner access only
 
     # Backup settings
     BACKUP_DIR = os.environ.get('BACKUP_DIR', 'backups')
@@ -87,15 +90,32 @@ class BaseConfig:
             if os.path.exists(cls.DATABASE_PATH):
                 os.chmod(cls.DATABASE_PATH, cls.DATABASE_FILE_MODE)
 
-            # Set permissions for log directory
-            if os.path.exists(cls.LOG_DIR):
-                os.chmod(cls.LOG_DIR, 0o755)  # Directory permissions
+            # Set permissions for sensitive directories
+            sensitive_directories = [
+                cls.LOG_DIR,
+                cls.BACKUP_DIR,
+                'data',  # Database files directory
+                'temp'   # Temporary files directory
+            ]
 
-                # Set permissions for log files
+            for directory in sensitive_directories:
+                if os.path.exists(directory):
+                    os.chmod(directory, cls.SECURE_DIR_MODE)  # Owner access only
+
+            # Set permissions for log files
+            if os.path.exists(cls.LOG_DIR):
                 for log_file in [cls.LOG_FILE, cls.ERROR_LOG_FILE]:
                     log_path = os.path.join(cls.LOG_DIR, log_file)
                     if os.path.exists(log_path):
                         os.chmod(log_path, cls.LOG_FILE_MODE)
+
+            # Set permissions for backup files
+            if os.path.exists(cls.BACKUP_DIR):
+                import glob
+                backup_files = glob.glob(os.path.join(cls.BACKUP_DIR, '*'))
+                for backup_file in backup_files:
+                    if os.path.isfile(backup_file):
+                        os.chmod(backup_file, cls.BACKUP_FILE_MODE)  # Owner read/write only
 
         except PermissionError as e:
             print(f"Warning: Could not set file permissions: {e}")
@@ -109,11 +129,50 @@ class BaseConfig:
         try:
             # Ensure database files have strict permissions
             if os.path.exists(cls.DATABASE_PATH):
-                os.chmod(cls.DATABASE_PATH, 0o600)  # Owner read/write only
+                os.chmod(cls.DATABASE_PATH, cls.DATABASE_FILE_MODE)  # Owner read/write only
 
-            # Ensure backup directory has appropriate permissions
+            # Ensure all sensitive directories have strict permissions
+            sensitive_directories = [
+                cls.LOG_DIR,
+                cls.BACKUP_DIR,
+                'data',  # Database files directory
+                'temp'   # Temporary files directory
+            ]
+
+            for directory in sensitive_directories:
+                if os.path.exists(directory):
+                    os.chmod(directory, cls.SECURE_DIR_MODE)  # Owner access only
+
+            # Ensure all files in sensitive directories have strict permissions
+            import glob
+
+            # Secure log files
+            if os.path.exists(cls.LOG_DIR):
+                log_files = glob.glob(os.path.join(cls.LOG_DIR, '*'))
+                for log_file in log_files:
+                    if os.path.isfile(log_file):
+                        os.chmod(log_file, cls.LOG_FILE_MODE)
+
+            # Secure backup files
             if os.path.exists(cls.BACKUP_DIR):
-                os.chmod(cls.BACKUP_DIR, 0o700)  # Owner access only
+                backup_files = glob.glob(os.path.join(cls.BACKUP_DIR, '*'))
+                for backup_file in backup_files:
+                    if os.path.isfile(backup_file):
+                        os.chmod(backup_file, cls.BACKUP_FILE_MODE)
+
+            # Secure data directory files (database files)
+            if os.path.exists('data'):
+                data_files = glob.glob(os.path.join('data', '*'))
+                for data_file in data_files:
+                    if os.path.isfile(data_file):
+                        os.chmod(data_file, cls.DATABASE_FILE_MODE)
+
+            # Secure temp directory files
+            if os.path.exists('temp'):
+                temp_files = glob.glob(os.path.join('temp', '*'))
+                for temp_file in temp_files:
+                    if os.path.isfile(temp_file):
+                        os.chmod(temp_file, cls.TEMP_FILE_MODE)
 
         except PermissionError as e:
             print(f"Warning: Could not enforce strict permissions: {e}")

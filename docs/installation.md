@@ -50,7 +50,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Start the application
-python scripts/start.py
+./venv/bin/python scripts/start.py
 ```
 
 Open your browser and navigate to `http://127.0.0.1:5000`
@@ -308,7 +308,7 @@ pip install -r requirements.txt
 
 1. **Check Logs**: Look in the `logs/` directory for error messages
 2. **Validate Configuration**: Run `./scripts/start.sh --validate`
-3. **Database Issues**: Use `python scripts/init_db.py --verify`
+3. **Database Issues**: Use `./venv/bin/python scripts/init_db.py --verify`
 4. **File Permissions**: Ensure proper permissions are set
 
 ### Log Files

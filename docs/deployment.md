@@ -42,10 +42,10 @@ source venv/bin/activate  # Linux/macOS
 pip install -r requirements.txt
 
 # Initialize database
-python scripts/init_db.py --create --env development
+./venv/bin/python scripts/init_db.py --create --env development
 
 # Start development server
-python scripts/start.py --env development --debug
+./venv/bin/python scripts/start.py --env development --debug
 ```
 
 ### Development Configuration
@@ -79,7 +79,7 @@ export FLASK_ENV=development
 export FLASK_DEBUG=1
 
 # Start with auto-reload
-python scripts/start.py --env development --debug
+./venv/bin/python scripts/start.py --env development --debug
 ```
 
 ## Production Deployment
@@ -119,7 +119,7 @@ export FLASK_ENV=production
 export SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
 
 # Initialize production database
-python scripts/init_db.py --create --env production
+./venv/bin/python scripts/init_db.py --create --env production
 
 # Set secure file permissions
 chmod 700 /opt/networth-tracker

@@ -27,13 +27,17 @@ Run these commands to quickly diagnose common issues:
 scripts\start.bat --status   # Windows
 
 # Validate configuration
-python scripts/start.py --validate-only
+./venv/bin/python scripts/start.py --validate-only
+
+# Verify database
+./venv/bin/python scripts/init_db.py --verify
+
 # Or using startup scripts
 ./scripts/start.sh --validate  # macOS/Linux
 scripts\start.bat --validate   # Windows
 
 # Verify database integrity
-python scripts/init_db.py --verify
+./venv/bin/python scripts/init_db.py --verify
 
 # Check recent logs
 tail -20 logs/networth_tracker.log  # macOS/Linux
@@ -197,7 +201,7 @@ kill <PID>  # macOS/Linux
 taskkill /PID <PID> /F  # Windows
 
 # Use a different port
-python scripts/start.py --port 5001
+./venv/bin/python scripts/start.py --port 5001
 ./scripts/start.sh --port 5001  # macOS/Linux
 scripts\start.bat --port 5001   # Windows
 ```
@@ -213,10 +217,10 @@ scripts\start.bat --port 5001   # Windows
 
 ```bash
 # Check for Python errors
-python scripts/start.py --env development --debug
+./venv/bin/python scripts/start.py --env development --debug
 
 # Check configuration
-python scripts/start.py --validate-only
+./venv/bin/python scripts/start.py --validate-only
 
 # Check logs
 cat logs/networth_tracker_errors.log
@@ -274,7 +278,7 @@ mv networth.db networth.db.backup  # macOS/Linux
 move networth.db networth.db.backup  # Windows
 
 # Create new database
-python scripts/init_db.py --create --force
+./venv/bin/python scripts/init_db.py --create --force
 ```
 
 ### Session Timeout Issues
@@ -289,7 +293,7 @@ The session timeout is configured in the application code, not through environme
 
 ```bash
 # Check current configuration
-python scripts/start.py --validate-only
+./venv/bin/python scripts/start.py --validate-only
 
 # Session timeout is controlled by PERMANENT_SESSION_LIFETIME in config.py
 # Default is 2 hours for production, 8 hours for development
@@ -385,7 +389,7 @@ copy networth.db networth.db.corrupt  # Windows
 sqlite3 networth.db ".recover" | sqlite3 networth_recovered.db
 
 # Verify recovered database
-python scripts/init_db.py --verify
+./venv/bin/python scripts/init_db.py --verify
 
 # If recovery successful, replace original
 mv networth_recovered.db networth.db  # macOS/Linux
@@ -407,13 +411,13 @@ move networth_recovered.db networth.db  # Windows
 
 ```bash
 # Check current database version
-python scripts/init_db.py --verify
+./venv/bin/python scripts/init_db.py --verify
 
 # Backup before migration
-python scripts/init_db.py --backup
+./venv/bin/python scripts/init_db.py --backup
 
 # Run migration manually
-python scripts/init_db.py --migrate
+./venv/bin/python scripts/init_db.py --migrate
 
 # If migration fails, restore backup
 cp backups/latest_backup.db networth.db

@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/awslabs/automated-security-helper/refs/heads/main/automated_security_helper/schemas/AshConfig.json
+project_name: networth-tracker
+global_settings:
+  severity_threshold: MEDIUM
+  ignore_paths:
+    - path: 'archive/'
+      reason: 'Archive data only'
+    - path: 'venv'
+      reason: 'Virtual environment'
+  # Findings to suppress based on rule ID, file path, and line numbers
+  suppressions:
+    - rule_id: 'html.security.audit.missing-integrity.missing-integrity' # Scanner-specific rule ID
+      path: 'templates/*.html' # File path (supports glob patterns)
+      reason: 'Base HTML template.The integrity checks not applicable'
+    - rule_id: 'python.django.security.django-no-csrf-token.django-no-csrf-token' # Scanner-specific rule ID
+      path: 'templates/*.html' # File path (supports glob patterns)
+      reason: 'This will run locally on a user machine'
+    - rule_id: 'python.flask.security.audit.xss.make-response-with-unknown-content.make-response-with-unknown-content'
+      path: 'app.py'
+      reason: ''
+    - rule_id: 'B105'
+      path: 'cgat/core/infrastructure_assessments.py'
+      reason: 'False positive due to test mock'
+    - rule_id: 'B101'
+      path: 'tests/*.py'
+      reason: 'Skipping compilation for Test files'
+    - rule_id: 'B105'
+      path: 'tests/*.py'
+      reason: 'Dummy APIs and passwords for Test files'
+    - rule_id: 'B105'
+      path: 'scripts/create_demo_backup.py'
+      line_start: 217
+      line_end: 217
+      reason: 'This is a demo account script'
+    - rule_id: 'B311'
+      path: 'scripts/generate_demo_database.py'
+      reason: 'This is a demo database setup script'
+    - rule_id: 'python.lang.security.audit.hardcoded-password-default-argument.hardcoded-password-default-argument'
+      path: 'scripts/generate_demo_database.py'
+      reason: 'This is a demo database setup script'
+
+# Whether to fail with non-zero exit code if actionable findings are found
+fail_on_findings: true
