@@ -23,6 +23,7 @@ from models.accounts import (
     Account401k,
     TradingAccount,
     IBondsAccount,
+    HSAAccount,
     StockPosition,
     HistoricalSnapshot,
     AccountFactory
@@ -39,6 +40,7 @@ class TestAccountType:
         assert AccountType.ACCOUNT_401K.value == "401K"
         assert AccountType.TRADING.value == "TRADING"
         assert AccountType.I_BONDS.value == "I_BONDS"
+        assert AccountType.HSA.value == "HSA"
 
 
 class TestChangeType:
@@ -1058,6 +1060,308 @@ class TestIBondsAccount:
         assert ibonds_restored.purchase_amount == 10000.0
 
 
+class TestHSAAccount:
+    """Test HSAAccount model."""
+
+    def test_hsa_account_creation(self):
+        """Test HSAAccount creation with valid data."""
+        now = datetime.now()
+
+        hsa = HSAAccount(
+            id="hsa-1",
+            name="Test HSA",
+            institution="HSA Bank",
+            account_type=AccountType.HSA,
+            created_date=now,
+            last_updated=now,
+            current_balance=5000.0,
+            annual_contribution_limit=3650.0,
+            current_year_contributions=2000.0,
+            employer_contributions=500.0,
+            investment_balance=3000.0,
+            cash_balance=2000.0
+        )
+
+        assert hsa.current_balance == 5000.0
+        assert hsa.annual_contribution_limit == 3650.0
+        assert hsa.current_year_contributions == 2000.0
+        assert hsa.employer_contributions == 500.0
+        assert hsa.investment_balance == 3000.0
+        assert hsa.cash_balance == 2000.0
+        assert hsa.get_current_value() == 5000.0
+
+    def test_hsa_account_contribution_calculations(self):
+        """Test HSAAccount contribution calculation methods."""
+        now = datetime.now()
+
+        hsa = HSAAccount(
+            id="hsa-1",
+            name="Test HSA",
+            institution="HSA Bank",
+            account_type=AccountType.HSA,
+            created_date=now,
+            last_updated=now,
+            current_balance=5000.0,
+            annual_contribution_limit=3650.0,
+            current_year_contributions=2000.0,
+            employer_contributions=500.0,
+            investment_balance=3000.0,
+            cash_balance=2000.0
+        )
+
+        # Test remaining contribution capacity
+        assert hsa.get_remaining_contribution_capacity() == 1650.0  # 3650 - 2000
+
+        # Test contribution progress percentage
+        assert hsa.get_contribution_progress_percentage() == pytest.approx(54.79, rel=1e-2)  # 2000/3650 * 100
+
+        # Test can_contribute method
+        assert hsa.can_contribute(1000.0) is True
+        assert hsa.can_contribute(2000.0) is False  # Would exceed limit
+
+    def test_hsa_account_zero_contribution_limit(self):
+        """Test HSAAccount with zero contribution limit."""
+        now = datetime.now()
+
+        hsa = HSAAccount(
+            id="hsa-1",
+            name="Test HSA",
+            institution="HSA Bank",
+            account_type=AccountType.HSA,
+            created_date=now,
+            last_updated=now,
+            current_balance=1000.0,
+            annual_contribution_limit=0.0,
+            current_year_contributions=0.0,
+            employer_contributions=0.0,
+            investment_balance=500.0,
+            cash_balance=500.0
+        )
+
+        assert hsa.get_contribution_progress_percentage() == 0.0
+        assert hsa.get_remaining_contribution_capacity() == 0.0
+        assert hsa.can_contribute(100.0) is False
+
+    def test_hsa_account_validation_negative_current_balance(self):
+        """Test HSAAccount validation for negative current balance."""
+        now = datetime.now()
+
+        with pytest.raises(ValueError, match="Current balance cannot be negative"):
+            HSAAccount(
+                id="hsa-1",
+                name="Test HSA",
+                institution="HSA Bank",
+                account_type=AccountType.HSA,
+                created_date=now,
+                last_updated=now,
+                current_balance=-1000.0,
+                annual_contribution_limit=3650.0,
+                current_year_contributions=2000.0,
+                employer_contributions=500.0,
+                investment_balance=0.0,
+                cash_balance=0.0
+            )
+
+    def test_hsa_account_validation_negative_contribution_limit(self):
+        """Test HSAAccount validation for negative annual contribution limit."""
+        now = datetime.now()
+
+        with pytest.raises(ValueError, match="Annual contribution limit cannot be negative"):
+            HSAAccount(
+                id="hsa-1",
+                name="Test HSA",
+                institution="HSA Bank",
+                account_type=AccountType.HSA,
+                created_date=now,
+                last_updated=now,
+                current_balance=5000.0,
+                annual_contribution_limit=-3650.0,
+                current_year_contributions=2000.0,
+                employer_contributions=500.0,
+                investment_balance=3000.0,
+                cash_balance=2000.0
+            )
+
+    def test_hsa_account_validation_negative_current_year_contributions(self):
+        """Test HSAAccount validation for negative current year contributions."""
+        now = datetime.now()
+
+        with pytest.raises(ValueError, match="Current year contributions cannot be negative"):
+            HSAAccount(
+                id="hsa-1",
+                name="Test HSA",
+                institution="HSA Bank",
+                account_type=AccountType.HSA,
+                created_date=now,
+                last_updated=now,
+                current_balance=5000.0,
+                annual_contribution_limit=3650.0,
+                current_year_contributions=-2000.0,
+                employer_contributions=500.0,
+                investment_balance=3000.0,
+                cash_balance=2000.0
+            )
+
+    def test_hsa_account_validation_negative_employer_contributions(self):
+        """Test HSAAccount validation for negative employer contributions."""
+        now = datetime.now()
+
+        with pytest.raises(ValueError, match="Employer contributions cannot be negative"):
+            HSAAccount(
+                id="hsa-1",
+                name="Test HSA",
+                institution="HSA Bank",
+                account_type=AccountType.HSA,
+                created_date=now,
+                last_updated=now,
+                current_balance=5000.0,
+                annual_contribution_limit=3650.0,
+                current_year_contributions=2000.0,
+                employer_contributions=-500.0,
+                investment_balance=3000.0,
+                cash_balance=2000.0
+            )
+
+    def test_hsa_account_validation_negative_investment_balance(self):
+        """Test HSAAccount validation for negative investment balance."""
+        now = datetime.now()
+
+        with pytest.raises(ValueError, match="Investment balance cannot be negative"):
+            HSAAccount(
+                id="hsa-1",
+                name="Test HSA",
+                institution="HSA Bank",
+                account_type=AccountType.HSA,
+                created_date=now,
+                last_updated=now,
+                current_balance=5000.0,
+                annual_contribution_limit=3650.0,
+                current_year_contributions=2000.0,
+                employer_contributions=500.0,
+                investment_balance=-3000.0,
+                cash_balance=8000.0
+            )
+
+    def test_hsa_account_validation_negative_cash_balance(self):
+        """Test HSAAccount validation for negative cash balance."""
+        now = datetime.now()
+
+        with pytest.raises(ValueError, match="Cash balance cannot be negative"):
+            HSAAccount(
+                id="hsa-1",
+                name="Test HSA",
+                institution="HSA Bank",
+                account_type=AccountType.HSA,
+                created_date=now,
+                last_updated=now,
+                current_balance=5000.0,
+                annual_contribution_limit=3650.0,
+                current_year_contributions=2000.0,
+                employer_contributions=500.0,
+                investment_balance=8000.0,
+                cash_balance=-3000.0
+            )
+
+    def test_hsa_account_validation_balance_mismatch(self):
+        """Test HSAAccount validation for investment + cash balance not equaling current balance."""
+        now = datetime.now()
+
+        with pytest.raises(ValueError, match="Investment balance plus cash balance must equal current balance"):
+            HSAAccount(
+                id="hsa-1",
+                name="Test HSA",
+                institution="HSA Bank",
+                account_type=AccountType.HSA,
+                created_date=now,
+                last_updated=now,
+                current_balance=5000.0,
+                annual_contribution_limit=3650.0,
+                current_year_contributions=2000.0,
+                employer_contributions=500.0,
+                investment_balance=3000.0,
+                cash_balance=1000.0  # 3000 + 1000 = 4000, not 5000
+            )
+
+    def test_hsa_account_validation_contributions_exceed_limit(self):
+        """Test HSAAccount validation for contributions exceeding annual limit."""
+        now = datetime.now()
+
+        with pytest.raises(ValueError, match="Current year contributions cannot exceed annual contribution limit"):
+            HSAAccount(
+                id="hsa-1",
+                name="Test HSA",
+                institution="HSA Bank",
+                account_type=AccountType.HSA,
+                created_date=now,
+                last_updated=now,
+                current_balance=5000.0,
+                annual_contribution_limit=3650.0,
+                current_year_contributions=4000.0,  # Exceeds limit
+                employer_contributions=500.0,
+                investment_balance=3000.0,
+                cash_balance=2000.0
+            )
+
+    def test_hsa_account_balance_tolerance(self):
+        """Test HSAAccount allows small floating point differences in balance validation."""
+        now = datetime.now()
+
+        # Should not raise error for small floating point difference
+        hsa = HSAAccount(
+            id="hsa-1",
+            name="Test HSA",
+            institution="HSA Bank",
+            account_type=AccountType.HSA,
+            created_date=now,
+            last_updated=now,
+            current_balance=5000.0,
+            annual_contribution_limit=3650.0,
+            current_year_contributions=2000.0,
+            employer_contributions=500.0,
+            investment_balance=3000.0,
+            cash_balance=2000.005  # Small difference within tolerance
+        )
+
+        assert hsa.current_balance == 5000.0
+
+    def test_hsa_account_serialization(self):
+        """Test HSAAccount to_dict and from_dict methods."""
+        now = datetime.now()
+
+        hsa = HSAAccount(
+            id="hsa-1",
+            name="Test HSA",
+            institution="HSA Bank",
+            account_type=AccountType.HSA,
+            created_date=now,
+            last_updated=now,
+            current_balance=5000.0,
+            annual_contribution_limit=3650.0,
+            current_year_contributions=2000.0,
+            employer_contributions=500.0,
+            investment_balance=3000.0,
+            cash_balance=2000.0
+        )
+
+        data = hsa.to_dict()
+        assert data['account_type'] == "HSA"
+        assert data['current_balance'] == 5000.0
+        assert data['annual_contribution_limit'] == 3650.0
+        assert data['current_year_contributions'] == 2000.0
+        assert data['employer_contributions'] == 500.0
+        assert data['investment_balance'] == 3000.0
+        assert data['cash_balance'] == 2000.0
+
+        hsa_restored = HSAAccount.from_dict(data)
+        assert hsa_restored.account_type == AccountType.HSA
+        assert hsa_restored.current_balance == 5000.0
+        assert hsa_restored.annual_contribution_limit == 3650.0
+        assert hsa_restored.current_year_contributions == 2000.0
+        assert hsa_restored.employer_contributions == 500.0
+        assert hsa_restored.investment_balance == 3000.0
+        assert hsa_restored.cash_balance == 2000.0
+
+
 class TestHistoricalSnapshot:
     """Test HistoricalSnapshot model."""
 
@@ -1185,6 +1489,7 @@ class TestAccountFactory:
         assert AccountType.ACCOUNT_401K in registered_types
         assert AccountType.TRADING in registered_types
         assert AccountType.I_BONDS in registered_types
+        assert AccountType.HSA in registered_types
 
     def test_factory_create_cd_account(self):
         """Test AccountFactory creates CDAccount correctly."""
@@ -1285,6 +1590,27 @@ class TestAccountFactory:
         assert ibonds.name == "Test I-bonds"
         assert ibonds.account_type == AccountType.I_BONDS
         assert ibonds.purchase_amount == 10000.0
+
+    def test_factory_create_hsa_account(self):
+        """Test AccountFactory creates HSAAccount correctly."""
+        hsa = AccountFactory.create_account(
+            AccountType.HSA,
+            name="Test HSA",
+            institution="HSA Bank",
+            current_balance=5000.0,
+            annual_contribution_limit=3650.0,
+            current_year_contributions=2000.0,
+            employer_contributions=500.0,
+            investment_balance=3000.0,
+            cash_balance=2000.0
+        )
+
+        assert isinstance(hsa, HSAAccount)
+        assert hsa.name == "Test HSA"
+        assert hsa.account_type == AccountType.HSA
+        assert hsa.current_balance == 5000.0
+        assert hsa.annual_contribution_limit == 3650.0
+        assert hsa.current_year_contributions == 2000.0
 
     def test_factory_create_unknown_account_type(self):
         """Test AccountFactory raises error for unknown account type."""

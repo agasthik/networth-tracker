@@ -15,6 +15,7 @@ set "PORT=5000"
 set "DEBUG=false"
 set "VALIDATE_ONLY=false"
 set "CREATE_DIRS=false"
+set "RESTART_MODE=false"
 
 REM Function to show usage
 :show_usage
@@ -27,6 +28,9 @@ echo     -p, --port PORT         Port to bind to [default: 5000]
 echo     -D, --debug             Enable debug mode
 echo     -v, --validate          Validate configuration only
 echo     -c, --create-dirs       Create directories only
+echo     --stop                  Stop the running application
+echo     --restart               Restart the application
+echo     --status                Check application status
 echo     --help                  Show this help message
 echo.
 echo Examples:
@@ -34,6 +38,9 @@ echo     %~nx0                   # Start in production mode
 echo     %~nx0 -e development    # Start in development mode
 echo     %~nx0 -v                # Validate configuration
 echo     %~nx0 -c                # Create directories
+echo     %~nx0 --restart         # Restart the application
+echo     %~nx0 --stop            # Stop the application
+echo     %~nx0 --status          # Check if running
 echo.
 goto :eof
 
@@ -201,6 +208,18 @@ if "%~1"=="--stop" (
     call :stop_application
     exit /b 0
 )
+if "%~1"=="--restart" (
+    set "RESTART_MODE=true"
+    call :print_info "Restarting application..."
+    call :check_running
+    if not errorlevel 1 (
+        call :stop_application
+        timeout /t 2 /nobreak >nul
+    )
+    call :print_info "Starting application..."
+    shift
+    goto :parse_args
+)
 if "%~1"=="--status" (
     call :check_running
     if not errorlevel 1 (
@@ -267,12 +286,12 @@ if "%CREATE_DIRS%"=="true" (
     set "PYTHON_CMD=%PYTHON_CMD% --create-dirs"
 )
 
-REM Check if already running (unless validating or creating dirs)
-if "%VALIDATE_ONLY%"=="false" if "%CREATE_DIRS%"=="false" (
+REM Check if already running (unless validating, creating dirs, or restarting)
+if "%VALIDATE_ONLY%"=="false" if "%CREATE_DIRS%"=="false" if "%RESTART_MODE%"=="false" (
     call :check_running
     if not errorlevel 1 (
         call :print_error "Application is already running"
-        call :print_info "Use --stop to stop the application first"
+        call :print_info "Use --stop to stop the application first, or --restart to restart it"
         exit /b 1
     )
 )

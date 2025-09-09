@@ -90,6 +90,7 @@ class TestExportImportService:
 
         mock_db.get_accounts.return_value = mock_accounts
         mock_db.get_stock_positions.return_value = mock_positions
+        mock_db.get_watchlist_items.return_value = []  # Empty watchlist for existing tests
         mock_db.get_historical_snapshots.return_value = mock_snapshots
         mock_db.get_setting.return_value = '1'
 
@@ -591,6 +592,7 @@ class TestExportImportService:
 
         large_mock_db.get_accounts.return_value = large_accounts
         large_mock_db.get_stock_positions.return_value = []
+        large_mock_db.get_watchlist_items.return_value = []  # Empty watchlist
         large_mock_db.get_historical_snapshots.return_value = []
         large_mock_db.get_setting.return_value = '1'
 

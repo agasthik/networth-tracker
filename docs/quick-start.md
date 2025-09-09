@@ -55,7 +55,7 @@ Open your web browser and go to: `http://127.0.0.1:5000`
 ## Add Your First Account
 
 1. From the dashboard, click **"Add Account"**
-2. Choose an account type (CD, Savings, 401k, Trading, I-bonds)
+2. Choose an account type (CD, Savings, 401k, Trading, I-bonds, HSA)
 3. Fill in the required information
 4. Click **"Save"**
 

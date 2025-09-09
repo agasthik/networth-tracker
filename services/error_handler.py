@@ -393,6 +393,165 @@ class StockNotFoundError(StockAPIError):
         )
 
 
+class StockPriceUnavailableError(StockAPIError):
+    """Stock price temporarily unavailable error."""
+
+    def __init__(self, symbol: str, **kwargs):
+        super().__init__(
+            message=f"Stock price for '{symbol}' is temporarily unavailable",
+            code="STOCK_004",
+            user_action="Please try again later or check if the market is open",
+            **kwargs
+        )
+
+
+class StockValidationError(StockAPIError):
+    """Stock symbol validation error."""
+
+    def __init__(self, symbol: str, reason: str = "", **kwargs):
+        message = f"Invalid stock symbol '{symbol}'"
+        if reason:
+            message += f": {reason}"
+
+        super().__init__(
+            message=message,
+            code="STOCK_005",
+            user_action="Please provide a valid stock ticker symbol",
+            **kwargs
+        )
+
+
+# Watchlist Errors
+class WatchlistError(AppError):
+    """Watchlist-related errors."""
+
+    def __init__(self, message: str, code: str = "WATCH_001", **kwargs):
+        super().__init__(
+            ErrorType.VALIDATION,  # Most watchlist errors are validation-related
+            message,
+            code,
+            severity=ErrorSeverity.MEDIUM,
+            **kwargs
+        )
+
+
+class WatchlistDuplicateError(WatchlistError):
+    """Duplicate stock in watchlist error."""
+
+    def __init__(self, symbol: str, **kwargs):
+        super().__init__(
+            message=f"Stock '{symbol}' is already in your watchlist",
+            code="WATCH_002",
+            user_action="Stock is already being tracked in your watchlist",
+            **kwargs
+        )
+
+
+class WatchlistNotFoundError(WatchlistError):
+    """Stock not found in watchlist error."""
+
+    def __init__(self, symbol: str, **kwargs):
+        super().__init__(
+            message=f"Stock '{symbol}' not found in watchlist",
+            code="WATCH_003",
+            user_action="Please verify the stock symbol exists in your watchlist",
+            **kwargs
+        )
+
+
+class WatchlistLimitExceededError(WatchlistError):
+    """Watchlist size limit exceeded error."""
+
+    def __init__(self, limit: int, **kwargs):
+        super().__init__(
+            message=f"Watchlist limit of {limit} stocks exceeded",
+            code="WATCH_004",
+            user_action="Please remove some stocks before adding new ones",
+            **kwargs
+        )
+
+
+class WatchlistPriceUpdateError(WatchlistError):
+    """Watchlist price update error."""
+
+    def __init__(self, failed_symbols: list = None, **kwargs):
+        if failed_symbols:
+            symbols_str = ", ".join(failed_symbols)
+            message = f"Failed to update prices for: {symbols_str}"
+        else:
+            message = "Failed to update watchlist prices"
+
+        super().__init__(
+            message=message,
+            code="WATCH_005",
+            user_action="Some stock prices could not be updated. Please try again later",
+            severity=ErrorSeverity.LOW,
+            **kwargs
+        )
+
+
+# HSA Account Errors
+class HSAError(AppError):
+    """HSA account-related errors."""
+
+    def __init__(self, message: str, code: str = "HSA_001", **kwargs):
+        super().__init__(
+            ErrorType.VALIDATION,
+            message,
+            code,
+            severity=ErrorSeverity.MEDIUM,
+            **kwargs
+        )
+
+
+class HSAContributionLimitError(HSAError):
+    """HSA contribution limit exceeded error."""
+
+    def __init__(self, attempted_amount: float, remaining_capacity: float, **kwargs):
+        super().__init__(
+            message=f"Contribution of ${attempted_amount:.2f} exceeds remaining capacity of ${remaining_capacity:.2f}",
+            code="HSA_002",
+            user_action=f"Maximum additional contribution allowed is ${remaining_capacity:.2f}",
+            **kwargs
+        )
+
+
+class HSABalanceValidationError(HSAError):
+    """HSA balance validation error."""
+
+    def __init__(self, field: str, value: float, **kwargs):
+        super().__init__(
+            message=f"Invalid {field}: ${value:.2f}. HSA balances cannot be negative",
+            code="HSA_003",
+            user_action=f"Please enter a valid positive amount for {field}",
+            **kwargs
+        )
+
+
+class HSABalanceMismatchError(HSAError):
+    """HSA balance components don't match total error."""
+
+    def __init__(self, total_balance: float, cash_balance: float, investment_balance: float, **kwargs):
+        super().__init__(
+            message=f"Balance mismatch: Total (${total_balance:.2f}) ≠ Cash (${cash_balance:.2f}) + Investment (${investment_balance:.2f})",
+            code="HSA_004",
+            user_action="Please ensure cash balance plus investment balance equals total balance",
+            **kwargs
+        )
+
+
+class HSAContributionValidationError(HSAError):
+    """HSA contribution validation error."""
+
+    def __init__(self, current_contributions: float, annual_limit: float, **kwargs):
+        super().__init__(
+            message=f"Current year contributions (${current_contributions:.2f}) exceed annual limit (${annual_limit:.2f})",
+            code="HSA_005",
+            user_action="Please verify your contribution amounts and annual limit",
+            **kwargs
+        )
+
+
 # Export/Import Errors
 class ExportImportError(AppError):
     """Export/import operation errors."""

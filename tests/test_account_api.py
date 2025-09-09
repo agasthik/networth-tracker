@@ -195,6 +195,33 @@ class TestAccountAPI:
         assert data['account']['type'] == 'I_BONDS'
         assert data['account']['current_value'] == 1025.0
 
+    def test_create_hsa_account_success(self, authenticated_client):
+        """Test creating an HSA account successfully."""
+        account_data = {
+            'name': 'Test HSA',
+            'institution': 'HSA Bank',
+            'type': 'HSA',
+            'current_balance': 5000.0,
+            'annual_contribution_limit': 4300.0,
+            'current_year_contributions': 2000.0,
+            'employer_contributions': 500.0,
+            'investment_balance': 3000.0,
+            'cash_balance': 2000.0
+        }
+
+        response = authenticated_client.post('/api/accounts',
+                                           json=account_data,
+                                           content_type='application/json')
+        assert response.status_code == 201
+
+        data = json.loads(response.data)
+        assert data['success'] is True
+        assert data['account']['name'] == 'Test HSA'
+        assert data['account']['type'] == 'HSA'
+        assert data['account']['current_value'] == 5000.0
+        assert data['account']['annual_contribution_limit'] == 4300.0
+        assert data['account']['current_year_contributions'] == 2000.0
+
     def test_create_account_missing_required_fields(self, authenticated_client):
         """Test creating account with missing required fields."""
         account_data = {
@@ -270,6 +297,97 @@ class TestAccountAPI:
         assert data['error'] is True
         assert 'Principal amount must be positive' in data['message']
         assert data['code'] == 'INVALID_PRINCIPAL_AMOUNT'
+
+    def test_create_hsa_account_missing_fields(self, authenticated_client):
+        """Test creating HSA account with missing HSA-specific fields."""
+        account_data = {
+            'name': 'Test HSA',
+            'institution': 'HSA Bank',
+            'type': 'HSA'
+            # Missing HSA-specific fields
+        }
+
+        response = authenticated_client.post('/api/accounts',
+                                           json=account_data,
+                                           content_type='application/json')
+        assert response.status_code == 400
+
+        data = json.loads(response.data)
+        assert data['error'] is True
+        assert 'HSA account missing required fields' in data['message']
+        assert data['code'] == 'MISSING_HSA_FIELDS'
+
+    def test_create_hsa_account_negative_values(self, authenticated_client):
+        """Test creating HSA account with negative values."""
+        account_data = {
+            'name': 'Test HSA',
+            'institution': 'HSA Bank',
+            'type': 'HSA',
+            'current_balance': -1000.0,  # Invalid negative balance
+            'annual_contribution_limit': 4300.0,
+            'current_year_contributions': 2000.0,
+            'employer_contributions': 500.0,
+            'investment_balance': 3000.0,
+            'cash_balance': 2000.0
+        }
+
+        response = authenticated_client.post('/api/accounts',
+                                           json=account_data,
+                                           content_type='application/json')
+        assert response.status_code == 400
+
+        data = json.loads(response.data)
+        assert data['error'] is True
+        assert 'Current Balance cannot be negative' in data['message']
+        assert data['code'] == 'INVALID_CURRENT_BALANCE'
+
+    def test_create_hsa_account_balance_mismatch(self, authenticated_client):
+        """Test creating HSA account where investment + cash != current balance."""
+        account_data = {
+            'name': 'Test HSA',
+            'institution': 'HSA Bank',
+            'type': 'HSA',
+            'current_balance': 5000.0,
+            'annual_contribution_limit': 4300.0,
+            'current_year_contributions': 2000.0,
+            'employer_contributions': 500.0,
+            'investment_balance': 2000.0,  # 2000 + 2000 = 4000, not 5000
+            'cash_balance': 2000.0
+        }
+
+        response = authenticated_client.post('/api/accounts',
+                                           json=account_data,
+                                           content_type='application/json')
+        assert response.status_code == 400
+
+        data = json.loads(response.data)
+        assert data['error'] is True
+        assert 'Investment balance plus cash balance must equal current balance' in data['message']
+        assert data['code'] == 'INVALID_HSA_BALANCE_MISMATCH'
+
+    def test_create_hsa_account_contribution_limit_exceeded(self, authenticated_client):
+        """Test creating HSA account where current contributions exceed annual limit."""
+        account_data = {
+            'name': 'Test HSA',
+            'institution': 'HSA Bank',
+            'type': 'HSA',
+            'current_balance': 5000.0,
+            'annual_contribution_limit': 4300.0,
+            'current_year_contributions': 5000.0,  # Exceeds limit
+            'employer_contributions': 500.0,
+            'investment_balance': 3000.0,
+            'cash_balance': 2000.0
+        }
+
+        response = authenticated_client.post('/api/accounts',
+                                           json=account_data,
+                                           content_type='application/json')
+        assert response.status_code == 400
+
+        data = json.loads(response.data)
+        assert data['error'] is True
+        assert 'Current year contributions cannot exceed annual contribution limit' in data['message']
+        assert data['code'] == 'INVALID_HSA_CONTRIBUTION_LIMIT'
 
     def test_create_account_invalid_json(self, authenticated_client):
         """Test creating account with invalid JSON."""
@@ -420,6 +538,90 @@ class TestAccountAPI:
         assert 'Account validation failed' in data['message']
         assert data['code'] == 'ACCOUNT_VALIDATION_ERROR'
 
+    def test_update_hsa_account_success(self, authenticated_client):
+        """Test updating an HSA account successfully."""
+        # First create an HSA account
+        account_data = {
+            'name': 'Test HSA',
+            'institution': 'HSA Bank',
+            'type': 'HSA',
+            'current_balance': 5000.0,
+            'annual_contribution_limit': 4300.0,
+            'current_year_contributions': 2000.0,
+            'employer_contributions': 500.0,
+            'investment_balance': 3000.0,
+            'cash_balance': 2000.0
+        }
+
+        create_response = authenticated_client.post('/api/accounts',
+                                                  json=account_data,
+                                                  content_type='application/json')
+        assert create_response.status_code == 201
+
+        created_account = json.loads(create_response.data)['account']
+        account_id = created_account['id']
+
+        # Update the HSA account
+        update_data = {
+            'name': 'Updated HSA',
+            'current_balance': 6000.0,
+            'current_year_contributions': 2500.0,
+            'investment_balance': 3500.0,
+            'cash_balance': 2500.0
+        }
+
+        response = authenticated_client.put(f'/api/accounts/{account_id}',
+                                          json=update_data,
+                                          content_type='application/json')
+        assert response.status_code == 200
+
+        data = json.loads(response.data)
+        assert data['success'] is True
+        assert data['message'] == 'Account updated successfully'
+        assert data['account']['name'] == 'Updated HSA'
+        assert data['account']['current_value'] == 6000.0
+        assert data['account']['current_year_contributions'] == 2500.0
+
+    def test_update_hsa_account_invalid_balance_mismatch(self, authenticated_client):
+        """Test updating HSA account with balance mismatch."""
+        # First create an HSA account
+        account_data = {
+            'name': 'Test HSA',
+            'institution': 'HSA Bank',
+            'type': 'HSA',
+            'current_balance': 5000.0,
+            'annual_contribution_limit': 4300.0,
+            'current_year_contributions': 2000.0,
+            'employer_contributions': 500.0,
+            'investment_balance': 3000.0,
+            'cash_balance': 2000.0
+        }
+
+        create_response = authenticated_client.post('/api/accounts',
+                                                  json=account_data,
+                                                  content_type='application/json')
+        assert create_response.status_code == 201
+
+        created_account = json.loads(create_response.data)['account']
+        account_id = created_account['id']
+
+        # Update with mismatched balances
+        update_data = {
+            'current_balance': 6000.0,
+            'investment_balance': 2000.0,  # 2000 + 2000 = 4000, not 6000
+            'cash_balance': 2000.0
+        }
+
+        response = authenticated_client.put(f'/api/accounts/{account_id}',
+                                          json=update_data,
+                                          content_type='application/json')
+        assert response.status_code == 400
+
+        data = json.loads(response.data)
+        assert data['error'] is True
+        assert 'Investment balance plus cash balance must equal current balance' in data['message']
+        assert data['code'] == 'ACCOUNT_VALIDATION_ERROR'
+
     def test_delete_account_success(self, authenticated_client):
         """Test deleting an account successfully."""
         # First create an account
@@ -524,6 +726,17 @@ class TestAccountAPI:
                 'employer_match': 4.0,
                 'contribution_limit': 23000.0,
                 'employer_contribution': 3000.0
+            },
+            {
+                'name': 'Health Savings',
+                'institution': 'HSA Bank',
+                'type': 'HSA',
+                'current_balance': 8000.0,
+                'annual_contribution_limit': 4300.0,
+                'current_year_contributions': 3000.0,
+                'employer_contributions': 1000.0,
+                'investment_balance': 5000.0,
+                'cash_balance': 3000.0
             }
         ]
 
@@ -541,7 +754,7 @@ class TestAccountAPI:
 
         data = json.loads(response.data)
         assert data['success'] is True
-        assert data['count'] == 3
+        assert data['count'] == 4
 
         # 3. Update one account
         savings_account = next(acc for acc in created_accounts if acc['type'] == 'SAVINGS')
@@ -570,13 +783,14 @@ class TestAccountAPI:
 
         data = json.loads(response.data)
         assert data['success'] is True
-        assert data['count'] == 2  # One deleted
+        assert data['count'] == 3  # One deleted
 
         # Verify the deleted account is gone
         account_types = [acc['type'] for acc in data['accounts']]
         assert 'CD' not in account_types
         assert 'SAVINGS' in account_types
         assert '401K' in account_types
+        assert 'HSA' in account_types
 
 
 if __name__ == '__main__':

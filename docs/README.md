@@ -16,13 +16,14 @@ Welcome to the Networth Tracker documentation. This directory contains comprehen
 - **[Security Guide](security.md)** - Security best practices and considerations
 
 ### Development
-- **[Development Guide](development.md)** - Setting up development environment
-- **[API Reference](api-reference.md)** - REST API documentation
-- **[Database Schema](database-schema.md)** - Database structure and relationships
+- **[Configuration Reference](configuration.md)** - Detailed configuration options for development
+- **[Error Handling Guide](error-handling-guide.md)** - Error handling and debugging system
+- **Source Code**: All source code is included and can be reviewed for development
 
 ### Scripts and Utilities
-- **[Scripts Documentation](scripts/README.md)** - Startup and utility scripts reference
-- **[Maintenance Guide](maintenance.md)** - System maintenance and monitoring
+- **Startup Scripts**: `scripts/start.py`, `scripts/start.sh`, `scripts/start.bat`
+- **Database Scripts**: `scripts/init_db.py`, `scripts/generate_demo_database.py`
+- **[Deployment Guide](deployment.md)** - Production deployment and maintenance
 
 ### Troubleshooting
 - **[Error Handling Guide](error-handling-guide.md)** - Error handling and debugging
@@ -38,14 +39,14 @@ Welcome to the Networth Tracker documentation. This directory contains comprehen
 4. Check the [FAQ](faq.md) for common questions
 
 ### For Developers
-1. Read the [Development Guide](development.md)
-2. Review the [API Reference](api-reference.md)
-3. Check the [Database Schema](database-schema.md)
+1. Review the [Configuration Reference](configuration.md)
+2. Study the [Error Handling Guide](error-handling-guide.md)
+3. Examine the source code structure and patterns
 
 ### For System Administrators
 1. Review the [Deployment Guide](deployment.md)
 2. Study the [Security Guide](security.md)
-3. Set up [Maintenance](maintenance.md) procedures
+3. Set up monitoring and backup procedures
 
 ## Documentation Standards
 

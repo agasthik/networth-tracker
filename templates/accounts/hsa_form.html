@@ -1,0 +1,225 @@
+<!-- HSA Account Form -->
+<form id="hsaAccountForm" onsubmit="submitAccountForm(event, 'HSA')">
+    <input type="hidden" id="hsaAccountId" name="account_id">
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="hsaAccountName" class="form-label">Account Name *</label>
+                <input type="text" class="form-control" id="hsaAccountName" name="name" required
+                    placeholder="e.g., Company HSA">
+                <div class="form-text">A descriptive name for this HSA account</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="hsaInstitution" class="form-label">Institution/Provider *</label>
+                <input type="text" class="form-control" id="hsaInstitution" name="institution" required
+                    placeholder="e.g., HealthEquity, Fidelity">
+                <div class="form-text">HSA provider or institution</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="hsaCurrentBalance" class="form-label">Current Balance *</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" id="hsaCurrentBalance" name="current_balance" required
+                        min="0" step="0.01" placeholder="5000.00">
+                </div>
+                <div class="form-text">Total current HSA account balance</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="hsaAnnualContributionLimit" class="form-label">Annual Contribution Limit *</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" id="hsaAnnualContributionLimit"
+                        name="annual_contribution_limit" required min="0" step="1" placeholder="4300">
+                </div>
+                <div class="form-text">IRS annual contribution limit for current year</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="hsaCurrentYearContributions" class="form-label">Current Year Contributions *</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" id="hsaCurrentYearContributions"
+                        name="current_year_contributions" required min="0" step="0.01" placeholder="2000.00">
+                </div>
+                <div class="form-text">Total contributions made this year</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="hsaEmployerContributions" class="form-label">Employer Contributions *</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" id="hsaEmployerContributions"
+                        name="employer_contributions" required min="0" step="0.01" placeholder="1000.00">
+                </div>
+                <div class="form-text">Annual employer contribution amount</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="hsaInvestmentBalance" class="form-label">Investment Balance *</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" id="hsaInvestmentBalance" name="investment_balance"
+                        required min="0" step="0.01" placeholder="3000.00">
+                </div>
+                <div class="form-text">Amount invested in securities (if applicable)</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="hsaCashBalance" class="form-label">Cash Balance *</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" id="hsaCashBalance" name="cash_balance" required min="0"
+                        step="0.01" placeholder="2000.00">
+                </div>
+                <div class="form-text">Cash portion available for medical expenses</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>HSA Account Information:</strong> HSA accounts offer triple tax advantages - tax-deductible
+        contributions, tax-free growth, and tax-free withdrawals for qualified medical expenses. Investment + Cash
+        balance must equal Current balance.
+    </div>
+
+    <!-- Contribution Analysis -->
+    <div class="card bg-light mb-3">
+        <div class="card-body">
+            <h6 class="card-title">Contribution Analysis</h6>
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>Remaining Capacity</strong>
+                    <div id="remainingCapacity" class="h5 text-primary">$0</div>
+                </div>
+                <div class="col-md-3">
+                    <strong>Contribution Progress</strong>
+                    <div id="contributionProgress" class="h5 text-success">0%</div>
+                </div>
+                <div class="col-md-3">
+                    <strong>Investment Allocation</strong>
+                    <div id="investmentAllocation" class="h5 text-info">0%</div>
+                </div>
+                <div class="col-md-3">
+                    <strong>Cash Allocation</strong>
+                    <div id="cashAllocation" class="h5 text-warning">0%</div>
+                </div>
+            </div>
+            <div class="mt-2">
+                <small class="text-muted">
+                    Based on current contribution limits and account balances
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Balance Validation Alert -->
+    <div id="balanceValidationAlert" class="alert alert-warning d-none">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Balance Mismatch:</strong> Investment balance + Cash balance must equal Current balance.
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i><span id="hsaSubmitText">Save HSA Account</span>
+        </button>
+    </div>
+</form>
+
+<script>
+    // Auto-calculate HSA analysis and validation
+    document.getElementById('hsaCurrentBalance').addEventListener('input', calculateHSAAnalysis);
+    document.getElementById('hsaAnnualContributionLimit').addEventListener('input', calculateHSAAnalysis);
+    document.getElementById('hsaCurrentYearContributions').addEventListener('input', calculateHSAAnalysis);
+    document.getElementById('hsaInvestmentBalance').addEventListener('input', calculateHSAAnalysis);
+    document.getElementById('hsaCashBalance').addEventListener('input', calculateHSAAnalysis);
+
+    function calculateHSAAnalysis() {
+        const currentBalance = parseFloat(document.getElementById('hsaCurrentBalance').value) || 0;
+        const annualLimit = parseFloat(document.getElementById('hsaAnnualContributionLimit').value) || 0;
+        const currentContributions = parseFloat(document.getElementById('hsaCurrentYearContributions').value) || 0;
+        const investmentBalance = parseFloat(document.getElementById('hsaInvestmentBalance').value) || 0;
+        const cashBalance = parseFloat(document.getElementById('hsaCashBalance').value) || 0;
+
+        // Calculate remaining contribution capacity
+        const remainingCapacity = Math.max(0, annualLimit - currentContributions);
+
+        // Calculate contribution progress percentage
+        const contributionProgress = annualLimit > 0 ? (currentContributions / annualLimit * 100) : 0;
+
+        // Calculate allocation percentages
+        const investmentAllocation = currentBalance > 0 ? (investmentBalance / currentBalance * 100) : 0;
+        const cashAllocation = currentBalance > 0 ? (cashBalance / currentBalance * 100) : 0;
+
+        // Update display
+        document.getElementById('remainingCapacity').textContent = '$' + remainingCapacity.toLocaleString();
+        document.getElementById('contributionProgress').textContent = contributionProgress.toFixed(1) + '%';
+        document.getElementById('investmentAllocation').textContent = investmentAllocation.toFixed(1) + '%';
+        document.getElementById('cashAllocation').textContent = cashAllocation.toFixed(1) + '%';
+
+        // Validate balance consistency
+        const totalBalance = investmentBalance + cashBalance;
+        const balanceAlert = document.getElementById('balanceValidationAlert');
+
+        if (Math.abs(totalBalance - currentBalance) > 0.01 && (investmentBalance > 0 || cashBalance > 0 || currentBalance > 0)) {
+            balanceAlert.classList.remove('d-none');
+        } else {
+            balanceAlert.classList.add('d-none');
+        }
+
+        // Update progress bar color based on contribution level
+        const progressElement = document.getElementById('contributionProgress');
+        if (contributionProgress >= 100) {
+            progressElement.className = 'h5 text-success';
+        } else if (contributionProgress >= 75) {
+            progressElement.className = 'h5 text-info';
+        } else if (contributionProgress >= 50) {
+            progressElement.className = 'h5 text-warning';
+        } else {
+            progressElement.className = 'h5 text-primary';
+        }
+    }
+
+    // Set default contribution limits for current year
+    document.addEventListener('DOMContentLoaded', function () {
+        if (!document.getElementById('hsaAnnualContributionLimit').value) {
+            // Set 2024 HSA contribution limits (individual coverage)
+            document.getElementById('hsaAnnualContributionLimit').value = '4300';
+            calculateHSAAnalysis();
+        }
+    });
+
+    // Auto-balance cash and investment when current balance changes
+    document.getElementById('hsaCurrentBalance').addEventListener('input', function () {
+        const currentBalance = parseFloat(this.value) || 0;
+        const investmentBalance = parseFloat(document.getElementById('hsaInvestmentBalance').value) || 0;
+        const cashBalance = parseFloat(document.getElementById('hsaCashBalance').value) || 0;
+
+        // If only current balance is set and others are 0, set cash balance to current balance
+        if (currentBalance > 0 && investmentBalance === 0 && cashBalance === 0) {
+            document.getElementById('hsaCashBalance').value = currentBalance.toFixed(2);
+            calculateHSAAnalysis();
+        }
+    });
+</script>

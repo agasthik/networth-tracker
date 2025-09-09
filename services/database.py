@@ -26,7 +26,7 @@ logger = get_logger(__name__)
 class DatabaseService:
     """Service for encrypted SQLite database operations."""
 
-    SCHEMA_VERSION = 1
+    SCHEMA_VERSION = 5
 
     def __init__(self, db_path: str, encryption_service: EncryptionService):
         """
@@ -209,11 +209,26 @@ class DatabaseService:
                 )
             ''')
 
+            # Watchlist table for stock tracking
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS watchlist (
+                    id TEXT PRIMARY KEY,
+                    symbol TEXT NOT NULL UNIQUE,
+                    encrypted_data BLOB NOT NULL,
+                    added_date INTEGER NOT NULL,
+                    last_price_update INTEGER,
+                    is_demo BOOLEAN DEFAULT FALSE
+                )
+            ''')
+
             # Create indexes for better performance
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_accounts_type ON accounts (type)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_historical_account_id ON historical_snapshots (account_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_historical_timestamp ON historical_snapshots (timestamp)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_stock_positions_account ON stock_positions (trading_account_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_watchlist_symbol ON watchlist (symbol)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_watchlist_added_date ON watchlist (added_date)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_watchlist_is_demo ON watchlist (is_demo)')
 
             connection.commit()
 
@@ -930,6 +945,380 @@ class DatabaseService:
             raise DatabaseError(
                 message="Unexpected error during database migration",
                 code="DB_011",
+                technical_details=str(e),
+                original_exception=e
+            )
+
+    # Watchlist operations
+    def create_watchlist_item(self, watchlist_data: Dict[str, Any]) -> str:
+        """
+        Create new watchlist item with encrypted data.
+
+        Args:
+            watchlist_data: Watchlist item data dictionary
+
+        Returns:
+            Generated watchlist item ID
+
+        Raises:
+            DatabaseError: If creation fails
+        """
+        try:
+            # Use provided ID if available, otherwise generate new one
+            item_id = watchlist_data.get('id', str(uuid.uuid4()))
+            now = int(datetime.now().timestamp())
+
+            # Extract public data
+            symbol = watchlist_data['symbol'].upper()  # Normalize symbol to uppercase
+            is_demo = watchlist_data.get('is_demo', False)
+            added_date = watchlist_data.get('added_date', now)
+
+            # Encrypt sensitive data (notes, price data, etc.)
+            sensitive_data = {k: v for k, v in watchlist_data.items()
+                             if k not in ['id', 'symbol', 'is_demo', 'added_date']}
+
+            encrypted_data = self.encryption_service.encrypt(json.dumps(sensitive_data, default=str))
+
+            cursor = self.connect().cursor()
+            cursor.execute('''
+                INSERT INTO watchlist (id, symbol, encrypted_data, added_date, is_demo)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (item_id, symbol, encrypted_data, added_date, is_demo))
+
+            self.connection.commit()
+            logger.info(f"Created watchlist item for symbol {symbol}")
+            return item_id
+
+        except sqlite3.IntegrityError as e:
+            if 'UNIQUE constraint failed' in str(e):
+                raise DatabaseError(
+                    message=f"Stock symbol {symbol} is already in watchlist",
+                    code="DB_012",
+                    technical_details=str(e),
+                    user_action="Remove existing entry or choose a different symbol",
+                    original_exception=e
+                )
+            else:
+                raise DatabaseError(
+                    message="Failed to create watchlist item due to constraint violation",
+                    code="DB_013",
+                    technical_details=str(e),
+                    original_exception=e
+                )
+        except Exception as e:
+            raise DatabaseError(
+                message="Failed to create watchlist item",
+                code="DB_014",
+                technical_details=str(e),
+                original_exception=e
+            )
+
+    def get_watchlist_item(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve watchlist item by symbol with decrypted data.
+
+        Args:
+            symbol: Stock symbol to retrieve
+
+        Returns:
+            Watchlist item data dictionary or None if not found
+
+        Raises:
+            DatabaseError: If retrieval fails
+        """
+        try:
+            cursor = self.connect().cursor()
+            cursor.execute('SELECT * FROM watchlist WHERE symbol = ?', (symbol.upper(),))
+            row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            # Decrypt sensitive data
+            encrypted_data = row['encrypted_data']
+            sensitive_data = json.loads(self.encryption_service.decrypt(encrypted_data))
+
+            # Combine public and decrypted data
+            watchlist_data = {
+                'id': row['id'],
+                'symbol': row['symbol'],
+                'added_date': datetime.fromtimestamp(row['added_date']),
+                'last_price_update': datetime.fromtimestamp(row['last_price_update']) if row['last_price_update'] else None,
+                'is_demo': bool(row['is_demo'])
+            }
+            watchlist_data.update(sensitive_data)
+
+            return watchlist_data
+
+        except Exception as e:
+            raise DatabaseError(
+                message=f"Failed to retrieve watchlist item for symbol {symbol}",
+                code="DB_015",
+                technical_details=str(e),
+                original_exception=e
+            )
+
+    def get_watchlist_items(self, include_demo: bool = True) -> List[Dict[str, Any]]:
+        """
+        Retrieve all watchlist items with decrypted data.
+
+        Args:
+            include_demo: Whether to include demo watchlist items
+
+        Returns:
+            List of watchlist item data dictionaries
+
+        Raises:
+            DatabaseError: If retrieval fails
+        """
+        try:
+            cursor = self.connect().cursor()
+
+            if include_demo:
+                cursor.execute('SELECT * FROM watchlist ORDER BY symbol')
+            else:
+                cursor.execute('SELECT * FROM watchlist WHERE is_demo = 0 ORDER BY symbol')
+
+            watchlist_items = []
+            for row in cursor.fetchall():
+                item_data = self.get_watchlist_item(row['symbol'])
+                if item_data:
+                    watchlist_items.append(item_data)
+
+            return watchlist_items
+
+        except Exception as e:
+            raise DatabaseError(
+                message="Failed to retrieve watchlist items",
+                code="DB_016",
+                technical_details=str(e),
+                original_exception=e
+            )
+
+    def get_demo_watchlist_items(self) -> List[Dict[str, Any]]:
+        """
+        Retrieve all demo watchlist items.
+
+        Returns:
+            List of demo watchlist item data dictionaries
+        """
+        try:
+            cursor = self.connect().cursor()
+            cursor.execute('SELECT * FROM watchlist WHERE is_demo = 1 ORDER BY symbol')
+
+            watchlist_items = []
+            for row in cursor.fetchall():
+                item_data = self.get_watchlist_item(row['symbol'])
+                if item_data:
+                    watchlist_items.append(item_data)
+
+            return watchlist_items
+
+        except Exception as e:
+            raise DatabaseError(
+                message="Failed to retrieve demo watchlist items",
+                code="DB_017",
+                technical_details=str(e),
+                original_exception=e
+            )
+
+    def get_real_watchlist_items(self) -> List[Dict[str, Any]]:
+        """
+        Retrieve all real (non-demo) watchlist items.
+
+        Returns:
+            List of real watchlist item data dictionaries
+        """
+        try:
+            cursor = self.connect().cursor()
+            cursor.execute('SELECT * FROM watchlist WHERE is_demo = 0 ORDER BY symbol')
+
+            watchlist_items = []
+            for row in cursor.fetchall():
+                item_data = self.get_watchlist_item(row['symbol'])
+                if item_data:
+                    watchlist_items.append(item_data)
+
+            return watchlist_items
+
+        except Exception as e:
+            raise DatabaseError(
+                message="Failed to retrieve real watchlist items",
+                code="DB_018",
+                technical_details=str(e),
+                original_exception=e
+            )
+
+    def update_watchlist_item(self, symbol: str, watchlist_data: Dict[str, Any]) -> bool:
+        """
+        Update existing watchlist item with encrypted data.
+
+        Args:
+            symbol: Stock symbol to update
+            watchlist_data: Updated watchlist item data
+
+        Returns:
+            True if item was updated, False if not found
+
+        Raises:
+            DatabaseError: If update fails
+        """
+        try:
+            cursor = self.connect().cursor()
+
+            # Check if item exists
+            cursor.execute('SELECT id, is_demo FROM watchlist WHERE symbol = ?', (symbol.upper(),))
+            row = cursor.fetchone()
+            if not row:
+                return False
+
+            # Preserve demo marker if not explicitly provided in update
+            current_is_demo = bool(row['is_demo'])
+            is_demo = watchlist_data.get('is_demo', current_is_demo)
+
+            # Update last_price_update if price data is being updated
+            last_price_update = None
+            if 'current_price' in watchlist_data or 'daily_change' in watchlist_data:
+                last_price_update = int(datetime.now().timestamp())
+
+            # Encrypt sensitive data
+            sensitive_data = {k: v for k, v in watchlist_data.items()
+                             if k not in ['symbol', 'is_demo', 'added_date']}
+
+            encrypted_data = self.encryption_service.encrypt(json.dumps(sensitive_data, default=str))
+
+            # Update the record
+            if last_price_update:
+                cursor.execute('''
+                    UPDATE watchlist
+                    SET encrypted_data = ?, last_price_update = ?, is_demo = ?
+                    WHERE symbol = ?
+                ''', (encrypted_data, last_price_update, is_demo, symbol.upper()))
+            else:
+                cursor.execute('''
+                    UPDATE watchlist
+                    SET encrypted_data = ?, is_demo = ?
+                    WHERE symbol = ?
+                ''', (encrypted_data, is_demo, symbol.upper()))
+
+            self.connection.commit()
+            logger.info(f"Updated watchlist item for symbol {symbol}")
+            return True
+
+        except Exception as e:
+            raise DatabaseError(
+                message=f"Failed to update watchlist item for symbol {symbol}",
+                code="DB_019",
+                technical_details=str(e),
+                original_exception=e
+            )
+
+    def delete_watchlist_item(self, symbol: str) -> bool:
+        """
+        Delete watchlist item by symbol.
+
+        Args:
+            symbol: Stock symbol to delete
+
+        Returns:
+            True if item was deleted, False if not found
+
+        Raises:
+            DatabaseError: If deletion fails
+        """
+        try:
+            cursor = self.connect().cursor()
+
+            # Check if item exists
+            cursor.execute('SELECT id FROM watchlist WHERE symbol = ?', (symbol.upper(),))
+            if not cursor.fetchone():
+                return False
+
+            # Delete the item
+            cursor.execute('DELETE FROM watchlist WHERE symbol = ?', (symbol.upper(),))
+            self.connection.commit()
+
+            logger.info(f"Deleted watchlist item for symbol {symbol}")
+            return True
+
+        except Exception as e:
+            raise DatabaseError(
+                message=f"Failed to delete watchlist item for symbol {symbol}",
+                code="DB_020",
+                technical_details=str(e),
+                original_exception=e
+            )
+
+    def delete_demo_watchlist_items(self) -> int:
+        """
+        Bulk delete all demo watchlist items.
+
+        Returns:
+            Number of demo watchlist items deleted
+
+        Raises:
+            DatabaseError: If deletion fails
+        """
+        try:
+            cursor = self.connect().cursor()
+
+            # Delete demo watchlist items
+            cursor.execute('DELETE FROM watchlist WHERE is_demo = 1')
+            deleted_count = cursor.rowcount
+
+            self.connection.commit()
+
+            logger.info(f"Successfully deleted {deleted_count} demo watchlist items")
+            return deleted_count
+
+        except Exception as e:
+            raise DatabaseError(
+                message="Failed to delete demo watchlist items",
+                code="DB_021",
+                technical_details=str(e),
+                original_exception=e
+            )
+
+    def save_watchlist_item(self, watchlist_item, is_demo: bool = False) -> str:
+        """
+        Save watchlist item (create or update) with demo marker support.
+
+        Args:
+            watchlist_item: WatchlistItem object or dictionary to save
+            is_demo: Whether this is a demo watchlist item
+
+        Returns:
+            Watchlist item ID
+
+        Raises:
+            DatabaseError: If save fails
+        """
+        try:
+            # Convert watchlist item object to dictionary
+            if hasattr(watchlist_item, 'to_dict'):
+                item_data = watchlist_item.to_dict()
+            else:
+                item_data = watchlist_item
+
+            # Add demo marker
+            item_data['is_demo'] = is_demo
+
+            # Check if item exists
+            symbol = item_data['symbol'].upper()
+            existing_item = self.get_watchlist_item(symbol)
+
+            if existing_item:
+                # Update existing item
+                self.update_watchlist_item(symbol, item_data)
+                return existing_item['id']
+            else:
+                # Create new item
+                return self.create_watchlist_item(item_data)
+
+        except Exception as e:
+            raise DatabaseError(
+                message=f"Failed to save watchlist item for symbol {item_data.get('symbol', 'unknown')}",
+                code="DB_022",
                 technical_details=str(e),
                 original_exception=e
             )

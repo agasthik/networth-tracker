@@ -12,6 +12,96 @@ const AppState = {
     isLoading: false
 };
 
+// Demo filter state
+let demoFilterActive = false;
+
+// Demo Account Management Functions
+function toggleDemoFilter() {
+    demoFilterActive = !demoFilterActive;
+    const filterText = document.getElementById('demoFilterText');
+
+    if (demoFilterActive) {
+        filterText.textContent = 'Show All';
+        // Filter to show only demo accounts
+        filterAccountsByDemo(true);
+    } else {
+        filterText.textContent = 'Show Demo Only';
+        // Show all accounts
+        filterAccountsByDemo(false);
+    }
+}
+
+function filterAccountsByDemo(demoOnly) {
+    // This will filter the account displays based on demo status
+    // Implementation will be added when account rendering is updated
+    console.log('Filtering accounts by demo status:', demoOnly);
+
+    // Update account tabs with filtered data
+    updateAccountTabs();
+}
+
+function confirmDeleteDemoAccounts() {
+    // Get demo accounts from current state
+    const demoAccounts = AppState.accounts.filter(account => account.is_demo);
+
+    if (demoAccounts.length === 0) {
+        showNotification('No demo accounts found to delete.', 'info');
+        return;
+    }
+
+    // Update modal with demo account information
+    document.getElementById('confirmDemoCount').textContent = demoAccounts.length;
+
+    const demoAccountsList = document.getElementById('demoAccountsList');
+    demoAccountsList.innerHTML = demoAccounts.map(account => `
+        <li class="mb-1">
+            <i class="fas fa-flask demo-icon"></i>
+            <strong>${account.name}</strong> (${account.institution})
+        </li>
+    `).join('');
+
+    // Show confirmation modal
+    const modal = new bootstrap.Modal(document.getElementById('deleteDemoAccountsModal'));
+    modal.show();
+}
+
+function deleteDemoAccounts() {
+    // Show loading state
+    const button = document.querySelector('button[onclick="deleteDemoAccounts()"]');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Deleting...';
+    button.disabled = true;
+
+    fetch('/api/demo/accounts', {
+        method: 'DELETE'
+    })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => Promise.reject(err));
+            }
+            return response.json();
+        })
+        .then(data => {
+            showNotification(`Successfully deleted ${data.deleted_count} demo accounts.`, 'success');
+
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteDemoAccountsModal'));
+            modal.hide();
+
+            // Refresh account data
+            loadAccountData();
+        })
+        .catch(error => {
+            console.error('Error deleting demo accounts:', error);
+            showNotification('Failed to delete demo accounts. Please try again.', 'error');
+        })
+        .finally(() => {
+            // Reset button state
+            button.innerHTML = originalText;
+            button.disabled = false;
+        });
+}
+
 function initializeApp() {
     // Initialize tooltips
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -44,7 +134,8 @@ function showAccountForm(accountType, accountId = null) {
         'SAVINGS': 'Savings Account',
         '401K': '401k Retirement Account',
         'TRADING': 'Trading Account',
-        'I_BONDS': 'I-Bonds Account'
+        'I_BONDS': 'I-Bonds Account',
+        'HSA': 'HSA Account'
     };
 
     const isEdit = accountId !== null;
@@ -62,7 +153,8 @@ function loadAccountForm(accountType, container, accountId = null) {
         'SAVINGS': '/templates/accounts/savings_form.html',
         '401K': '/templates/accounts/401k_form.html',
         'TRADING': '/templates/accounts/trading_form.html',
-        'I_BONDS': '/templates/accounts/ibonds_form.html'
+        'I_BONDS': '/templates/accounts/ibonds_form.html',
+        'HSA': '/templates/accounts/hsa_form.html'
     };
 
     // Show loading spinner
@@ -351,7 +443,8 @@ function calculateTotalNetworth() {
         SAVINGS: 0,
         '401K': 0,
         TRADING: 0,
-        I_BONDS: 0
+        I_BONDS: 0,
+        HSA: 0
     };
 
     AppState.accounts.forEach(account => {
@@ -378,6 +471,9 @@ function calculateTotalNetworth() {
                 break;
             case 'I_BONDS':
                 accountValue = account.current_value || 0;
+                break;
+            case 'HSA':
+                accountValue = account.current_balance || 0;
                 break;
         }
 
@@ -413,7 +509,8 @@ function updateNetworthDisplay() {
     Object.keys(accountTotals).forEach(type => {
         const elementId = type === '401K' ? '401kTotal' :
             type === 'I_BONDS' ? 'ibondsTotal' :
-                type.toLowerCase() + 'Total';
+                type === 'HSA' ? 'hsaTotal' :
+                    type.toLowerCase() + 'Total';
         const element = document.getElementById(elementId);
         if (element) {
             element.textContent = formatNumber(accountTotals[type]);
@@ -429,74 +526,7 @@ function updateNetworthDisplay() {
 function updateDashboardSummary() {
     const { total, accountTotals } = calculateTotalNetworth();
 
-    // Update summary table
-    const summaryTableBody = document.getElementById('summaryTableBody');
-    if (summaryTableBody) {
-        const accountTypeNames = {
-            'CD': 'Certificates of Deposit',
-            'SAVINGS': 'Savings Accounts',
-            '401K': '401k Retirement',
-            'TRADING': 'Trading Accounts',
-            'I_BONDS': 'I-Bonds Treasury'
-        };
-
-        // Clear existing content
-        summaryTableBody.innerHTML = '';
-
-        Object.keys(accountTotals).forEach(type => {
-            const allAccounts = AppState.accounts.filter(acc => acc.account_type === type);
-            const filteredAccounts = getFilteredAccounts(AppState.accounts, type);
-            const count = filteredAccounts.length;
-            const demoCount = allAccounts.filter(acc => acc.is_demo).length;
-            const value = accountTotals[type];
-            const percentage = total > 0 ? (value / total * 100) : 0;
-
-            if (count > 0) {
-                // Create table row safely
-                const row = document.createElement('tr');
-
-                // Account info cell
-                const accountInfoCell = document.createElement('td');
-                accountInfoCell.textContent = accountTypeNames[type] || 'Unknown';
-                if (demoCount > 0 && !demoFilterActive) {
-                    const demoText = document.createElement('small');
-                    demoText.className = 'text-muted';
-                    demoText.textContent = ` (${demoCount} demo)`;
-                    accountInfoCell.appendChild(demoText);
-                }
-
-                // Count cell
-                const countCell = document.createElement('td');
-                countCell.textContent = count;
-
-                // Value cell
-                const valueCell = document.createElement('td');
-                valueCell.textContent = formatCurrency(value);
-
-                // Percentage cell
-                const percentageCell = document.createElement('td');
-                percentageCell.textContent = `${percentage.toFixed(1)}%`;
-
-                // Action cell
-                const actionCell = document.createElement('td');
-                const button = document.createElement('button');
-                button.className = 'btn btn-sm btn-outline-primary';
-                button.textContent = 'View Details';
-                button.onclick = () => showAccountTab(type);
-                actionCell.appendChild(button);
-
-                // Append all cells to row
-                row.appendChild(accountInfoCell);
-                row.appendChild(countCell);
-                row.appendChild(valueCell);
-                row.appendChild(percentageCell);
-                row.appendChild(actionCell);
-
-                // Append row to table body
-                summaryTableBody.appendChild(row);
-            }
-        });
-    }
+    // Note: Summary table is populated by loadPortfolioSummary() which has more complete data including monthly changes
 
     // Update quick stats
     const totalAccountsElement = document.getElementById('totalAccounts');
@@ -524,6 +554,7 @@ function updateAccountTabs() {
     update401kAccountsList();
     updateTradingAccountsList();
     updateIBondsAccountsList();
+    updateHSAAccountsList();
 }
 
 function showAccountTab(accountType) {
@@ -532,7 +563,8 @@ function showAccountTab(accountType) {
         'SAVINGS': 'savings-tab',
         '401K': 'retirement401k-tab',
         'TRADING': 'trading-tab',
-        'I_BONDS': 'ibonds-tab'
+        'I_BONDS': 'ibonds-tab',
+        'HSA': 'hsa-tab'
     };
 
     const tabId = tabMap[accountType];
@@ -592,6 +624,16 @@ function loadAccountData() {
             loadPortfolioSummary();
             console.log('About to call initializeCharts');
             initializeCharts();
+
+            // Load watchlist summary
+            console.log('About to call loadSimpleWatchlistSummary');
+            if (typeof loadSimpleWatchlistSummary === 'function') {
+                setTimeout(() => {
+                    loadSimpleWatchlistSummary();
+                }, 500);
+            } else {
+                console.warn('loadSimpleWatchlistSummary function not found');
+            }
         });
 }
 
@@ -921,6 +963,37 @@ function validateAccountForm(accountData, accountType) {
                 isValid = false;
             }
             break;
+
+        case 'HSA':
+            if (!accountData.current_balance || parseFloat(accountData.current_balance) < 0) {
+                errors.push('Current balance must be 0 or greater.');
+                isValid = false;
+            }
+            if (!accountData.annual_contribution_limit || parseFloat(accountData.annual_contribution_limit) < 0) {
+                errors.push('Annual contribution limit must be 0 or greater.');
+                isValid = false;
+            }
+            if (!accountData.current_year_contributions || parseFloat(accountData.current_year_contributions) < 0) {
+                errors.push('Current year contributions must be 0 or greater.');
+                isValid = false;
+            }
+            if (!accountData.investment_balance || parseFloat(accountData.investment_balance) < 0) {
+                errors.push('Investment balance must be 0 or greater.');
+                isValid = false;
+            }
+            if (!accountData.cash_balance || parseFloat(accountData.cash_balance) < 0) {
+                errors.push('Cash balance must be 0 or greater.');
+                isValid = false;
+            }
+            // Validate that investment + cash = current balance
+            const currentBalance = parseFloat(accountData.current_balance) || 0;
+            const investmentBalance = parseFloat(accountData.investment_balance) || 0;
+            const cashBalance = parseFloat(accountData.cash_balance) || 0;
+            if (Math.abs((investmentBalance + cashBalance) - currentBalance) > 0.01) {
+                errors.push('Investment balance plus cash balance must equal current balance.');
+                isValid = false;
+            }
+            break;
     }
 
     if (!isValid) {
@@ -1017,7 +1090,8 @@ function updatePortfolioSummary(data) {
             'SAVINGS': 'Savings Accounts',
             '401K': '401k Retirement',
             'TRADING': 'Trading Accounts',
-            'I_BONDS': 'I-Bonds Treasury'
+            'I_BONDS': 'I-Bonds Treasury',
+            'HSA': 'Health Savings Accounts'
         };
 
         let summaryHTML = '';
@@ -1129,7 +1203,8 @@ function updatePortfolioChart(data) {
         'SAVINGS': '#28a745',  // success
         '401K': '#ffc107',     // warning
         'TRADING': '#dc3545',  // danger
-        'I_BONDS': '#6c757d'   // secondary
+        'I_BONDS': '#6c757d',  // secondary
+        'HSA': '#007bff'       // primary
     };
 
     const typeNames = {
@@ -1137,7 +1212,8 @@ function updatePortfolioChart(data) {
         'SAVINGS': 'Savings',
         '401K': '401k',
         'TRADING': 'Trading',
-        'I_BONDS': 'I-Bonds'
+        'I_BONDS': 'I-Bonds',
+        'HSA': 'HSA'
     };
 
     Object.keys(data.account_types).forEach(type => {
@@ -1209,91 +1285,10 @@ function updatePortfolioChart(data) {
         }
     });
 
-    // Update portfolio summary list
-    updatePortfolioSummaryList(data, colorMap, typeNames);
+    // Portfolio summary list widget removed - information available in table below
 }
 
-function updatePortfolioSummaryList(data, colorMap, typeNames) {
-    const container = document.getElementById('portfolioSummaryList');
-    if (!container || !data.account_types) return;
 
-    let summaryHTML = '';
-    const totalValue = data.total_networth || 0;
-
-    Object.keys(data.account_types).forEach(type => {
-        const typeData = data.account_types[type];
-        if (typeData.count > 0 && typeData.value > 0) {
-            const percentage = totalValue > 0 ? ((typeData.value / totalValue) * 100).toFixed(1) : 0;
-            const color = colorMap[type];
-
-            // Create portfolio item safely
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'd-flex align-items-center mb-3';
-
-            // Color indicator
-            const colorDiv = document.createElement('div');
-            colorDiv.className = 'me-3';
-            const colorIndicator = document.createElement('div');
-            colorIndicator.style.cssText = `width: 16px; height: 16px; background-color: ${color}; border-radius: 50%;`;
-            colorDiv.appendChild(colorIndicator);
-
-            // Content area
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'flex-grow-1';
-
-            // Top row
-            const topRow = document.createElement('div');
-            topRow.className = 'd-flex justify-content-between align-items-center';
-            const typeSpan = document.createElement('span');
-            typeSpan.className = 'fw-medium';
-            typeSpan.textContent = typeNames[type] || 'Unknown';
-            const percentSpan = document.createElement('span');
-            percentSpan.className = 'text-muted small';
-            percentSpan.textContent = `${percentage}%`;
-            topRow.appendChild(typeSpan);
-            topRow.appendChild(percentSpan);
-
-            // Bottom row
-            const bottomRow = document.createElement('div');
-            bottomRow.className = 'd-flex justify-content-between align-items-center';
-            const countSmall = document.createElement('small');
-            countSmall.className = 'text-muted';
-            countSmall.textContent = `${typeData.count} account${typeData.count > 1 ? 's' : ''}`;
-            const valueSpan = document.createElement('span');
-            valueSpan.className = 'fw-bold';
-            valueSpan.textContent = formatCurrency(typeData.value);
-            bottomRow.appendChild(countSmall);
-            bottomRow.appendChild(valueSpan);
-
-            // Assemble content
-            contentDiv.appendChild(topRow);
-            contentDiv.appendChild(bottomRow);
-
-            // Assemble item
-            itemDiv.appendChild(colorDiv);
-            itemDiv.appendChild(contentDiv);
-
-            container.appendChild(itemDiv);
-        }
-    });
-
-    // Check if no items were added
-    if (container.children.length === 0) {
-        const noDataDiv = document.createElement('div');
-        noDataDiv.className = 'text-center text-muted py-3';
-
-        const icon = document.createElement('i');
-        icon.className = 'fas fa-info-circle mb-2';
-
-        const text = document.createElement('p');
-        text.className = 'mb-0';
-        text.textContent = 'No accounts to display';
-
-        noDataDiv.appendChild(icon);
-        noDataDiv.appendChild(text);
-        container.appendChild(noDataDiv);
-    }
-}
 
 function updateRecentActivity() {
     const container = document.getElementById('recentActivity');
@@ -2025,6 +2020,76 @@ function updateIBondsAccountsList() {
     container.innerHTML = html;
 }
 
+function updateHSAAccountsList() {
+    const container = document.getElementById('hsaAccountsList');
+    if (!container) return;
+
+    const hsaAccounts = getFilteredAccounts(AppState.accounts, 'HSA');
+
+    if (hsaAccounts.length === 0) {
+        const emptyMessage = demoFilterActive ?
+            'No demo HSA accounts found.' :
+            'Add your Health Savings Account to track tax-advantaged healthcare savings.';
+
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-medkit fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No HSA Accounts</h5>
+                <p class="text-muted">${emptyMessage}</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    hsaAccounts.forEach(account => {
+        const contributionProgress = account.annual_contribution_limit > 0 ?
+            (account.current_year_contributions / account.annual_contribution_limit * 100) : 0;
+        const remainingCapacity = Math.max(0, account.annual_contribution_limit - account.current_year_contributions);
+
+        html += `
+            <div class="card mb-3 ${getDemoCardClass(account)}">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h6 class="card-title mb-1">
+                                ${getDemoIndicatorHTML(account)}
+                                ${account.name}
+                            </h6>
+                            <p class="text-muted mb-1">${account.institution}</p>
+                            <small class="text-muted">
+                                Contributions: ${formatCurrency(account.current_year_contributions)} / ${formatCurrency(account.annual_contribution_limit)}
+                                (${contributionProgress.toFixed(1)}%) |
+                                Remaining: ${formatCurrency(remainingCapacity)}
+                            </small>
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <h5 class="mb-0">${formatCurrency(account.current_balance)}</h5>
+                            <small class="text-muted">
+                                Cash: ${formatCurrency(account.cash_balance)}<br>
+                                Invested: ${formatCurrency(account.investment_balance)}
+                            </small>
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <button class="btn btn-sm btn-outline-info me-1" onclick="showAccountDetails('${account.id}')" title="View Details">
+                                <i class="fas fa-chart-line"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="showAccountForm('HSA', '${account.id}')" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAccount('${account.id}')" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
 // Loading States
 function showLoading(element) {
     element.classList.add('loading');
@@ -2233,5 +2298,7 @@ window.addEventListener('offline', function () {
 if (!navigator.onLine) {
     showNotification('You are currently offline. Stock price updates are disabled.', 'info');
 }
+
+// Watchlist functionality is handled in dashboard template
 
 console.log('Networth Tracker JavaScript fully loaded and initialized');

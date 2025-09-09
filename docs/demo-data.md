@@ -16,6 +16,7 @@ The demo database contains:
 - **1 401k retirement account** with employer matching and contribution history
 - **2 Trading accounts** with diverse stock positions and real-time price tracking
 - **2 I-bonds accounts** with different purchase dates and inflation adjustments
+- **1 HSA account** with contribution tracking and investment balance
 
 ### Historical Data
 - **24 months** of historical performance data

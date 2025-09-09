@@ -21,7 +21,7 @@ from typing import List, Dict, Any, Optional
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from models.accounts import (
-    BaseAccount, CDAccount, SavingsAccount, Account401k, TradingAccount, IBondsAccount,
+    BaseAccount, CDAccount, SavingsAccount, Account401k, TradingAccount, IBondsAccount, HSAAccount,
     StockPosition, HistoricalSnapshot, AccountType, ChangeType
 )
 from services.encryption import EncryptionService
@@ -75,6 +75,7 @@ class DemoDataGenerator:
         accounts.extend(self._generate_401k_accounts(1))
         accounts.extend(self._generate_trading_accounts(2))
         accounts.extend(self._generate_ibonds_accounts(2))
+        accounts.extend(self._generate_hsa_accounts(2))
         return accounts
 
     def _generate_cd_accounts(self, count: int) -> List[CDAccount]:
@@ -223,6 +224,54 @@ class DemoDataGenerator:
             ))
         return accounts
 
+    def _generate_hsa_accounts(self, count: int) -> List[HSAAccount]:
+        """Generate sample HSA accounts with realistic contribution data."""
+        accounts = []
+        for i in range(count):
+            # HSA contribution limits for 2024: $4,150 individual, $8,300 family
+            # Additional $1,000 catch-up for 55+
+            is_family_plan = random.choice([True, False])
+            is_over_55 = random.choice([True, False]) if random.random() < 0.3 else False
+
+            if is_family_plan:
+                annual_limit = 8300.0
+                plan_type = "Family"
+            else:
+                annual_limit = 4150.0
+                plan_type = "Individual"
+
+            if is_over_55:
+                annual_limit += 1000.0
+                plan_type += " (55+ Catch-up)"
+
+            # Generate realistic balances and contributions
+            current_balance = round(random.uniform(500, 15000), 2)
+            current_year_contributions = round(random.uniform(0, annual_limit * 0.8), 2)
+            employer_contributions = round(random.uniform(0, 2000), 2) if random.random() < 0.4 else 0.0
+
+            # Split balance between cash and investments (if applicable)
+            investment_ratio = random.uniform(0.0, 0.7) if current_balance > 2000 else 0.0
+            investment_balance = round(current_balance * investment_ratio, 2)
+            cash_balance = round(current_balance - investment_balance, 2)
+
+            created_date = datetime.now() - timedelta(days=random.randint(90, 1095))
+
+            accounts.append(HSAAccount(
+                id=f"demo-hsa-{i+1}",
+                name=f"HSA {plan_type} Plan",
+                institution=random.choice(["HSA Bank", "Optum Bank", "Fidelity HSA", "HealthEquity", "Lively HSA"]),
+                account_type=AccountType.HSA,
+                created_date=created_date,
+                last_updated=datetime.now() - timedelta(days=random.randint(1, 30)),
+                current_balance=current_balance,
+                annual_contribution_limit=annual_limit,
+                current_year_contributions=current_year_contributions,
+                employer_contributions=employer_contributions,
+                investment_balance=investment_balance,
+                cash_balance=cash_balance
+            ))
+        return accounts
+
     def generate_historical_data(self, accounts: List[BaseAccount]) -> List[HistoricalSnapshot]:
         """
         Generate 24 months of historical performance data for accounts.
@@ -267,6 +316,9 @@ class DemoDataGenerator:
             elif account.account_type == AccountType.I_BONDS:
                 # I-bonds have steady growth with inflation adjustments
                 monthly_change = random.uniform(-0.005, 0.025)  # -0.5% to +2.5%
+            elif account.account_type == AccountType.HSA:
+                # HSA accounts have moderate volatility (mix of cash and investments)
+                monthly_change = random.uniform(-0.04, 0.08)  # -4% to +8%
             else:
                 monthly_change = random.uniform(-0.05, 0.08)  # Default range
 
@@ -300,11 +352,59 @@ class DemoDataGenerator:
 
         return snapshots
 
+    def generate_demo_watchlist(self) -> List[Dict[str, Any]]:
+        """
+        Generate demo watchlist items with popular stocks.
+
+        Returns:
+            List of watchlist item dictionaries
+        """
+        watchlist_items = []
+
+        # Select a subset of popular stocks for the demo watchlist
+        # Includes diverse sectors: Technology, Healthcare, Finance, Energy, Consumer, ETFs
+        demo_watchlist_stocks = [
+            ("AAPL", "Apple Inc. - Technology giant", 150.25, 2.50, 1.69),
+            ("GOOGL", "Alphabet Inc. - Search and cloud", 2485.75, -15.25, -0.61),
+            ("MSFT", "Microsoft Corp. - Software and cloud", 298.50, 4.25, 1.44),
+            ("TSLA", "Tesla Inc. - Electric vehicles", 795.30, -12.80, -1.58),
+            ("NVDA", "NVIDIA Corp. - AI and graphics", 425.60, 8.90, 2.14),
+            ("JNJ", "Johnson & Johnson - Healthcare", 160.45, 1.20, 0.75),
+            ("JPM", "JPMorgan Chase - Financial services", 142.80, -0.95, -0.66),
+            ("XOM", "Exxon Mobil - Energy sector", 118.50, 2.15, 1.85),
+            ("KO", "Coca-Cola - Consumer staples", 58.75, 0.45, 0.77),
+            ("SPY", "SPDR S&P 500 ETF - Market index", 398.45, 1.25, 0.31),
+            ("QQQ", "Invesco QQQ Trust - Tech index", 352.80, 3.15, 0.90),
+            ("VTI", "Vanguard Total Stock Market ETF", 218.90, 0.85, 0.39)
+        ]
+
+        for i, (symbol, notes, price, change, change_pct) in enumerate(demo_watchlist_stocks):
+            # Add some randomness to prices for realism
+            current_price = round(price + random.uniform(-price * 0.02, price * 0.02), 2)
+            daily_change = round(change + random.uniform(-2, 2), 2)
+            daily_change_percent = round((daily_change / (current_price - daily_change)) * 100, 2)
+
+            added_date = datetime.now() - timedelta(days=random.randint(1, 90))
+
+            watchlist_items.append({
+                'id': f"demo-watchlist-{i+1}",
+                'symbol': symbol,
+                'notes': notes,
+                'current_price': current_price,
+                'daily_change': daily_change,
+                'daily_change_percent': daily_change_percent,
+                'added_date': added_date,
+                'last_price_update': datetime.now() - timedelta(minutes=random.randint(5, 120)),
+                'is_demo': True
+            })
+
+        return watchlist_items
+
 
 class DemoDatabaseCreator:
     """Create standalone demo database with schema migration support."""
 
-    SCHEMA_VERSION = 1
+    SCHEMA_VERSION = 5
 
     def __init__(self, db_path: str = "networth_demo.db", password: str = "demo123"):
         """
@@ -354,10 +454,15 @@ class DemoDatabaseCreator:
             print(f"Generated {len(demo_accounts)} demo accounts")
             print(f"Generated {len(demo_history)} historical snapshots")
 
+            # Generate demo watchlist
+            demo_watchlist = generator.generate_demo_watchlist()
+            print(f"Generated {len(demo_watchlist)} demo watchlist items")
+
             # Populate database
             account_id_mapping = self._populate_accounts(conn, demo_accounts)
             self._populate_historical_data(conn, demo_history, account_id_mapping)
             self._populate_stock_positions(conn, demo_accounts, account_id_mapping)
+            self._populate_watchlist(conn, demo_watchlist)
 
             # Set demo password in app settings
             self._set_demo_settings(conn)
@@ -434,12 +539,27 @@ class DemoDatabaseCreator:
             )
         ''')
 
+        # Watchlist table for stock tracking
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS watchlist (
+                id TEXT PRIMARY KEY,
+                symbol TEXT NOT NULL UNIQUE,
+                encrypted_data BLOB NOT NULL,
+                added_date INTEGER NOT NULL,
+                last_price_update INTEGER,
+                is_demo BOOLEAN DEFAULT FALSE
+            )
+        ''')
+
         # Create indexes
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_accounts_type ON accounts (type)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_accounts_is_demo ON accounts (is_demo)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_historical_account_id ON historical_snapshots (account_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_historical_timestamp ON historical_snapshots (timestamp)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_stock_positions_account ON stock_positions (trading_account_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_watchlist_symbol ON watchlist (symbol)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_watchlist_added_date ON watchlist (added_date)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_watchlist_is_demo ON watchlist (is_demo)')
 
     def _populate_accounts(self, conn: sqlite3.Connection, accounts: List[BaseAccount]) -> Dict[str, str]:
         """
@@ -551,6 +671,35 @@ class DemoDatabaseCreator:
                         position.current_price,
                         int(position.last_updated.timestamp()) if position.last_updated else None
                     ))
+
+    def _populate_watchlist(self, conn: sqlite3.Connection, watchlist_items: List[Dict[str, Any]]):
+        """Populate watchlist table with demo data."""
+        cursor = conn.cursor()
+
+        for item in watchlist_items:
+            # Separate public and sensitive data
+            symbol = item['symbol']
+            added_date = int(item['added_date'].timestamp())
+            last_price_update = int(item['last_price_update'].timestamp()) if item.get('last_price_update') else None
+            is_demo = item.get('is_demo', True)
+
+            # Encrypt sensitive data (notes, price data)
+            sensitive_data = {k: v for k, v in item.items()
+                             if k not in ['id', 'symbol', 'added_date', 'last_price_update', 'is_demo']}
+
+            encrypted_data = self.encryption_service.encrypt(json.dumps(sensitive_data, default=str))
+
+            cursor.execute('''
+                INSERT INTO watchlist (id, symbol, encrypted_data, added_date, last_price_update, is_demo)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                item['id'],
+                symbol,
+                encrypted_data,
+                added_date,
+                last_price_update,
+                is_demo
+            ))
 
     def _set_demo_settings(self, conn: sqlite3.Connection):
         """Set demo-specific application settings."""

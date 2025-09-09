@@ -40,6 +40,7 @@ class DatabaseMigration:
             2: self._migrate_to_v2_add_i_bonds_support,
             3: self._migrate_to_v3_add_metadata_column,
             4: self._migrate_to_v4_add_broker_support,
+            5: self._migrate_to_v5_add_watchlist_support,
             # Future migrations can be added here
         }
 
@@ -385,6 +386,42 @@ class DatabaseMigration:
 
         self.db_service.connection.commit()
         logger.info("Enhanced broker support migration completed")
+
+    def _migrate_to_v5_add_watchlist_support(self):
+        """
+        Migration to version 5: Add watchlist table for stock tracking.
+
+        This migration adds the watchlist table to support tracking stocks
+        without owning them, with encrypted storage for user notes.
+        """
+        logger.info("Applying migration v5: Adding watchlist support")
+
+        cursor = self.db_service.connection.cursor()
+
+        # Check if watchlist table already exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='watchlist'")
+        if not cursor.fetchone():
+            # Create watchlist table
+            cursor.execute('''
+                CREATE TABLE watchlist (
+                    id TEXT PRIMARY KEY,
+                    symbol TEXT NOT NULL UNIQUE,
+                    encrypted_data BLOB NOT NULL,
+                    added_date INTEGER NOT NULL,
+                    last_price_update INTEGER,
+                    is_demo BOOLEAN DEFAULT FALSE
+                )
+            ''')
+            logger.info("Created watchlist table")
+
+            # Add indexes for efficient watchlist queries
+            cursor.execute('CREATE INDEX idx_watchlist_symbol ON watchlist (symbol)')
+            cursor.execute('CREATE INDEX idx_watchlist_added_date ON watchlist (added_date)')
+            cursor.execute('CREATE INDEX idx_watchlist_is_demo ON watchlist (is_demo)')
+            logger.info("Created watchlist indexes")
+
+        self.db_service.connection.commit()
+        logger.info("Watchlist support migration completed")
 
     def add_custom_migration(self, version: int, migration_func: Callable):
         """

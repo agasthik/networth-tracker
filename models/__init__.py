@@ -9,9 +9,14 @@ from .accounts import (
     Account401k,
     TradingAccount,
     IBondsAccount,
+    HSAAccount,
     StockPosition,
     HistoricalSnapshot,
     AccountFactory
+)
+
+from .watchlist import (
+    WatchlistItem
 )
 
 __all__ = [
@@ -23,7 +28,9 @@ __all__ = [
     'Account401k',
     'TradingAccount',
     'IBondsAccount',
+    'HSAAccount',
     'StockPosition',
     'HistoricalSnapshot',
-    'AccountFactory'
+    'AccountFactory',
+    'WatchlistItem'
 ]

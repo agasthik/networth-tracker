@@ -198,7 +198,7 @@
                     <div class="col-md-8">
                         <h5>Portfolio Overview</h5>
                         <div class="row mb-4">
-                            <div class="col-md-8">
+                            <div class="col-md-6">
                                 <div class="card">
                                     <div class="card-header">
                                         <h6 class="mb-0">
@@ -209,6 +209,21 @@
                                     <div class="card-body">
                                         <div id="portfolioChart">
                                             <canvas id="portfolioDonutChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-list me-2"></i>
+                                            Account Summary
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="portfolioSummaryList">
+                                            <!-- Portfolio summary list will be populated here -->
                                         </div>
                                     </div>
                                 </div>
@@ -586,7 +601,7 @@
             } catch (error) {
                 console.error('=== ERROR CALLING FUNCTION ===', error);
             }
-        }, 2000);
+        }, 1000);
     }
 
     function loadSimpleWatchlistSummary() {
@@ -606,25 +621,14 @@
         gainersElement.textContent = '...';
 
         // Fetch watchlist data
-        fetch('/api/watchlist', {
-            credentials: 'same-origin'
-        })
+        fetch('/api/watchlist')
             .then(response => {
-                console.log('Watchlist API response status:', response.status);
                 if (!response.ok) {
-                    if (response.status === 401) {
-                        console.warn('Not authenticated for watchlist API, will retry later');
-                        totalElement.textContent = '0';
-                        gainersElement.textContent = '0';
-                        return null;
-                    }
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 return response.json();
             })
             .then(data => {
-                if (!data) return; // Handle authentication case
-
                 console.log('Watchlist API response:', data);
 
                 if (data.success && Array.isArray(data.watchlist)) {
@@ -686,6 +690,43 @@
         // This will be implemented in task 13 (JavaScript functionality)
         console.log('Importing data...');
     }
+
+
+
+
+
+    // Watchlist summary removed - was causing infinite loading issues
+    console.log('Updating watchlist summary with items:', watchlistItems);
+    const summaryContainer = document.getElementById('watchlistSummary');
+
+
+
+    if (!watchlistItems || watchlistItems.length === 0) {
+        console.log('No watchlist items, showing empty state');
+        summaryContainer.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-eye fa-2x mb-2"></i>
+                    <p class="mb-1">No stocks in watchlist</p>
+                    <small>Add stocks to track their performance</small>
+                </div>
+            `;
+    }
+
+    // Show top 3 watchlist items
+    const topItems = watchlistItems.slice(0, 3);
+    const summaryHtml = topItems.map(item => {
+        const changeClass = item.daily_change >= 0 ? 'text-success' : 'text-danger';
+        const changeIcon = item.daily_change >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+        const price = item.current_price ? `$${item.current_price.toFixed(2)}` : 'N/A';
+        const change = item.daily_change ? `${item.daily_change >= 0 ? '+' : ''}${item.daily_change.toFixed(2)}` : '0.00';
+        const changePercent = item.daily_change_percent ? `(${item.daily_change_percent >= 0 ? '+' : ''}${item.daily_change_percent.toFixed(2)}%)` : '(0.00%)';
+
+        return `
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                    <div>
+                        <strong>${item.symbol}</strong>
+                        <div class="small text-muted">${price}</div>
+                    </div>
     function updateDemoManagementSection() {
         // This function is now handled by app.js
         // The demo management functionality has been moved to the main JavaScript file

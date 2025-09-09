@@ -1,0 +1,24 @@
+{
+  "enabled": true,
+  "name": "File Format Validator",
+  "description": "Monitors file creation and modification to ensure files are not truncated and have proper indentation",
+  "version": "1",
+  "when": {
+    "type": "userTriggered",
+    "patterns": [
+      "*.py",
+      "*.html",
+      "*.css",
+      "*.js",
+      "*.md",
+      "*.yaml",
+      "*.yml",
+      "*.json",
+      "*.txt"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Check the recently modified files to ensure they are not truncated (have proper endings) and are indented correctly according to their file type conventions. For Python files, check for proper 4-space indentation. For HTML/CSS/JS files, check for consistent indentation (2 or 4 spaces). For YAML files, ensure proper 2-space indentation. Report any formatting issues and suggest corrections."
+  }
+}

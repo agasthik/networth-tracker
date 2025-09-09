@@ -22,6 +22,7 @@ class AccountType(Enum):
     ACCOUNT_401K = "401K"
     TRADING = "TRADING"
     I_BONDS = "I_BONDS"
+    HSA = "HSA"
 
 
 class ChangeType(Enum):
@@ -341,6 +342,113 @@ class IBondsAccount(BaseAccount):
 
 
 @dataclass
+class HSAAccount(BaseAccount):
+    """HSA (Health Savings Account) with contribution tracking and tax advantages."""
+    current_balance: float = 0.0
+    annual_contribution_limit: float = 0.0
+    current_year_contributions: float = 0.0
+    employer_contributions: float = 0.0
+    investment_balance: float = 0.0  # For HSAs that allow investments
+    cash_balance: float = 0.0        # Cash portion of HSA
+
+    def __post_init__(self):
+        """Validate HSA account data after initialization with comprehensive error handling."""
+        from services.error_handler import (
+            HSABalanceValidationError, HSABalanceMismatchError,
+            HSAContributionValidationError
+        )
+
+        # Validate all balance fields are non-negative
+        balance_fields = {
+            'current_balance': self.current_balance,
+            'annual_contribution_limit': self.annual_contribution_limit,
+            'current_year_contributions': self.current_year_contributions,
+            'employer_contributions': self.employer_contributions,
+            'investment_balance': self.investment_balance,
+            'cash_balance': self.cash_balance
+        }
+
+        for field_name, value in balance_fields.items():
+            if value < 0:
+                raise HSABalanceValidationError(field_name, value)
+
+        # Validate that investment + cash balance equals current balance
+        total_balance = self.investment_balance + self.cash_balance
+        if abs(total_balance - self.current_balance) > 0.01:  # Allow for small floating point differences
+            raise HSABalanceMismatchError(self.current_balance, self.cash_balance, self.investment_balance)
+
+        # Validate contribution limits
+        if self.current_year_contributions > self.annual_contribution_limit:
+            raise HSAContributionValidationError(self.current_year_contributions, self.annual_contribution_limit)
+
+    def get_current_value(self) -> float:
+        """Return the current balance of the HSA account."""
+        return self.current_balance
+
+    def get_remaining_contribution_capacity(self) -> float:
+        """Calculate remaining contribution capacity for the current year."""
+        return max(0.0, self.annual_contribution_limit - self.current_year_contributions)
+
+    def get_contribution_progress_percentage(self) -> float:
+        """Calculate contribution progress as a percentage of the annual limit."""
+        if self.annual_contribution_limit == 0:
+            return 0.0
+        return (self.current_year_contributions / self.annual_contribution_limit) * 100
+
+    def can_contribute(self, amount: float) -> bool:
+        """Check if a contribution amount is within the remaining capacity."""
+        return amount <= self.get_remaining_contribution_capacity()
+
+    def validate_contribution(self, amount: float) -> None:
+        """
+        Validate a contribution amount and raise appropriate errors.
+
+        Args:
+            amount: Contribution amount to validate
+
+        Raises:
+            HSAContributionLimitError: If contribution exceeds remaining capacity
+            HSABalanceValidationError: If contribution amount is invalid
+        """
+        from services.error_handler import HSAContributionLimitError, HSABalanceValidationError
+
+        if amount <= 0:
+            raise HSABalanceValidationError("contribution amount", amount)
+
+        remaining_capacity = self.get_remaining_contribution_capacity()
+        if amount > remaining_capacity:
+            raise HSAContributionLimitError(amount, remaining_capacity)
+
+    def validate_balance_update(self, new_current_balance: float, new_cash_balance: float, new_investment_balance: float) -> None:
+        """
+        Validate balance update to ensure consistency.
+
+        Args:
+            new_current_balance: New total balance
+            new_cash_balance: New cash balance
+            new_investment_balance: New investment balance
+
+        Raises:
+            HSABalanceValidationError: If any balance is negative
+            HSABalanceMismatchError: If balances don't add up correctly
+        """
+        from services.error_handler import HSABalanceValidationError, HSABalanceMismatchError
+
+        # Check for negative values
+        if new_current_balance < 0:
+            raise HSABalanceValidationError("current_balance", new_current_balance)
+        if new_cash_balance < 0:
+            raise HSABalanceValidationError("cash_balance", new_cash_balance)
+        if new_investment_balance < 0:
+            raise HSABalanceValidationError("investment_balance", new_investment_balance)
+
+        # Check balance consistency
+        total_balance = new_cash_balance + new_investment_balance
+        if abs(total_balance - new_current_balance) > 0.01:
+            raise HSABalanceMismatchError(new_current_balance, new_cash_balance, new_investment_balance)
+
+
+@dataclass
 class HistoricalSnapshot:
     """Historical snapshot of account value at a specific point in time."""
     id: str = ""
@@ -395,6 +503,7 @@ class AccountFactory:
         AccountType.ACCOUNT_401K: Account401k,
         AccountType.TRADING: TradingAccount,
         AccountType.I_BONDS: IBondsAccount,
+        AccountType.HSA: HSAAccount,
     }
 
     @classmethod

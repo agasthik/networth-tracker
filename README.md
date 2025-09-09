@@ -1,4 +1,4 @@
-# Networth Tracker
+# Net Worth Tracker
 
 A secure, privacy-first financial portfolio management application that runs locally on your machine. Track your investments across multiple account types with military-grade encryption and complete data privacy.
 
@@ -31,16 +31,19 @@ Open your browser to `http://127.0.0.1:5000`
 - **Zero data collection** - No analytics, tracking, or telemetry
 
 ### 💼 **Comprehensive Portfolio Tracking**
-- **Multiple Account Types**: CDs, Savings, 401k, Trading, I-bonds
-- **Real-time Stock Prices** - Automatic updates for trading accounts
-- **Historical Performance** - Track your portfolio growth over time
+- **Multiple Account Types**: CDs, Savings, 401k, Trading, I-bonds, HSA
+- **Real-time Stock Prices** - Automatic updates for trading accounts via yfinance
+- **Historical Performance** - Track your portfolio growth over time with automated snapshots
 - **Multi-broker Support** - Manage accounts across different institutions
+- **Stock Watchlist** - Monitor stocks without owning them
 
 ### 🛠 **User-Friendly Features**
 - **Demo Database** - Import realistic synthetic data to explore features
 - **Export/Import** - Encrypted backups for data portability
 - **Cross-platform** - Windows, macOS, and Linux support
 - **Browser-based** - Clean, responsive web interface
+- **Comprehensive Error Handling** - User-friendly error messages and recovery
+- **Flexible Configuration** - Environment-specific settings (development, production, testing)
 
 ## 📸 Dashboard Preview
 
@@ -70,22 +73,34 @@ Open your browser to `http://127.0.0.1:5000`
 
 ```
 networth-tracker/
-├── app.py                 # Main Flask application
-├── config.py              # Configuration management
+├── app.py                 # Main Flask application entry point
+├── config.py              # Configuration management (environments, settings)
+├── requirements.txt       # Python dependencies
 ├── scripts/               # Startup and utility scripts
-│   ├── start.py          # Main startup script
+│   ├── start.py          # Main startup script with environment detection
 │   ├── start.sh          # Unix/Linux/macOS launcher
 │   ├── start.bat         # Windows launcher
-│   └── init_db.py        # Database initialization
+│   ├── init_db.py        # Database initialization
+│   └── generate_demo_database.py # Demo data generation
 ├── models/               # Data models and account types
+│   └── accounts.py       # Account models, enums, factory patterns
 ├── services/             # Business logic services
-├── templates/            # HTML templates
+│   ├── auth.py           # Authentication and session management
+│   ├── database.py       # Encrypted SQLite operations
+│   ├── encryption.py     # AES-256 encryption service
+│   ├── historical.py     # Historical data tracking
+│   ├── stock_prices.py   # Real-time stock price fetching
+│   ├── export_import.py  # Data backup/restore
+│   ├── error_handler.py  # Centralized error handling
+│   ├── logging_config.py # Logging configuration
+│   └── watchlist.py      # Stock watchlist management
+├── templates/            # Jinja2 HTML templates
 ├── static/              # CSS, JavaScript, and assets
 ├── docs/                # Comprehensive documentation
-├── tests/               # Test suites
-├── logs/                # Application logs
-├── backups/             # Data backups
-└── requirements.txt     # Python dependencies
+├── tests/               # Test suites with integration tests
+├── logs/                # Application logs (secure permissions)
+├── backups/             # Encrypted data backups
+└── data/                # Database files location
 ```
 
 ## 🔧 System Requirements
@@ -95,11 +110,13 @@ networth-tracker/
 - **RAM**: 512 MB available memory
 - **Storage**: 100 MB free disk space
 - **OS**: Windows 10+, macOS 10.14+, Linux (Ubuntu 18.04+)
+- **Network**: Internet connection for stock price updates (optional)
 
 ### Recommended
 - **Python**: 3.9 or higher
 - **RAM**: 1 GB available memory
 - **Storage**: 500 MB free disk space (for data and backups)
+- **Browser**: Modern web browser (Chrome, Firefox, Safari, Edge)
 
 ## 🛡 Security Features
 
@@ -118,7 +135,8 @@ networth-tracker/
 ### Network Security
 - **Localhost Only**: Application binds to 127.0.0.1 only
 - **No Remote Access**: Cannot be accessed from other machines
-- **Minimal API Usage**: Only stock price lookups (symbols only)
+- **Minimal API Usage**: Only stock price lookups via yfinance (symbols only)
+- **Rate Limited**: Stock API calls are rate-limited to prevent abuse
 
 ## 🎯 Supported Account Types
 
@@ -127,8 +145,29 @@ networth-tracker/
 | **Certificate of Deposit (CD)** | Principal, interest rate, maturity tracking |
 | **Savings Accounts** | Balance tracking, interest monitoring |
 | **401k Retirement** | Balance, employer match, contribution limits |
-| **Trading Accounts** | Stock positions, real-time prices, multi-broker |
-| **I-bonds** | Purchase amount, inflation adjustments, maturity |
+| **Trading Accounts** | Stock positions, real-time prices, multi-broker support |
+| **I-bonds** | Purchase amount, inflation adjustments, maturity tracking |
+| **HSA (Health Savings Account)** | Contribution limits, employer contributions, investment tracking |
+
+## 🏛 Technical Architecture
+
+### Core Technologies
+- **Backend**: Python 3.8+ with Flask web framework
+- **Database**: SQLite with AES-256 encryption
+- **Frontend**: HTML templates (Jinja2), CSS, JavaScript
+- **Security**: cryptography library for encryption, PBKDF2 key derivation
+- **Stock Data**: yfinance library for real-time stock prices
+
+### Key Design Patterns
+- **Service Layer Pattern**: Business logic separated into service modules
+- **Factory Pattern**: Extensible account creation through AccountFactory
+- **Repository Pattern**: Database operations abstracted through DatabaseService
+- **Comprehensive Error Handling**: Centralized error management with user-friendly messages
+
+### Environment Support
+- **Development**: Debug mode, verbose logging, development database
+- **Production**: Optimized performance, secure file permissions, production logging
+- **Testing**: In-memory database, comprehensive test coverage
 
 ## 🚦 Getting Help
 
@@ -137,6 +176,11 @@ networth-tracker/
 2. **[Troubleshooting](docs/troubleshooting.md)** - Issue resolution guide
 3. **Log Files** - Check `logs/` directory for error details
 4. **[Demo Database Guide](docs/demo-data.md)** - Test functionality with synthetic data
+
+### Development Resources
+- **[Installation Guide](docs/installation.md)** - Complete setup instructions
+- **[Configuration Reference](docs/configuration.md)** - Environment and security settings
+- **Test Suite** - Run `./venv/bin/python -m pytest` for comprehensive testing
 
 ## 📄 License
 
@@ -148,4 +192,4 @@ Contributions are welcome! Please read the documentation for development setup a
 
 ---
 
-**⚠️ Important Security Note**: This application is designed for personal use on trusted computers. Always use strong master passwords and keep regular backups of your data.
+**⚠️ Important Security Note**: This application is designed for personal use on trusted computers. Always use strong master passwords (12+ characters) and keep regular encrypted backups of your data.

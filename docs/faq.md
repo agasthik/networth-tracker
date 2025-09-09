@@ -16,7 +16,7 @@ Common questions and answers about the Networth Tracker application.
 
 ### What is Networth Tracker?
 
-Networth Tracker is a secure, local financial portfolio management application that helps you track your investments across multiple account types including CDs, savings accounts, 401k accounts, trading accounts, and I-bonds. All data is stored locally on your machine with encryption for maximum privacy.
+Networth Tracker is a secure, local financial portfolio management application that helps you track your investments across multiple account types including CDs, savings accounts, 401k accounts, trading accounts, I-bonds, and HSA accounts. All data is stored locally on your machine with encryption for maximum privacy.
 
 ### Why choose Networth Tracker over online alternatives?
 
@@ -43,6 +43,7 @@ Networth Tracker is a secure, local financial portfolio management application t
 - **401k Retirement Accounts**: Balance, employer match, contributions
 - **Trading Accounts**: Stock positions, cash balance, multiple brokers
 - **I-bonds**: Purchase amount, fixed rate, inflation adjustments
+- **HSA (Health Savings Account)**: Contribution limits, employer contributions, investment tracking
 
 ### Is my financial data safe?
 
@@ -154,7 +155,7 @@ No, your data is protected by multiple security layers:
 
 1. Start the application and log in
 2. Click "Add Account" from the dashboard
-3. Choose your account type (CD, Savings, 401k, Trading, I-bonds)
+3. Choose your account type (CD, Savings, 401k, Trading, I-bonds, HSA)
 4. Fill in the required information
 5. Click "Save"
 

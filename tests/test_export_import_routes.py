@@ -55,6 +55,7 @@ class TestExportImportRoutes:
                 }
             ]
             mock_db.get_stock_positions.return_value = []
+            mock_db.get_watchlist_items.return_value = []  # Empty watchlist for route tests
             mock_db.get_historical_snapshots.return_value = []
             mock_db.get_setting.return_value = '1'
 

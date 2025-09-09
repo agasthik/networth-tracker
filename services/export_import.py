@@ -59,6 +59,9 @@ class ExportImportService:
                     if positions:
                         stock_positions[account['id']] = positions
 
+            # Export watchlist data
+            watchlist_data = self.db_service.get_watchlist_items(include_demo=True)
+
             # Export historical snapshots if requested
             historical_data = {}
             if include_historical:
@@ -91,10 +94,12 @@ class ExportImportService:
                     'format_version': self.BACKUP_FORMAT_VERSION,
                     'include_historical': include_historical,
                     'accounts_count': len(accounts_data),
+                    'watchlist_count': len(watchlist_data),
                     'historical_accounts_count': len(historical_data) if include_historical else 0
                 },
                 'accounts': self._serialize_accounts_for_export(accounts_data),
                 'stock_positions': self._serialize_stock_positions_for_export(stock_positions),
+                'watchlist': self._serialize_watchlist_for_export(watchlist_data),
                 'historical_snapshots': historical_data,
                 'app_settings': app_settings
             }
@@ -179,6 +184,8 @@ class ExportImportService:
                 'accounts_imported': 0,
                 'accounts_skipped': 0,
                 'stock_positions_imported': 0,
+                'watchlist_imported': 0,
+                'watchlist_skipped': 0,
                 'historical_snapshots_imported': 0,
                 'settings_imported': 0,
                 'errors': []
@@ -257,6 +264,38 @@ class ExportImportService:
 
                     except Exception as e:
                         import_results['errors'].append(f"Failed to import stock position for account {account_id}: {str(e)}")
+
+            # Import watchlist data
+            watchlist_data = backup_data.get('watchlist', [])
+            for watchlist_item in watchlist_data:
+                try:
+                    symbol = watchlist_item.get('symbol')
+                    if not symbol:
+                        import_results['errors'].append("Watchlist item missing symbol")
+                        continue
+
+                    # Check if watchlist item already exists
+                    existing_item = self.db_service.get_watchlist_item(symbol)
+
+                    if existing_item and not overwrite_existing:
+                        import_results['watchlist_skipped'] += 1
+                        continue
+
+                    # Prepare watchlist data for database
+                    db_watchlist_data = self._prepare_watchlist_for_import(watchlist_item)
+
+                    if existing_item and overwrite_existing:
+                        # Update existing watchlist item
+                        success = self.db_service.update_watchlist_item(symbol, db_watchlist_data)
+                        if success:
+                            import_results['watchlist_imported'] += 1
+                    else:
+                        # Create new watchlist item
+                        self.db_service.create_watchlist_item(db_watchlist_data)
+                        import_results['watchlist_imported'] += 1
+
+                except Exception as e:
+                    import_results['errors'].append(f"Failed to import watchlist item {watchlist_item.get('symbol', 'unknown')}: {str(e)}")
 
             # Import historical snapshots
             historical_data = backup_data.get('historical_snapshots', {})
@@ -353,6 +392,31 @@ class ExportImportService:
             serialized_positions[account_id] = serialized_account_positions
 
         return serialized_positions
+
+    def _serialize_watchlist_for_export(self, watchlist_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Serialize watchlist data for export, converting datetime objects to ISO strings.
+
+        Args:
+            watchlist_data: List of watchlist item dictionaries
+
+        Returns:
+            List of serialized watchlist item dictionaries
+        """
+        serialized_watchlist = []
+
+        for item in watchlist_data:
+            item_copy = item.copy()
+
+            # Convert datetime objects to ISO strings
+            datetime_fields = ['added_date', 'last_price_update']
+            for field in datetime_fields:
+                if field in item_copy and isinstance(item_copy[field], datetime):
+                    item_copy[field] = item_copy[field].isoformat()
+
+            serialized_watchlist.append(item_copy)
+
+        return serialized_watchlist
 
     def _validate_backup_format(self, backup_data: Dict[str, Any]):
         """
@@ -464,6 +528,33 @@ class ExportImportService:
 
         return prepared_data
 
+    def _prepare_watchlist_for_import(self, watchlist_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Prepare watchlist data for database import, converting ISO strings back to appropriate types.
+
+        Args:
+            watchlist_data: Watchlist item data from backup
+
+        Returns:
+            Watchlist data prepared for database import
+        """
+        prepared_data = watchlist_data.copy()
+
+        # Convert ISO date strings back to datetime objects
+        datetime_fields = ['added_date', 'last_price_update']
+        for field in datetime_fields:
+            if field in prepared_data and isinstance(prepared_data[field], str):
+                try:
+                    prepared_data[field] = datetime.fromisoformat(prepared_data[field])
+                except ValueError:
+                    # If parsing fails, use current time for added_date, None for last_price_update
+                    if field == 'added_date':
+                        prepared_data[field] = datetime.now()
+                    else:
+                        prepared_data[field] = None
+
+        return prepared_data
+
     def _update_account_id_mapping(self, backup_data: Dict[str, Any], old_id: str, new_id: str):
         """
         Update account ID mappings in backup data when account IDs change during import.
@@ -500,6 +591,7 @@ class ExportImportService:
             'summary': {
                 'accounts_count': 0,
                 'stock_positions_count': 0,
+                'watchlist_count': 0,
                 'historical_snapshots_count': 0,
                 'settings_count': 0
             }
@@ -525,6 +617,16 @@ class ExportImportService:
             stock_positions = backup_data.get('stock_positions', {})
             total_positions = sum(len(positions) for positions in stock_positions.values())
             validation_results['summary']['stock_positions_count'] = total_positions
+
+            # Count and validate watchlist items
+            watchlist = backup_data.get('watchlist', [])
+            validation_results['summary']['watchlist_count'] = len(watchlist)
+
+            for item in watchlist:
+                if not item.get('symbol'):
+                    validation_results['errors'].append("Watchlist item found without symbol")
+                if not item.get('id'):
+                    validation_results['warnings'].append("Watchlist item found without ID")
 
             # Count historical snapshots
             historical_snapshots = backup_data.get('historical_snapshots', {})

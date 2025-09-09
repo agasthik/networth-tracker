@@ -21,6 +21,7 @@ import json
 from services.error_handler import (
     AppError, AuthenticationError, ValidationError, DatabaseError,
     MissingFieldError, InvalidValueError, InvalidDateError,
+    RecordNotFoundError, SystemError,
     handle_error, create_json_error_response
 )
 from services.logging_config import setup_app_logging, get_logger
@@ -174,21 +175,6 @@ def login():
 
     return render_template('login.html')
 
-    if request.method == 'POST':
-        password = request.form.get('password')
-
-        if not password:
-            flash('Password is required', 'error')
-            return render_template('login.html')
-
-        if auth_manager.verify_password(password):
-            flash('Login successful', 'success')
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Invalid password', 'error')
-
-    return render_template('login.html')
-
 
 @app.route('/logout', methods=['POST'])
 def logout():
@@ -204,6 +190,14 @@ def dashboard():
     """Main dashboard - placeholder for now"""
     session_info = auth_manager.get_session_info()
     return render_template('dashboard.html',
+                         session_info=session_info)
+
+@app.route('/watchlist')
+@require_auth
+def watchlist():
+    """Watchlist page for tracking stocks"""
+    session_info = auth_manager.get_session_info()
+    return render_template('watchlist.html',
                          session_info=session_info)
 
 @app.route('/health')
@@ -301,7 +295,8 @@ def get_accounts():
 
 
 @app.route('/api/accounts', methods=['POST'])
-@require_auth
+@api_endpoint
+@log_data_operation('CREATE', 'accounts')
 def create_account():
     """Create a new account."""
     try:
@@ -390,7 +385,9 @@ def create_account():
             numeric_fields = [
                 'principal_amount', 'current_value', 'interest_rate', 'current_balance',
                 'employer_match', 'contribution_limit', 'employer_contribution',
-                'cash_balance', 'purchase_amount', 'fixed_rate', 'inflation_rate'
+                'cash_balance', 'purchase_amount', 'fixed_rate', 'inflation_rate',
+                'annual_contribution_limit', 'current_year_contributions', 'employer_contributions',
+                'investment_balance'
             ]
             for field in numeric_fields:
                 if field in account_data and isinstance(account_data[field], str):
@@ -652,7 +649,9 @@ def update_account(account_id):
             numeric_fields = [
                 'principal_amount', 'current_value', 'interest_rate', 'current_balance',
                 'employer_match', 'contribution_limit', 'employer_contribution',
-                'cash_balance', 'purchase_amount', 'fixed_rate', 'inflation_rate'
+                'cash_balance', 'purchase_amount', 'fixed_rate', 'inflation_rate',
+                'annual_contribution_limit', 'current_year_contributions', 'employer_contributions',
+                'investment_balance'
             ]
             for field in numeric_fields:
                 if field in updated_data_copy and isinstance(updated_data_copy[field], str):
@@ -1092,6 +1091,69 @@ def _validate_account_data(account_type: AccountType, data: Dict[str, Any]) -> O
                             'message': f'Invalid {date_field} format. Use YYYY-MM-DD',
                             'code': 'INVALID_DATE_FORMAT'
                         }), 400
+
+        elif account_type == AccountType.HSA:
+            required_fields = ['current_balance', 'annual_contribution_limit', 'current_year_contributions',
+                             'employer_contributions', 'investment_balance', 'cash_balance']
+            missing_fields = [field for field in required_fields if field not in data]
+            if missing_fields:
+                return jsonify({
+                    'error': True,
+                    'message': f'HSA account missing required fields: {", ".join(missing_fields)}',
+                    'code': 'MISSING_HSA_FIELDS'
+                }), 400
+
+            # Validate all numeric fields are non-negative
+            numeric_fields = ['current_balance', 'annual_contribution_limit', 'current_year_contributions',
+                            'employer_contributions', 'investment_balance', 'cash_balance']
+
+            for field in numeric_fields:
+                try:
+                    value = float(data.get(field, -1))
+                    if value < 0:
+                        return jsonify({
+                            'error': True,
+                            'message': f'{field.replace("_", " ").title()} cannot be negative',
+                            'code': f'INVALID_{field.upper()}'
+                        }), 400
+                except (ValueError, TypeError):
+                    return jsonify({
+                        'error': True,
+                        'message': f'{field.replace("_", " ").title()} must be a valid number',
+                        'code': f'INVALID_{field.upper()}'
+                    }), 400
+
+            # Validate that investment + cash balance equals current balance
+            try:
+                current_balance = float(data.get('current_balance', 0))
+                investment_balance = float(data.get('investment_balance', 0))
+                cash_balance = float(data.get('cash_balance', 0))
+
+                total_balance = investment_balance + cash_balance
+                if abs(total_balance - current_balance) > 0.01:  # Allow for small floating point differences
+                    return jsonify({
+                        'error': True,
+                        'message': 'Investment balance plus cash balance must equal current balance',
+                        'code': 'INVALID_HSA_BALANCE_MISMATCH'
+                    }), 400
+            except (ValueError, TypeError):
+                # Individual field validation above will catch specific field errors
+                pass
+
+            # Validate contribution limits
+            try:
+                annual_limit = float(data.get('annual_contribution_limit', 0))
+                current_contributions = float(data.get('current_year_contributions', 0))
+
+                if current_contributions > annual_limit:
+                    return jsonify({
+                        'error': True,
+                        'message': 'Current year contributions cannot exceed annual contribution limit',
+                        'code': 'INVALID_HSA_CONTRIBUTION_LIMIT'
+                    }), 400
+            except (ValueError, TypeError):
+                # Individual field validation above will catch specific field errors
+                pass
 
         return None  # No validation errors
 
@@ -2118,6 +2180,134 @@ def update_stock_prices(account_id):
         }), 500
 
 
+# Global Stock Price Management API Endpoints
+
+@app.route('/api/stocks/prices', methods=['POST'])
+@api_endpoint
+@log_data_operation('UPDATE', 'stock_prices')
+def update_all_stock_prices():
+    """Update stock prices for all trading account positions across all accounts."""
+    from services.stock_prices import StockPriceService
+
+    db_service = auth_manager.get_database_service()
+    if not db_service:
+        raise DatabaseError(
+            message="Database service not available",
+            code="DB_001",
+            user_action="Please try logging in again"
+        )
+
+    try:
+        # Get all trading accounts
+        all_accounts = db_service.get_accounts('TRADING')
+
+        if not all_accounts:
+            return jsonify({
+                'success': True,
+                'message': 'No trading accounts found',
+                'updated_positions': 0,
+                'failed_positions': 0,
+                'results': []
+            })
+
+        stock_service = StockPriceService()
+        total_updated = 0
+        total_failed = 0
+        all_results = []
+
+        # Process each trading account
+        for account in all_accounts:
+            account_id = account['id']
+
+            try:
+                # Get stock positions for this account
+                positions = db_service.get_stock_positions(account_id)
+
+                if not positions:
+                    continue
+
+                # Extract symbols and update prices
+                symbols = [pos['symbol'] for pos in positions if pos.get('symbol')]
+
+                if not symbols:
+                    continue
+
+                # Get updated prices
+                price_results = stock_service.get_batch_prices(symbols)
+
+                # Update each position
+                for position in positions:
+                    symbol = position.get('symbol')
+                    if not symbol:
+                        continue
+
+                    price_result = price_results.get(symbol.upper())
+
+                    if price_result and price_result.success:
+                        # Update position in database
+                        update_data = {
+                            'current_price': price_result.price,
+                            'last_updated': price_result.timestamp
+                        }
+
+                        success = db_service.update_stock_position(
+                            account_id,
+                            position['id'],
+                            update_data
+                        )
+
+                        if success:
+                            total_updated += 1
+                            all_results.append({
+                                'account_id': account_id,
+                                'position_id': position['id'],
+                                'symbol': symbol,
+                                'success': True,
+                                'price': price_result.price,
+                                'timestamp': price_result.timestamp.isoformat()
+                            })
+                        else:
+                            total_failed += 1
+                            all_results.append({
+                                'account_id': account_id,
+                                'position_id': position['id'],
+                                'symbol': symbol,
+                                'success': False,
+                                'error': 'Database update failed'
+                            })
+                    else:
+                        total_failed += 1
+                        error_msg = price_result.error if price_result else 'Price fetch failed'
+                        all_results.append({
+                            'account_id': account_id,
+                            'position_id': position['id'],
+                            'symbol': symbol,
+                            'success': False,
+                            'error': error_msg
+                        })
+
+            except Exception as e:
+                app_logger.error(f"Error updating prices for account {account_id}: {str(e)}")
+                # Continue with other accounts
+                continue
+
+        return jsonify({
+            'success': True,
+            'message': f'Stock price update completed. Updated: {total_updated}, Failed: {total_failed}',
+            'updated_positions': total_updated,
+            'failed_positions': total_failed,
+            'results': all_results
+        })
+
+    except Exception as e:
+        app_logger.error(f"Error in global stock price update: {str(e)}")
+        raise SystemError(
+            message="Failed to update stock prices",
+            code="SYS_003",
+            user_action="Please try again later or check your internet connection"
+        )
+
+
 @app.route('/api/accounts/<account_id>/portfolio-summary', methods=['GET'])
 @require_auth
 def get_account_portfolio_summary(account_id):
@@ -2218,7 +2408,8 @@ def get_account_portfolio_summary(account_id):
 
 
 @app.route('/api/portfolio/summary', methods=['GET'])
-@require_auth
+@api_endpoint
+@log_data_operation('READ', 'portfolio_summary')
 def get_portfolio_summary():
     """Get consolidated portfolio summary with performance metrics."""
     try:
@@ -2353,10 +2544,402 @@ def get_portfolio_summary():
         }), 500
 
 
+# Watchlist API Endpoints
+
+@app.route('/api/watchlist', methods=['GET'])
+@api_endpoint
+@log_data_operation('READ', 'watchlist')
+def get_watchlist():
+    """Get all watchlist items for the authenticated user."""
+    from services.watchlist import WatchlistService
+    from services.stock_prices import StockPriceService
+
+    try:
+        db_service = auth_manager.get_database_service()
+        if not db_service:
+            app.logger.error("Database service not available for watchlist request")
+            raise DatabaseError(
+                message="Database service not available",
+                code="DB_001",
+                user_action="Please try logging in again"
+            )
+
+        # Initialize services
+        stock_service = StockPriceService()
+        watchlist_service = WatchlistService(db_service, stock_service)
+
+        # Retrieve watchlist items
+        app.logger.info("Fetching watchlist items...")
+        watchlist_items = watchlist_service.get_watchlist()
+        app.logger.info(f"Found {len(watchlist_items)} watchlist items")
+
+        # Convert to API response format
+        items = []
+        for item in watchlist_items:
+            try:
+                item_dict = item.to_dict()
+                items.append(item_dict)
+            except Exception as e:
+                app.logger.error(f"Error converting watchlist item to dict: {e}")
+                continue
+
+        app.logger.info(f"Returning {len(items)} watchlist items")
+        return jsonify({
+            'success': True,
+            'watchlist': items,
+            'count': len(items)
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error in get_watchlist: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'watchlist': [],
+            'count': 0
+        }), 500
+
+
+@app.route('/api/watchlist', methods=['POST'])
+@api_endpoint
+@log_data_operation('CREATE', 'watchlist')
+def add_to_watchlist():
+    """Add a stock to the watchlist with comprehensive error handling."""
+    from services.watchlist import WatchlistService, WatchlistServiceError
+    from services.stock_prices import StockPriceService
+    from services.error_handler import (
+        WatchlistDuplicateError, WatchlistLimitExceededError,
+        StockValidationError, ValidationError, MissingFieldError
+    )
+
+    # Validate request data
+    if not request.is_json:
+        raise ValidationError(
+            message="Request must be JSON",
+            code="VAL_001",
+            user_action="Please send request with Content-Type: application/json"
+        )
+
+    data = request.get_json()
+    if not data:
+        raise ValidationError(
+            message="Request body cannot be empty",
+            code="VAL_002",
+            user_action="Please provide stock symbol in request body"
+        )
+
+    # Validate required fields
+    symbol = data.get('symbol')
+    if not symbol:
+        raise MissingFieldError('symbol')
+
+    notes = data.get('notes', '')
+
+    # Validate notes length if provided
+    if notes and len(notes) > 500:
+        raise ValidationError(
+            message="Notes cannot exceed 500 characters",
+            code="VAL_NOTES_TOO_LONG",
+            user_action="Please shorten your notes to 500 characters or less"
+        )
+
+    db_service = auth_manager.get_database_service()
+    if not db_service:
+        raise DatabaseError(
+            message="Database service not available",
+            code="DB_001",
+            user_action="Please try logging in again"
+        )
+
+    # Initialize services
+    stock_service = StockPriceService()
+    watchlist_service = WatchlistService(db_service, stock_service)
+
+    try:
+        # Add stock to watchlist
+        item_id = watchlist_service.add_stock(symbol, notes)
+
+        # Get the created item for response
+        created_item = watchlist_service.get_stock_details(symbol)
+        if not created_item:
+            raise SystemError(
+                "Failed to retrieve created watchlist item",
+                "SYS_001"
+            )
+
+        return jsonify({
+            'success': True,
+            'message': f'Stock {symbol.upper()} added to watchlist',
+            'item': created_item.to_dict()
+        }), 201
+
+    except (WatchlistDuplicateError, WatchlistLimitExceededError, StockValidationError):
+        # Re-raise specific watchlist errors
+        raise
+    except WatchlistServiceError as e:
+        # Handle generic watchlist service errors
+        raise SystemError(
+            f"Watchlist operation failed: {str(e)}",
+            "SYS_WATCHLIST_001"
+        )
+
+
+@app.route('/api/watchlist/<symbol>', methods=['DELETE'])
+@api_endpoint
+@log_data_operation('DELETE', 'watchlist')
+def remove_from_watchlist(symbol):
+    """Remove a stock from the watchlist."""
+    from services.watchlist import WatchlistService, WatchlistServiceError
+    from services.stock_prices import StockPriceService
+
+    if not symbol:
+        raise ValidationError(
+            message="Stock symbol is required",
+            code="VAL_003",
+            user_action="Please provide a valid stock symbol"
+        )
+
+    db_service = auth_manager.get_database_service()
+    if not db_service:
+        raise DatabaseError(
+            message="Database service not available",
+            code="DB_001",
+            user_action="Please try logging in again"
+        )
+
+    # Initialize services
+    stock_service = StockPriceService()
+    watchlist_service = WatchlistService(db_service, stock_service)
+
+    try:
+        # Remove stock from watchlist
+        removed = watchlist_service.remove_stock(symbol)
+
+        if not removed:
+            raise ValidationError(
+                f"Stock {symbol.upper()} not found in watchlist",
+                "VAL_009",
+                user_action="Please check the stock symbol"
+            )
+
+        return jsonify({
+            'success': True,
+            'message': f'Stock {symbol.upper()} removed from watchlist',
+            'removed_symbol': symbol.upper()
+        })
+
+    except WatchlistServiceError as e:
+        raise SystemError(
+            str(e),
+            "SYS_003"
+        )
+
+
+@app.route('/api/watchlist/<symbol>', methods=['GET'])
+@api_endpoint
+@log_data_operation('READ', 'watchlist')
+def get_watchlist_stock(symbol):
+    """Get details for a specific stock in the watchlist."""
+    from services.watchlist import WatchlistService, WatchlistServiceError
+    from services.stock_prices import StockPriceService
+
+    if not symbol:
+        raise ValidationError(
+            message="Stock symbol is required",
+            code="VAL_003",
+            user_action="Please provide a valid stock symbol"
+        )
+
+    db_service = auth_manager.get_database_service()
+    if not db_service:
+        raise DatabaseError(
+            message="Database service not available",
+            code="DB_001",
+            user_action="Please try logging in again"
+        )
+
+    # Initialize services
+    stock_service = StockPriceService()
+    watchlist_service = WatchlistService(db_service, stock_service)
+
+    try:
+        # Get stock details
+        item = watchlist_service.get_stock_details(symbol)
+
+        if not item:
+            raise ValidationError(
+                f"Stock {symbol.upper()} not found in watchlist",
+                "VAL_010",
+                user_action="Please check the stock symbol"
+            )
+
+        return jsonify({
+            'success': True,
+            'item': item.to_dict()
+        })
+
+    except WatchlistServiceError as e:
+        raise SystemError(
+            str(e),
+            "SYS_004"
+        )
+
+
+@app.route('/debug/update-prices')
+@require_auth
+def debug_update_prices():
+    """Debug endpoint to force update watchlist prices."""
+    try:
+        from services.watchlist import WatchlistService
+        from services.stock_prices import StockPriceService
+
+        db_service = auth_manager.get_database_service()
+        if not db_service:
+            return "Database service not available", 500
+
+        stock_service = StockPriceService()
+        watchlist_service = WatchlistService(db_service, stock_service)
+
+        # Get current watchlist
+        watchlist = watchlist_service.get_watchlist()
+
+        if not watchlist:
+            return "No items in watchlist", 200
+
+        result_html = "<h2>Watchlist Price Update Debug</h2>"
+        result_html += f"<p>Found {len(watchlist)} items in watchlist:</p><ul>"
+
+        for item in watchlist:
+            result_html += f"<li>{item.symbol}: ${item.current_price or 0:.2f} (last updated: {item.last_price_update or 'Never'})</li>"
+
+        result_html += "</ul><h3>Updating prices...</h3><ul>"
+
+        # Update each item individually for better debugging
+        for item in watchlist:
+            try:
+                current_price = stock_service.get_current_price(item.symbol)
+
+                # Calculate daily change
+                daily_change = None
+                daily_change_percent = None
+                if item.current_price is not None:
+                    daily_change = current_price - item.current_price
+                    if item.current_price > 0:
+                        daily_change_percent = (daily_change / item.current_price) * 100
+
+                # Update the item
+                item.update_price(
+                    current_price=current_price,
+                    daily_change=daily_change,
+                    daily_change_percent=daily_change_percent
+                )
+
+                # Store it
+                watchlist_service._store_watchlist_item(item)
+
+                result_html += f"<li>✓ {item.symbol}: Updated to ${current_price:.2f}"
+                if daily_change is not None:
+                    change_sign = "+" if daily_change >= 0 else ""
+                    result_html += f" ({change_sign}{daily_change:.2f}, {change_sign}{daily_change_percent:.2f}%)"
+                result_html += "</li>"
+
+            except Exception as e:
+                result_html += f"<li>✗ {item.symbol}: Failed - {str(e)}</li>"
+
+        result_html += "</ul><p><a href='/watchlist'>← Back to Watchlist</a></p>"
+        return result_html
+
+    except Exception as e:
+        return f"Error: {str(e)}", 500
+
+@app.route('/api/watchlist/prices', methods=['PUT'])
+@api_endpoint
+@log_data_operation('UPDATE', 'watchlist_prices')
+def update_watchlist_prices():
+    """Update prices for all watchlist items in batch with comprehensive error handling."""
+    from services.watchlist import WatchlistService, WatchlistServiceError
+    from services.stock_prices import StockPriceService
+    from services.error_handler import WatchlistPriceUpdateError
+
+    db_service = auth_manager.get_database_service()
+    if not db_service:
+        raise DatabaseError(
+            message="Database service not available",
+            code="DB_001",
+            user_action="Please try logging in again"
+        )
+
+    # Initialize services
+    stock_service = StockPriceService()
+    watchlist_service = WatchlistService(db_service, stock_service)
+
+    try:
+        # Update prices for all watchlist items
+        update_result = watchlist_service.update_prices()
+
+        summary = update_result.get('summary', {})
+        total_items = summary.get('total_items', 0)
+        successful_updates = summary.get('successful_updates', 0)
+        failed_updates = summary.get('failed_updates', 0)
+        failed_symbols = summary.get('failed_symbols', [])
+
+        # Determine response status based on results
+        if total_items == 0:
+            message = "No stocks in watchlist to update"
+        elif failed_updates == 0:
+            message = f"All {successful_updates} stock prices updated successfully"
+        elif successful_updates == 0:
+            message = f"Failed to update any stock prices ({failed_updates} failures)"
+        else:
+            message = f"Price update completed: {successful_updates}/{total_items} successful"
+
+        # If significant failures occurred, include warning in response
+        response_data = {
+            'success': True,
+            'message': message,
+            'summary': summary,
+            'results': update_result.get('results', {}),
+            'timestamp': update_result.get('timestamp', datetime.now().isoformat())
+        }
+
+        # Add warnings for partial failures
+        if failed_updates > 0:
+            response_data['warnings'] = []
+
+            if failed_updates > successful_updates and total_items > 1:
+                response_data['warnings'].append("Majority of price updates failed. This may indicate a network or API issue.")
+
+            if len(failed_symbols) <= 5:
+                response_data['warnings'].append(f"Failed to update prices for: {', '.join(failed_symbols)}")
+            else:
+                response_data['warnings'].append(f"Failed to update prices for {len(failed_symbols)} stocks")
+
+        return jsonify(response_data)
+
+    except WatchlistServiceError as e:
+        # Handle specific watchlist service errors
+        if "network" in str(e).lower() or "timeout" in str(e).lower():
+            raise SystemError(
+                "Network error during price update. Please check your internet connection and try again.",
+                "SYS_NETWORK_001"
+            )
+        elif "rate limit" in str(e).lower():
+            raise SystemError(
+                "Rate limit exceeded for stock price API. Please wait a moment before trying again.",
+                "SYS_RATE_LIMIT_001"
+            )
+        else:
+            raise SystemError(
+                f"Failed to update watchlist prices: {str(e)}",
+                "SYS_WATCHLIST_PRICE_001"
+            )
+
+
 # Data Export/Import API Endpoints
 
 @app.route('/api/export', methods=['GET'])
-@require_auth
+@api_endpoint
+@log_data_operation('READ', 'export')
 def export_data():
     """Export encrypted backup of all application data."""
     try:
@@ -2465,7 +3048,8 @@ def export_info():
 
 
 @app.route('/api/import', methods=['POST'])
-@require_auth
+@api_endpoint
+@log_data_operation('CREATE', 'import')
 def import_data():
     """Import data from encrypted backup file."""
     try:
@@ -2670,7 +3254,7 @@ def validate_backup():
 @public_view_endpoint
 def get_account_form_template(account_type):
     """Serve account form templates for dynamic loading."""
-    valid_types = ['cd', 'savings', '401k', 'trading', 'ibonds']
+    valid_types = ['cd', 'savings', '401k', 'trading', 'ibonds', 'hsa']
 
     if account_type not in valid_types:
         return "Form template not found", 404

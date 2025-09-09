@@ -18,6 +18,7 @@ DAEMON=false
 VALIDATE_ONLY=false
 CREATE_DIRS=false
 DEBUG=false
+RESTART_MODE=false
 
 # Colors for output
 RED='\033[0;31m'
@@ -56,6 +57,9 @@ Options:
     -D, --debug             Enable debug mode
     -v, --validate          Validate configuration only
     -c, --create-dirs       Create directories only
+    --stop                  Stop the running application
+    --restart               Restart the application
+    --status                Check application status
     --help                  Show this help message
 
 Examples:
@@ -64,6 +68,9 @@ Examples:
     $0 -d                   # Start as daemon
     $0 -v                   # Validate configuration
     $0 -c                   # Create directories
+    $0 --restart            # Restart the application
+    $0 --stop               # Stop the application
+    $0 --status             # Check if running
 
 EOF
 }
@@ -218,6 +225,17 @@ while [[ $# -gt 0 ]]; do
             stop_application
             exit 0
             ;;
+        --restart)
+            RESTART_MODE=true
+            print_info "Restarting application..."
+            if check_running; then
+                stop_application
+                sleep 2
+            fi
+            print_info "Starting application..."
+            # Continue with normal startup
+            shift
+            ;;
         --status)
             if check_running; then
                 print_success "Application is running"
@@ -284,11 +302,11 @@ if [[ "$CREATE_DIRS" == "true" ]]; then
     PYTHON_CMD="$PYTHON_CMD --create-dirs"
 fi
 
-# Check if already running (unless validating or creating dirs)
-if [[ "$VALIDATE_ONLY" == "false" && "$CREATE_DIRS" == "false" ]]; then
+# Check if already running (unless validating, creating dirs, or restarting)
+if [[ "$VALIDATE_ONLY" == "false" && "$CREATE_DIRS" == "false" && "$RESTART_MODE" == "false" ]]; then
     if check_running; then
         print_error "Application is already running"
-        print_info "Use --stop to stop the application first"
+        print_info "Use --stop to stop the application first, or --restart to restart it"
         exit 1
     fi
 fi

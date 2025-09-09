@@ -145,6 +145,24 @@ The application features a clean, tabbed interface:
 - Maturity date calculation (30 years)
 - Value appreciation monitoring
 
+### HSA (Health Savings Account)
+
+**Required Information:**
+- Account name and institution
+- Current balance
+- Annual contribution limit
+- Current year contributions
+- Employer contributions
+- Investment balance (if applicable)
+- Cash balance
+
+**Features:**
+- Contribution tracking and limits
+- Employer contribution monitoring
+- Investment vs. cash balance tracking
+- Tax-advantaged savings analysis
+- Remaining contribution capacity calculations
+
 ## Dashboard and Reporting
 
 ### Summary Dashboard

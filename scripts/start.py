@@ -9,6 +9,7 @@ import sys
 import argparse
 import signal
 import atexit
+import time
 from pathlib import Path
 
 # Add the parent directory to the Python path
@@ -71,6 +72,21 @@ class ApplicationStarter:
             '--pid-file',
             default='networth_tracker.pid',
             help='PID file for daemon mode (default: networth_tracker.pid)'
+        )
+        parser.add_argument(
+            '--restart',
+            action='store_true',
+            help='Restart the application (stop if running, then start)'
+        )
+        parser.add_argument(
+            '--stop',
+            action='store_true',
+            help='Stop the running application'
+        )
+        parser.add_argument(
+            '--status',
+            action='store_true',
+            help='Check if the application is running'
         )
 
         return parser.parse_args()
@@ -149,6 +165,81 @@ class ApplicationStarter:
             except Exception as e:
                 self.logger.error(f"Failed to remove PID file: {e}")
 
+    def is_running(self, pid_file_path):
+        """Check if the application is currently running."""
+        if not os.path.exists(pid_file_path):
+            return False, None
+
+        try:
+            with open(pid_file_path, 'r') as f:
+                pid = int(f.read().strip())
+
+            # Check if process is running
+            try:
+                os.kill(pid, 0)  # Signal 0 doesn't kill, just checks if process exists
+                return True, pid
+            except OSError:
+                # Process doesn't exist, remove stale PID file
+                os.remove(pid_file_path)
+                return False, None
+
+        except (ValueError, IOError):
+            # Invalid PID file, remove it
+            try:
+                os.remove(pid_file_path)
+            except OSError:
+                pass
+            return False, None
+
+    def stop_application(self, pid_file_path, timeout=30):
+        """Stop the running application."""
+        is_running, pid = self.is_running(pid_file_path)
+
+        if not is_running:
+            print("Application is not running")
+            return True
+
+        print(f"Stopping application (PID: {pid})...")
+
+        try:
+            # Send SIGTERM for graceful shutdown
+            os.kill(pid, signal.SIGTERM)
+
+            # Wait for graceful shutdown
+            for i in range(timeout):
+                if not self.is_running(pid_file_path)[0]:
+                    print("Application stopped successfully")
+                    return True
+                time.sleep(1)
+
+            # If still running, force kill
+            print("Graceful shutdown timeout, forcing termination...")
+            os.kill(pid, signal.SIGKILL)
+
+            # Wait a bit more
+            time.sleep(2)
+            if not self.is_running(pid_file_path)[0]:
+                print("Application forcefully terminated")
+                return True
+            else:
+                print("Failed to stop application")
+                return False
+
+        except OSError as e:
+            print(f"Error stopping application: {e}")
+            return False
+
+    def show_status(self, pid_file_path):
+        """Show the current status of the application."""
+        is_running, pid = self.is_running(pid_file_path)
+
+        if is_running:
+            print(f"Application is running (PID: {pid})")
+            return 0
+        else:
+            print("Application is not running")
+            return 1
+
     def run_daemon(self, host, port):
         """Run the application as a daemon (Unix/Linux/macOS only)."""
         if os.name == 'nt':
@@ -186,6 +277,25 @@ class ApplicationStarter:
         """Main entry point for the application."""
         args = self.parse_arguments()
 
+        # Handle control operations first (before setting up environment)
+        if args.stop:
+            return 0 if self.stop_application(args.pid_file) else 1
+
+        if args.status:
+            return self.show_status(args.pid_file)
+
+        if args.restart:
+            print("Restarting application...")
+            # Stop if running
+            if self.is_running(args.pid_file)[0]:
+                if not self.stop_application(args.pid_file):
+                    print("Failed to stop application for restart")
+                    return 1
+                # Wait a moment before starting
+                time.sleep(2)
+            print("Starting application...")
+            # Continue with normal startup
+
         # Set up environment
         config = self.setup_environment(args.env)
 
@@ -208,6 +318,14 @@ class ApplicationStarter:
         # Validate configuration
         if not self.validate_configuration():
             return 1
+
+        # Check if already running (unless this is a restart)
+        if not args.restart:
+            is_running, pid = self.is_running(args.pid_file)
+            if is_running:
+                print(f"Application is already running (PID: {pid})")
+                print("Use --stop to stop it, or --restart to restart it")
+                return 1
 
         # Create Flask app
         app = self.create_flask_app()

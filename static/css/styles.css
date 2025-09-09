@@ -527,6 +527,8 @@ font-size: 1.5rem;
     cursor: pointer;
     transition: all 0.3s ease;
     border: 2px solid transparent;
+    height: 100%;
+    min-height: 120px;
 }
 
 .account-type-card:hover {
@@ -543,26 +545,41 @@ font-size: 1.5rem;
 }
 
 /* Account type card content styling */
+.account-type-card .card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0.75rem 0.5rem;
+}
+
 .account-type-card .card-title {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 600;
     margin-bottom: 0.25rem;
     white-space: nowrap;
+    text-align: center;
 }
 
 .account-type-card .card-text {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     line-height: 1.2;
     margin-bottom: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-align: center;
+    width: 100%;
 }
 
 .account-type-card .currency {
     font-family: 'JetBrains Mono', monospace;
     font-weight: 500;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
+}
+
+.account-type-card .fas {
+    margin-bottom: 0.5rem;
 }
 
 /* Tab Styles */
@@ -739,10 +756,6 @@ font-size: 1.5rem;
     max-height: 100%;
 }
 
-#portfolioSummaryList {
-    max-height: 250px;
-    overflow-y: auto;
-}
 
 /* Modern Typography Enhancements */
 .small {
@@ -848,13 +861,26 @@ font-size: 1.5rem;
     }
 
     /* Account type cards responsive adjustments */
+    .account-type-card {
+        min-height: 100px;
+    }
+
+    .account-type-card .card-body {
+        padding: 0.5rem 0.25rem;
+    }
+
     .account-type-card .card-title {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
     }
 
     .account-type-card .card-text,
     .account-type-card .currency {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
+    }
+
+    .account-type-card .fas {
+        font-size: 1rem !important;
+        margin-bottom: 0.25rem;
     }
 }
 
@@ -873,13 +899,26 @@ font-size: 1.5rem;
     }
 
     /* Very small screen adjustments for account type cards */
+    .account-type-card {
+        min-height: 90px;
+    }
+
+    .account-type-card .card-body {
+        padding: 0.4rem 0.2rem;
+    }
+
     .account-type-card .card-title {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
     }
 
     .account-type-card .card-text,
     .account-type-card .currency {
-        font-size: 0.7rem;
+        font-size: 0.65rem;
+    }
+
+    .account-type-card .fas {
+        font-size: 0.9rem !important;
+        margin-bottom: 0.2rem;
     }
 }
 
