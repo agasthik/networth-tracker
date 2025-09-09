@@ -685,11 +685,11 @@ function updateStockPrices() {
 
 function exportData() {
     // Show loading state
-    const button = document.querySelector('button[onclick="exportData()"]');
+    const button = document.querySelector('[onclick="exportData()"]');
     if (button) {
         const originalText = button.innerHTML;
         button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Exporting...';
-        button.disabled = true;
+        button.style.pointerEvents = 'none';
 
         fetch('/api/export')
             .then(response => {
@@ -717,7 +717,7 @@ function exportData() {
             })
             .finally(() => {
                 button.innerHTML = originalText;
-                button.disabled = false;
+                button.style.pointerEvents = 'auto';
             });
     }
 }

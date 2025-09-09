@@ -2971,14 +2971,13 @@ def export_data():
 
         # Return encrypted backup as downloadable file using secure method
         from flask import Response
-        from werkzeug.http import dump_header
 
-        # Use Werkzeug's secure header generation to prevent injection
+        # Create secure Content-Disposition header
         response = Response(
             encrypted_backup,
             mimetype='application/octet-stream',
             headers={
-                'Content-Disposition': dump_header('attachment', filename=filename),
+                'Content-Disposition': f'attachment; filename="{filename}"',
                 'Content-Length': len(encrypted_backup)
             }
         )
