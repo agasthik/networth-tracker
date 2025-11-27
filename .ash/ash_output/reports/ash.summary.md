@@ -1,12 +1,12 @@
 # ASH Security Scan Report
 
-- **Report generated**: 2025-09-07T17:54:28+00:00
+- **Report generated**: 2025-09-09T13:25:00+00:00
 - **Time since scan**: 0 minutes
 
 ## Scan Metadata
 
 - **Project**: ASH
-- **Scan executed**: 2025-09-07T17:53:41+00:00
+- **Scan executed**: 2025-09-09T13:24:11+00:00
 - **ASH version**: 3.0.0
 
 ## Summary
@@ -51,7 +51,7 @@ The table below shows findings by scanner, with status based on severity thresho
 | grype | 0 | 0 | 0 | 0 | 0 | 0 | 0 | MISSING | MEDIUM (global) |
 | npm-audit | 0 | 0 | 0 | 0 | 0 | 0 | 0 | SKIPPED | MEDIUM (global) |
 | opengrep | 0 | 0 | 0 | 0 | 0 | 0 | 0 | MISSING | MEDIUM (global) |
-| semgrep | 7 | 13 | 0 | 0 | 0 | 0 | 13 | FAILED | MEDIUM (global) |
+| semgrep | 7 | 15 | 0 | 0 | 0 | 0 | 15 | FAILED | MEDIUM (global) |
 | syft | 0 | 0 | 0 | 0 | 0 | 0 | 0 | MISSING | MEDIUM (global) |
 
 ### Top 2 Hotspots
@@ -60,20 +60,20 @@ Files with the highest number of security findings:
 
 | Finding Count | File Location |
 | ---: | --- |
-| 12 | static/js/app.js |
+| 14 | static/js/app.js |
 | 1 | app.py |
 
 <h2>Detailed Findings</h2>
 
 <details>
-<summary>Show 13 actionable findings</summary>
+<summary>Show 15 actionable findings</summary>
 
 ### Finding 1: python.flask.security.audit.debug-enabled.debug-enabled
 
 - **Severity**: HIGH
 - **Scanner**: semgrep
 - **Rule ID**: python.flask.security.audit.debug-enabled.debug-enabled
-- **Location**: app.py:2715-2720
+- **Location**: app.py:3298-3303
 
 **Description**:
 Detected Flask app with debug=True. Do not deploy to production with this flag enabled as it will leak sensitive information. Instead, consider using Flask configuration variables or setting 'debug' using system environment variables.
@@ -95,7 +95,46 @@ app.run(
 - **Severity**: HIGH
 - **Scanner**: semgrep
 - **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
-- **Location**: static/js/app.js:85
+- **Location**: static/js/app.js:56-61
+
+**Description**:
+User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
+
+**Code Snippet**:
+```
+demoAccountsList.innerHTML = demoAccounts.map(account => `
+        <li class="mb-1">
+            <i class="fas fa-flask demo-icon"></i>
+            <strong>${account.name}</strong> (${account.institution})
+        </li>
+    `).join('');
+```
+
+---
+
+### Finding 3: javascript.browser.security.insecure-document-method.insecure-document-method
+
+- **Severity**: HIGH
+- **Scanner**: semgrep
+- **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
+- **Location**: static/js/app.js:100
+
+**Description**:
+User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
+
+**Code Snippet**:
+```
+button.innerHTML = originalText;
+```
+
+---
+
+### Finding 4: javascript.browser.security.insecure-document-method.insecure-document-method
+
+- **Severity**: HIGH
+- **Scanner**: semgrep
+- **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
+- **Location**: static/js/app.js:177
 
 **Description**:
 User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
@@ -107,12 +146,12 @@ container.innerHTML = html;
 
 ---
 
-### Finding 3: javascript.browser.security.insecure-document-method.insecure-document-method
+### Finding 5: javascript.browser.security.insecure-document-method.insecure-document-method
 
 - **Severity**: HIGH
 - **Scanner**: semgrep
 - **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
-- **Location**: static/js/app.js:289
+- **Location**: static/js/app.js:381
 
 **Description**:
 User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
@@ -124,46 +163,12 @@ submitButton.innerHTML = originalText;
 
 ---
 
-### Finding 4: javascript.browser.security.insecure-document-method.insecure-document-method
-
-- **Severity**: HIGH
-- **Scanner**: semgrep
-- **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
-- **Location**: static/js/app.js:638
-
-**Description**:
-User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
-
-**Code Snippet**:
-```
-button.innerHTML = originalText;
-```
-
----
-
-### Finding 5: javascript.browser.security.insecure-document-method.insecure-document-method
-
-- **Severity**: HIGH
-- **Scanner**: semgrep
-- **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
-- **Location**: static/js/app.js:677
-
-**Description**:
-User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
-
-**Code Snippet**:
-```
-button.innerHTML = originalText;
-```
-
----
-
 ### Finding 6: javascript.browser.security.insecure-document-method.insecure-document-method
 
 - **Severity**: HIGH
 - **Scanner**: semgrep
 - **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
-- **Location**: static/js/app.js:762
+- **Location**: static/js/app.js:680
 
 **Description**:
 User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
@@ -180,24 +185,41 @@ button.innerHTML = originalText;
 - **Severity**: HIGH
 - **Scanner**: semgrep
 - **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
-- **Location**: static/js/app.js:1368
+- **Location**: static/js/app.js:719
 
 **Description**:
 User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
 
 **Code Snippet**:
 ```
-container.innerHTML = html;
+button.innerHTML = originalText;
 ```
 
 ---
 
-### Finding 8: typescript.react.security.audit.react-unsanitized-method.react-unsanitized-method
+### Finding 8: javascript.browser.security.insecure-document-method.insecure-document-method
+
+- **Severity**: HIGH
+- **Scanner**: semgrep
+- **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
+- **Location**: static/js/app.js:804
+
+**Description**:
+User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
+
+**Code Snippet**:
+```
+button.innerHTML = originalText;
+```
+
+---
+
+### Finding 9: typescript.react.security.audit.react-unsanitized-method.react-unsanitized-method
 
 - **Severity**: HIGH
 - **Scanner**: semgrep
 - **Rule ID**: typescript.react.security.audit.react-unsanitized-method.react-unsanitized-method
-- **Location**: static/js/app.js:1519
+- **Location**: static/js/app.js:1552
 
 **Description**:
 Detection of insertAdjacentHTML from non-constant definition. This can inadvertently expose users to cross-site scripting (XSS) attacks if this comes from user-provided input. If you have to use insertAdjacentHTML, consider using a sanitization library such as DOMPurify to sanitize your HTML.
@@ -209,29 +231,12 @@ document.body.insertAdjacentHTML('beforeend', modalHTML);
 
 ---
 
-### Finding 9: javascript.browser.security.insecure-document-method.insecure-document-method
-
-- **Severity**: HIGH
-- **Scanner**: semgrep
-- **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
-- **Location**: static/js/app.js:1607
-
-**Description**:
-User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
-
-**Code Snippet**:
-```
-demoIndicator.innerHTML = getDemoIndicatorHTML(account);
-```
-
----
-
 ### Finding 10: javascript.browser.security.insecure-document-method.insecure-document-method
 
 - **Severity**: HIGH
 - **Scanner**: semgrep
 - **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
-- **Location**: static/js/app.js:1716
+- **Location**: static/js/app.js:1640
 
 **Description**:
 User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
@@ -248,14 +253,14 @@ demoIndicator.innerHTML = getDemoIndicatorHTML(account);
 - **Severity**: HIGH
 - **Scanner**: semgrep
 - **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
-- **Location**: static/js/app.js:1841
+- **Location**: static/js/app.js:1749
 
 **Description**:
 User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
 
 **Code Snippet**:
 ```
-container.innerHTML = html;
+demoIndicator.innerHTML = getDemoIndicatorHTML(account);
 ```
 
 ---
@@ -265,7 +270,7 @@ container.innerHTML = html;
 - **Severity**: HIGH
 - **Scanner**: semgrep
 - **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
-- **Location**: static/js/app.js:1921
+- **Location**: static/js/app.js:1874
 
 **Description**:
 User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
@@ -282,7 +287,41 @@ container.innerHTML = html;
 - **Severity**: HIGH
 - **Scanner**: semgrep
 - **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
-- **Location**: static/js/app.js:1987
+- **Location**: static/js/app.js:1954
+
+**Description**:
+User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
+
+**Code Snippet**:
+```
+container.innerHTML = html;
+```
+
+---
+
+### Finding 14: javascript.browser.security.insecure-document-method.insecure-document-method
+
+- **Severity**: HIGH
+- **Scanner**: semgrep
+- **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
+- **Location**: static/js/app.js:2020
+
+**Description**:
+User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
+
+**Code Snippet**:
+```
+container.innerHTML = html;
+```
+
+---
+
+### Finding 15: javascript.browser.security.insecure-document-method.insecure-document-method
+
+- **Severity**: HIGH
+- **Scanner**: semgrep
+- **Rule ID**: javascript.browser.security.insecure-document-method.insecure-document-method
+- **Location**: static/js/app.js:2090
 
 **Description**:
 User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities
@@ -296,4 +335,4 @@ container.innerHTML = html;
 
 ---
 
-*Report generated by [Automated Security Helper (ASH)](https://github.com/awslabs/automated-security-helper) at 2025-09-07T17:54:28+00:00*
+*Report generated by [Automated Security Helper (ASH)](https://github.com/awslabs/automated-security-helper) at 2025-09-09T13:25:00+00:00*

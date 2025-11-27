@@ -85,8 +85,8 @@
 
         <div class="metadata-section">
             <p><strong>Project:</strong> ASH</p>
-            <p><strong>Scan executed:</strong> 2025-09-07T17:53:41+00:00</p>
-            <p><strong>Report generated:</strong> 2025-09-07T17:54:28+00:00</p>
+            <p><strong>Scan executed:</strong> 2025-09-09T13:24:11+00:00</p>
+            <p><strong>Report generated:</strong> 2025-09-09T13:24:59+00:00</p>
             <p><strong>ASH version:</strong> 3.0.0</p>
         </div>
 
@@ -256,13 +256,13 @@
             <tr>
                 <td>semgrep</td>
                 <td>7</td>
-                <td>13</td>
+                <td>15</td>
                 <td>0</td>
                 <td>0</td>
                 <td>0</td>
                 <td>0</td>
                 <td><1ms</td>
-                <td class="status-failed">13</td>
+                <td class="status-failed">15</td>
                 <td class="status-failed">FAILED</td>
                 <td>MEDIUM (global)</td>
             </tr>
@@ -284,8 +284,8 @@
 
         <h2>Summary</h2>
         <div class="summary-box">
-            <h3>Findings by Severity</h3><p>Statistics are calculated from the final aggregated SARIF report:</p><ul><li class="severity-error"><strong>ERROR</strong>: 20 finding(s)</li></ul>
-            <h3>Findings by Type</h3><ul><li>python.flask.security.audit.debug-enabled.debug-enabled: 1 finding(s)</li><li>python.lang.security.audit.hardcoded-password-default-argument.hardcoded-password-default-argument: 1 finding(s)</li><li>javascript.browser.security.insecure-document-method.insecure-document-method: 11 finding(s)</li><li>typescript.react.security.audit.react-unsanitized-method.react-unsanitized-method: 1 finding(s)</li><li>html.security.audit.missing-integrity.missing-integrity: 4 finding(s)</li><li>python.django.security.django-no-csrf-token.django-no-csrf-token: 2 finding(s)</li></ul>
+            <h3>Findings by Severity</h3><p>Statistics are calculated from the final aggregated SARIF report:</p><ul><li class="severity-error"><strong>ERROR</strong>: 22 finding(s)</li></ul>
+            <h3>Findings by Type</h3><ul><li>python.flask.security.audit.debug-enabled.debug-enabled: 1 finding(s)</li><li>python.lang.security.audit.hardcoded-password-default-argument.hardcoded-password-default-argument: 1 finding(s)</li><li>javascript.browser.security.insecure-document-method.insecure-document-method: 13 finding(s)</li><li>typescript.react.security.audit.react-unsanitized-method.react-unsanitized-method: 1 finding(s)</li><li>html.security.audit.missing-integrity.missing-integrity: 4 finding(s)</li><li>python.django.security.django-no-csrf-token.django-no-csrf-token: 2 finding(s)</li></ul>
             <h3>Top 2 Hotspots</h3><p>Files with the highest number of security findings:</p>
         <table>
             <tr>
@@ -294,7 +294,7 @@
             </tr>
         
             <tr>
-                <td>12</td>
+                <td>14</td>
                 <td>static/js/app.js</td>
             </tr>
             
@@ -319,98 +319,112 @@
                 <td class="severity-error">ERROR</td>
                 <td>python.flask.security.audit.debug-enabled.debug-enabled</td>
                 <td>Detected Flask app with debug=True. Do not deploy to production with this flag enabled as it will leak sensitive information. Instead, consider using Flask configuration variables or setting &#x27;debug&#x27; using system environment variables.</td>
-                <td>app.py:2715</td>
+                <td>app.py:3298</td>
             </tr>
             
             <tr>
                 <td class="severity-error">ERROR</td>
                 <td>python.lang.security.audit.hardcoded-password-default-argument.hardcoded-password-default-argument</td>
                 <td>Hardcoded password is used as a default argument to &#x27;__init__&#x27;. This could be dangerous if a real password is not supplied.</td>
-                <td>scripts/generate_demo_database.py:309</td>
+                <td>scripts/generate_demo_database.py:409</td>
             </tr>
             
             <tr>
                 <td class="severity-error">ERROR</td>
                 <td>javascript.browser.security.insecure-document-method.insecure-document-method</td>
                 <td>User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities</td>
-                <td>static/js/app.js:85</td>
+                <td>static/js/app.js:56</td>
             </tr>
             
             <tr>
                 <td class="severity-error">ERROR</td>
                 <td>javascript.browser.security.insecure-document-method.insecure-document-method</td>
                 <td>User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities</td>
-                <td>static/js/app.js:289</td>
+                <td>static/js/app.js:100</td>
             </tr>
             
             <tr>
                 <td class="severity-error">ERROR</td>
                 <td>javascript.browser.security.insecure-document-method.insecure-document-method</td>
                 <td>User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities</td>
-                <td>static/js/app.js:638</td>
+                <td>static/js/app.js:177</td>
             </tr>
             
             <tr>
                 <td class="severity-error">ERROR</td>
                 <td>javascript.browser.security.insecure-document-method.insecure-document-method</td>
                 <td>User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities</td>
-                <td>static/js/app.js:677</td>
+                <td>static/js/app.js:381</td>
             </tr>
             
             <tr>
                 <td class="severity-error">ERROR</td>
                 <td>javascript.browser.security.insecure-document-method.insecure-document-method</td>
                 <td>User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities</td>
-                <td>static/js/app.js:762</td>
+                <td>static/js/app.js:680</td>
             </tr>
             
             <tr>
                 <td class="severity-error">ERROR</td>
                 <td>javascript.browser.security.insecure-document-method.insecure-document-method</td>
                 <td>User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities</td>
-                <td>static/js/app.js:1368</td>
+                <td>static/js/app.js:719</td>
+            </tr>
+            
+            <tr>
+                <td class="severity-error">ERROR</td>
+                <td>javascript.browser.security.insecure-document-method.insecure-document-method</td>
+                <td>User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities</td>
+                <td>static/js/app.js:804</td>
             </tr>
             
             <tr>
                 <td class="severity-error">ERROR</td>
                 <td>typescript.react.security.audit.react-unsanitized-method.react-unsanitized-method</td>
                 <td>Detection of insertAdjacentHTML from non-constant definition. This can inadvertently expose users to cross-site scripting (XSS) attacks if this comes from user-provided input. If you have to use insertAdjacentHTML, consider using a sanitization library such as DOMPurify to sanitize your HTML.</td>
-                <td>static/js/app.js:1519</td>
+                <td>static/js/app.js:1552</td>
             </tr>
             
             <tr>
                 <td class="severity-error">ERROR</td>
                 <td>javascript.browser.security.insecure-document-method.insecure-document-method</td>
                 <td>User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities</td>
-                <td>static/js/app.js:1607</td>
+                <td>static/js/app.js:1640</td>
             </tr>
             
             <tr>
                 <td class="severity-error">ERROR</td>
                 <td>javascript.browser.security.insecure-document-method.insecure-document-method</td>
                 <td>User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities</td>
-                <td>static/js/app.js:1716</td>
+                <td>static/js/app.js:1749</td>
             </tr>
             
             <tr>
                 <td class="severity-error">ERROR</td>
                 <td>javascript.browser.security.insecure-document-method.insecure-document-method</td>
                 <td>User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities</td>
-                <td>static/js/app.js:1841</td>
+                <td>static/js/app.js:1874</td>
             </tr>
             
             <tr>
                 <td class="severity-error">ERROR</td>
                 <td>javascript.browser.security.insecure-document-method.insecure-document-method</td>
                 <td>User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities</td>
-                <td>static/js/app.js:1921</td>
+                <td>static/js/app.js:1954</td>
             </tr>
             
             <tr>
                 <td class="severity-error">ERROR</td>
                 <td>javascript.browser.security.insecure-document-method.insecure-document-method</td>
                 <td>User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities</td>
-                <td>static/js/app.js:1987</td>
+                <td>static/js/app.js:2020</td>
+            </tr>
+            
+            <tr>
+                <td class="severity-error">ERROR</td>
+                <td>javascript.browser.security.insecure-document-method.insecure-document-method</td>
+                <td>User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities</td>
+                <td>static/js/app.js:2090</td>
             </tr>
             
             <tr>
@@ -431,21 +445,21 @@
                 <td class="severity-error">ERROR</td>
                 <td>python.django.security.django-no-csrf-token.django-no-csrf-token</td>
                 <td>Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.</td>
-                <td>templates/base.html:91</td>
+                <td>templates/base.html:99</td>
             </tr>
             
             <tr>
                 <td class="severity-error">ERROR</td>
                 <td>html.security.audit.missing-integrity.missing-integrity</td>
                 <td>This tag is missing an &#x27;integrity&#x27; subresource integrity attribute. The &#x27;integrity&#x27; attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you’re telling the browser to fetch in the &#x27;integrity&#x27; attribute for all externally hosted files.</td>
-                <td>templates/base.html:109</td>
+                <td>templates/base.html:117</td>
             </tr>
             
             <tr>
                 <td class="severity-error">ERROR</td>
                 <td>html.security.audit.missing-integrity.missing-integrity</td>
                 <td>This tag is missing an &#x27;integrity&#x27; subresource integrity attribute. The &#x27;integrity&#x27; attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you’re telling the browser to fetch in the &#x27;integrity&#x27; attribute for all externally hosted files.</td>
-                <td>templates/base.html:110</td>
+                <td>templates/base.html:118</td>
             </tr>
             
             <tr>
@@ -459,11 +473,11 @@
         <h2>Scan Metadata</h2>
         <div class='metadata-section'>
             <div class="metadata-item">
-                <strong>report_id:</strong> ASH-20255307
+                <strong>report_id:</strong> ASH-20252409
             </div>
             
             <div class="metadata-item">
-                <strong>generated_at:</strong> 2025-09-07T17:53:41+00:00
+                <strong>generated_at:</strong> 2025-09-09T13:24:11+00:00
             </div>
             
             <div class="metadata-item">
@@ -483,7 +497,7 @@
             </div>
             
             <div class="metadata-item">
-                <strong>validation_summary:</strong> {&#x27;scanner_tasks_validation&#x27;: {&#x27;timestamp&#x27;: &#x27;2025-09-07T13:53:48.159858&#x27;, &#x27;expected_count&#x27;: 1, &#x27;actual_count&#x27;: 1, &#x27;missing_count&#x27;: 0, &#x27;has_issues&#x27;: False, &#x27;successfully_retried&#x27;: 0}, &#x27;execution_completion_validation&#x27;: {&#x27;timestamp&#x27;: &#x27;2025-09-07T13:54:28.712614&#x27;, &#x27;expected_count&#x27;: 1, &#x27;completed_count&#x27;: 1, &#x27;missing_count&#x27;: 0, &#x27;unexpected_count&#x27;: 0, &#x27;completion_rate&#x27;: 1.0, &#x27;has_issues&#x27;: False}, &#x27;result_completeness_validation&#x27;: {&#x27;timestamp&#x27;: &#x27;2025-09-07T13:54:28.712871&#x27;, &#x27;expected_count&#x27;: 10, &#x27;final_count&#x27;: 10, &#x27;missing_count&#x27;: 0, &#x27;unexpected_count&#x27;: 0, &#x27;completeness_rate&#x27;: 1.0, &#x27;has_issues&#x27;: False}}
+                <strong>validation_summary:</strong> {&#x27;scanner_tasks_validation&#x27;: {&#x27;timestamp&#x27;: &#x27;2025-09-09T09:24:18.702403&#x27;, &#x27;expected_count&#x27;: 1, &#x27;actual_count&#x27;: 1, &#x27;missing_count&#x27;: 0, &#x27;has_issues&#x27;: False, &#x27;successfully_retried&#x27;: 0}, &#x27;execution_completion_validation&#x27;: {&#x27;timestamp&#x27;: &#x27;2025-09-09T09:24:59.937724&#x27;, &#x27;expected_count&#x27;: 1, &#x27;completed_count&#x27;: 1, &#x27;missing_count&#x27;: 0, &#x27;unexpected_count&#x27;: 0, &#x27;completion_rate&#x27;: 1.0, &#x27;has_issues&#x27;: False}, &#x27;result_completeness_validation&#x27;: {&#x27;timestamp&#x27;: &#x27;2025-09-09T09:24:59.938016&#x27;, &#x27;expected_count&#x27;: 10, &#x27;final_count&#x27;: 10, &#x27;missing_count&#x27;: 0, &#x27;unexpected_count&#x27;: 0, &#x27;completeness_rate&#x27;: 1.0, &#x27;has_issues&#x27;: False}}
             </div>
             
             <div class="metadata-item">

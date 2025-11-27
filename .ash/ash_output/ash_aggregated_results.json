@@ -1,24 +1,24 @@
 {
-  "name": "ASH Scan 2025-09-07T13:53:41.459192",
+  "name": "ASH Scan 2025-09-09T09:24:11.179838",
   "description": "Aggregated security scan results",
   "metadata": {
-    "report_id": "ASH-20255307",
-    "generated_at": "2025-09-07T17:53:41+00:00",
+    "report_id": "ASH-20252409",
+    "generated_at": "2025-09-09T13:24:11+00:00",
     "project_name": "ASH",
     "tool_version": "3.0.0",
     "description": "Automated Security Helper Aggregated Report Post-processor",
     "summary_stats": {
       "suppressed": 7,
-      "critical": 13,
+      "critical": 15,
       "high": 0,
       "medium": 0,
       "low": 0,
       "info": 0,
-      "start": "2025-09-07T17:53:41+00:00",
-      "end": "2025-09-07T17:54:28+00:00",
-      "duration": 46.986087,
-      "total": 20,
-      "actionable": 13,
+      "start": "2025-09-09T13:24:11+00:00",
+      "end": "2025-09-09T13:25:00+00:00",
+      "duration": 48.558269,
+      "total": 22,
+      "actionable": 15,
       "passed": 0,
       "failed": 1,
       "missing": 4,
@@ -26,7 +26,7 @@
     },
     "validation_summary": {
       "scanner_tasks_validation": {
-        "timestamp": "2025-09-07T13:53:48.159858",
+        "timestamp": "2025-09-09T09:24:18.702403",
         "expected_count": 1,
         "actual_count": 1,
         "missing_count": 0,
@@ -34,7 +34,7 @@
         "successfully_retried": 0
       },
       "execution_completion_validation": {
-        "timestamp": "2025-09-07T13:54:28.712614",
+        "timestamp": "2025-09-09T09:24:59.937724",
         "expected_count": 1,
         "completed_count": 1,
         "missing_count": 0,
@@ -43,7 +43,7 @@
         "has_issues": false
       },
       "result_completeness_validation": {
-        "timestamp": "2025-09-07T13:54:28.712871",
+        "timestamp": "2025-09-09T09:24:59.938016",
         "expected_count": 10,
         "final_count": 10,
         "missing_count": 0,
@@ -128,7 +128,7 @@
           "line_end": 217
         },
         {
-          "path": "scripts/generate_demo_database.py",
+          "path": "scripts/*.py",
           "reason": "This is a demo database setup script",
           "expiration": null,
           "rule_id": "B311",
@@ -581,17 +581,17 @@
       "excluded": false,
       "severity_counts": {
         "suppressed": 7,
-        "critical": 13,
+        "critical": 15,
         "high": 0,
         "medium": 0,
         "low": 0,
         "info": 0
       },
-      "finding_count": 20,
-      "actionable_finding_count": 13,
+      "finding_count": 22,
+      "actionable_finding_count": 15,
       "suppressed_finding_count": 7,
       "exit_code": 0,
-      "duration": 40.483635
+      "duration": 41.167795
     }
   },
   "converter_results": {
@@ -665,14 +665,14 @@
               "notifications": [],
               "rules": [
                 {
-                  "id": "Users.akothurk..cache.uv.archive-v0.KsQi3NwIxyC06mKoPpX30.lib.python3.13.site-packages.automated_security_helper.assets.ash_stargrep_rules.hardcoded-sqlplus-credentials",
+                  "id": "Users.akothurk..cache.uv.archive-v0.bnXBjhX8BngRKr58BWPD7.lib.python3.13.site-packages.automated_security_helper.assets.ash_stargrep_rules.hardcoded-sqlplus-credentials",
                   "deprecatedIds": null,
                   "guid": null,
                   "deprecatedGuids": null,
-                  "name": "Users.akothurk..cache.uv.archive-v0.KsQi3NwIxyC06mKoPpX30.lib.python3.13.site-packages.automated_security_helper.assets.ash_stargrep_rules.hardcoded-sqlplus-credentials",
+                  "name": "Users.akothurk..cache.uv.archive-v0.bnXBjhX8BngRKr58BWPD7.lib.python3.13.site-packages.automated_security_helper.assets.ash_stargrep_rules.hardcoded-sqlplus-credentials",
                   "deprecatedNames": null,
                   "shortDescription": {
-                    "text": "Semgrep Finding: Users.akothurk..cache.uv.archive-v0.KsQi3NwIxyC06mKoPpX30.lib.python3.13.site-packages.automated_security_helper.assets.ash_stargrep_rules.hardcoded-sqlplus-credentials",
+                    "text": "Semgrep Finding: Users.akothurk..cache.uv.archive-v0.bnXBjhX8BngRKr58BWPD7.lib.python3.13.site-packages.automated_security_helper.assets.ash_stargrep_rules.hardcoded-sqlplus-credentials",
                     "markdown": null,
                     "properties": null
                   },
@@ -45641,8 +45641,8 @@
                   "tool_name": "semgrep",
                   "tool_version": "3.0.0",
                   "tool_invocation": {
-                    "start_time": "2025-09-07T17:53:48.160452+00:00",
-                    "end_time": "2025-09-07T17:54:28.644087+00:00"
+                    "start_time": "2025-09-09T13:24:18.703140+00:00",
+                    "end_time": "2025-09-09T13:24:59.870935+00:00"
                   }
                 }
               }
@@ -45652,11 +45652,11 @@
         },
         "invocations": [
           {
-            "commandLine": "semgrep scan --config /Users/akothurk/.cache/uv/archive-v0/KsQi3NwIxyC06mKoPpX30/lib/python3.13/site-packages/automated_security_helper/assets/ash_stargrep_rules/appsec.yaml --config auto --metrics auto --exclude *-converted.py --exclude *_report_result.txt --sarif /Users/akothurk/Documents/Code/Github/networth-tracker --sarif-output /Users/akothurk/Documents/Code/Github/networth-tracker/.ash/ash_output/scanners/semgrep/source/results_sarif.sarif",
+            "commandLine": "semgrep scan --config /Users/akothurk/.cache/uv/archive-v0/bnXBjhX8BngRKr58BWPD7/lib/python3.13/site-packages/automated_security_helper/assets/ash_stargrep_rules/appsec.yaml --config auto --metrics auto --exclude *-converted.py --exclude *_report_result.txt --sarif /Users/akothurk/Documents/Code/Github/networth-tracker --sarif-output /Users/akothurk/Documents/Code/Github/networth-tracker/.ash/ash_output/scanners/semgrep/source/results_sarif.sarif",
             "arguments": [
               "scan",
               "--config",
-              "/Users/akothurk/.cache/uv/archive-v0/KsQi3NwIxyC06mKoPpX30/lib/python3.13/site-packages/automated_security_helper/assets/ash_stargrep_rules/appsec.yaml",
+              "/Users/akothurk/.cache/uv/archive-v0/bnXBjhX8BngRKr58BWPD7/lib/python3.13/site-packages/automated_security_helper/assets/ash_stargrep_rules/appsec.yaml",
               "--config",
               "auto",
               "--metrics",
@@ -45671,8 +45671,8 @@
               "/Users/akothurk/Documents/Code/Github/networth-tracker/.ash/ash_output/scanners/semgrep/source/results_sarif.sarif"
             ],
             "responseFiles": null,
-            "startTimeUtc": "2025-09-07T17:53:48.160452Z",
-            "endTimeUtc": "2025-09-07T17:54:28.579419Z",
+            "startTimeUtc": "2025-09-09T13:24:18.703140Z",
+            "endTimeUtc": "2025-09-09T13:24:59.804000Z",
             "exitCode": 0,
             "ruleConfigurationOverrides": [],
             "notificationConfigurationOverrides": [],
@@ -45737,9 +45737,9 @@
                     "properties": null
                   },
                   "region": {
-                    "startLine": 2715,
+                    "startLine": 3298,
                     "startColumn": 5,
-                    "endLine": 2720,
+                    "endLine": 3303,
                     "endColumn": 6,
                     "charOffset": -1,
                     "charLength": null,
@@ -45798,8 +45798,8 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -45831,9 +45831,9 @@
                     "properties": null
                   },
                   "region": {
-                    "startLine": 309,
+                    "startLine": 409,
                     "startColumn": 5,
-                    "endLine": 323,
+                    "endLine": 423,
                     "endColumn": 64,
                     "charOffset": -1,
                     "charLength": null,
@@ -45901,8 +45901,8 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -45934,385 +45934,103 @@
                     "properties": null
                   },
                   "region": {
-                    "startLine": 85,
+                    "startLine": 56,
+                    "startColumn": 5,
+                    "endLine": 61,
+                    "endColumn": 17,
+                    "charOffset": -1,
+                    "charLength": null,
+                    "byteOffset": -1,
+                    "byteLength": null,
+                    "snippet": {
+                      "text": "    demoAccountsList.innerHTML = demoAccounts.map(account => `\n        <li class=\"mb-1\">\n            <i class=\"fas fa-flask demo-icon\"></i>\n            <strong>${account.name}</strong> (${account.institution})\n        </li>\n    `).join('');",
+                      "binary": null,
+                      "rendered": null,
+                      "properties": null
+                    },
+                    "message": null,
+                    "sourceLanguage": null,
+                    "properties": null
+                  },
+                  "contextRegion": null,
+                  "properties": null
+                },
+                "logicalLocations": [],
+                "message": null,
+                "annotations": [],
+                "relationships": [],
+                "properties": null
+              }
+            ],
+            "guid": null,
+            "correlationGuid": null,
+            "occurrenceCount": null,
+            "partialFingerprints": null,
+            "fingerprints": {
+              "matchBasedId/v1": "requires login"
+            },
+            "stacks": [],
+            "codeFlows": [],
+            "graphs": [],
+            "graphTraversals": [],
+            "relatedLocations": [],
+            "suppressions": null,
+            "baselineState": null,
+            "rank": -1.0,
+            "attachments": [],
+            "hostedViewerUri": null,
+            "workItemUris": null,
+            "provenance": null,
+            "fixes": [],
+            "taxa": [],
+            "webRequest": null,
+            "webResponse": null,
+            "properties": {
+              "tags": [
+                "semgrep"
+              ],
+              "scanner_name": "semgrep",
+              "scanner_version": "3.0.0",
+              "scanner_details": {
+                "tool_name": "semgrep",
+                "tool_version": "3.0.0",
+                "tool_invocation": {
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
+                }
+              }
+            }
+          },
+          {
+            "ruleId": "javascript.browser.security.insecure-document-method.insecure-document-method",
+            "ruleIndex": -1,
+            "rule": null,
+            "kind": "fail",
+            "level": "error",
+            "message": {
+              "text": "User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities",
+              "markdown": null,
+              "id": null,
+              "arguments": [],
+              "properties": null
+            },
+            "analysisTarget": null,
+            "locations": [
+              {
+                "id": -1,
+                "physicalLocation": {
+                  "address": null,
+                  "artifactLocation": {
+                    "uri": "static/js/app.js",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": -1,
+                    "description": null,
+                    "properties": null
+                  },
+                  "region": {
+                    "startLine": 100,
                     "startColumn": 13,
-                    "endLine": 85,
-                    "endColumn": 40,
-                    "charOffset": -1,
-                    "charLength": null,
-                    "byteOffset": -1,
-                    "byteLength": null,
-                    "snippet": {
-                      "text": "            container.innerHTML = html;",
-                      "binary": null,
-                      "rendered": null,
-                      "properties": null
-                    },
-                    "message": null,
-                    "sourceLanguage": null,
-                    "properties": null
-                  },
-                  "contextRegion": null,
-                  "properties": null
-                },
-                "logicalLocations": [],
-                "message": null,
-                "annotations": [],
-                "relationships": [],
-                "properties": null
-              }
-            ],
-            "guid": null,
-            "correlationGuid": null,
-            "occurrenceCount": null,
-            "partialFingerprints": null,
-            "fingerprints": {
-              "matchBasedId/v1": "requires login"
-            },
-            "stacks": [],
-            "codeFlows": [],
-            "graphs": [],
-            "graphTraversals": [],
-            "relatedLocations": [],
-            "suppressions": null,
-            "baselineState": null,
-            "rank": -1.0,
-            "attachments": [],
-            "hostedViewerUri": null,
-            "workItemUris": null,
-            "provenance": null,
-            "fixes": [],
-            "taxa": [],
-            "webRequest": null,
-            "webResponse": null,
-            "properties": {
-              "tags": [
-                "semgrep"
-              ],
-              "scanner_name": "semgrep",
-              "scanner_version": "3.0.0",
-              "scanner_details": {
-                "tool_name": "semgrep",
-                "tool_version": "3.0.0",
-                "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
-                }
-              }
-            }
-          },
-          {
-            "ruleId": "javascript.browser.security.insecure-document-method.insecure-document-method",
-            "ruleIndex": -1,
-            "rule": null,
-            "kind": "fail",
-            "level": "error",
-            "message": {
-              "text": "User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities",
-              "markdown": null,
-              "id": null,
-              "arguments": [],
-              "properties": null
-            },
-            "analysisTarget": null,
-            "locations": [
-              {
-                "id": -1,
-                "physicalLocation": {
-                  "address": null,
-                  "artifactLocation": {
-                    "uri": "static/js/app.js",
-                    "uriBaseId": "%SRCROOT%",
-                    "index": -1,
-                    "description": null,
-                    "properties": null
-                  },
-                  "region": {
-                    "startLine": 289,
-                    "startColumn": 13,
-                    "endLine": 289,
-                    "endColumn": 51,
-                    "charOffset": -1,
-                    "charLength": null,
-                    "byteOffset": -1,
-                    "byteLength": null,
-                    "snippet": {
-                      "text": "            submitButton.innerHTML = originalText;",
-                      "binary": null,
-                      "rendered": null,
-                      "properties": null
-                    },
-                    "message": null,
-                    "sourceLanguage": null,
-                    "properties": null
-                  },
-                  "contextRegion": null,
-                  "properties": null
-                },
-                "logicalLocations": [],
-                "message": null,
-                "annotations": [],
-                "relationships": [],
-                "properties": null
-              }
-            ],
-            "guid": null,
-            "correlationGuid": null,
-            "occurrenceCount": null,
-            "partialFingerprints": null,
-            "fingerprints": {
-              "matchBasedId/v1": "requires login"
-            },
-            "stacks": [],
-            "codeFlows": [],
-            "graphs": [],
-            "graphTraversals": [],
-            "relatedLocations": [],
-            "suppressions": null,
-            "baselineState": null,
-            "rank": -1.0,
-            "attachments": [],
-            "hostedViewerUri": null,
-            "workItemUris": null,
-            "provenance": null,
-            "fixes": [],
-            "taxa": [],
-            "webRequest": null,
-            "webResponse": null,
-            "properties": {
-              "tags": [
-                "semgrep"
-              ],
-              "scanner_name": "semgrep",
-              "scanner_version": "3.0.0",
-              "scanner_details": {
-                "tool_name": "semgrep",
-                "tool_version": "3.0.0",
-                "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
-                }
-              }
-            }
-          },
-          {
-            "ruleId": "javascript.browser.security.insecure-document-method.insecure-document-method",
-            "ruleIndex": -1,
-            "rule": null,
-            "kind": "fail",
-            "level": "error",
-            "message": {
-              "text": "User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities",
-              "markdown": null,
-              "id": null,
-              "arguments": [],
-              "properties": null
-            },
-            "analysisTarget": null,
-            "locations": [
-              {
-                "id": -1,
-                "physicalLocation": {
-                  "address": null,
-                  "artifactLocation": {
-                    "uri": "static/js/app.js",
-                    "uriBaseId": "%SRCROOT%",
-                    "index": -1,
-                    "description": null,
-                    "properties": null
-                  },
-                  "region": {
-                    "startLine": 638,
-                    "startColumn": 17,
-                    "endLine": 638,
-                    "endColumn": 49,
-                    "charOffset": -1,
-                    "charLength": null,
-                    "byteOffset": -1,
-                    "byteLength": null,
-                    "snippet": {
-                      "text": "                button.innerHTML = originalText;",
-                      "binary": null,
-                      "rendered": null,
-                      "properties": null
-                    },
-                    "message": null,
-                    "sourceLanguage": null,
-                    "properties": null
-                  },
-                  "contextRegion": null,
-                  "properties": null
-                },
-                "logicalLocations": [],
-                "message": null,
-                "annotations": [],
-                "relationships": [],
-                "properties": null
-              }
-            ],
-            "guid": null,
-            "correlationGuid": null,
-            "occurrenceCount": null,
-            "partialFingerprints": null,
-            "fingerprints": {
-              "matchBasedId/v1": "requires login"
-            },
-            "stacks": [],
-            "codeFlows": [],
-            "graphs": [],
-            "graphTraversals": [],
-            "relatedLocations": [],
-            "suppressions": null,
-            "baselineState": null,
-            "rank": -1.0,
-            "attachments": [],
-            "hostedViewerUri": null,
-            "workItemUris": null,
-            "provenance": null,
-            "fixes": [],
-            "taxa": [],
-            "webRequest": null,
-            "webResponse": null,
-            "properties": {
-              "tags": [
-                "semgrep"
-              ],
-              "scanner_name": "semgrep",
-              "scanner_version": "3.0.0",
-              "scanner_details": {
-                "tool_name": "semgrep",
-                "tool_version": "3.0.0",
-                "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
-                }
-              }
-            }
-          },
-          {
-            "ruleId": "javascript.browser.security.insecure-document-method.insecure-document-method",
-            "ruleIndex": -1,
-            "rule": null,
-            "kind": "fail",
-            "level": "error",
-            "message": {
-              "text": "User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities",
-              "markdown": null,
-              "id": null,
-              "arguments": [],
-              "properties": null
-            },
-            "analysisTarget": null,
-            "locations": [
-              {
-                "id": -1,
-                "physicalLocation": {
-                  "address": null,
-                  "artifactLocation": {
-                    "uri": "static/js/app.js",
-                    "uriBaseId": "%SRCROOT%",
-                    "index": -1,
-                    "description": null,
-                    "properties": null
-                  },
-                  "region": {
-                    "startLine": 677,
-                    "startColumn": 17,
-                    "endLine": 677,
-                    "endColumn": 49,
-                    "charOffset": -1,
-                    "charLength": null,
-                    "byteOffset": -1,
-                    "byteLength": null,
-                    "snippet": {
-                      "text": "                button.innerHTML = originalText;",
-                      "binary": null,
-                      "rendered": null,
-                      "properties": null
-                    },
-                    "message": null,
-                    "sourceLanguage": null,
-                    "properties": null
-                  },
-                  "contextRegion": null,
-                  "properties": null
-                },
-                "logicalLocations": [],
-                "message": null,
-                "annotations": [],
-                "relationships": [],
-                "properties": null
-              }
-            ],
-            "guid": null,
-            "correlationGuid": null,
-            "occurrenceCount": null,
-            "partialFingerprints": null,
-            "fingerprints": {
-              "matchBasedId/v1": "requires login"
-            },
-            "stacks": [],
-            "codeFlows": [],
-            "graphs": [],
-            "graphTraversals": [],
-            "relatedLocations": [],
-            "suppressions": null,
-            "baselineState": null,
-            "rank": -1.0,
-            "attachments": [],
-            "hostedViewerUri": null,
-            "workItemUris": null,
-            "provenance": null,
-            "fixes": [],
-            "taxa": [],
-            "webRequest": null,
-            "webResponse": null,
-            "properties": {
-              "tags": [
-                "semgrep"
-              ],
-              "scanner_name": "semgrep",
-              "scanner_version": "3.0.0",
-              "scanner_details": {
-                "tool_name": "semgrep",
-                "tool_version": "3.0.0",
-                "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
-                }
-              }
-            }
-          },
-          {
-            "ruleId": "javascript.browser.security.insecure-document-method.insecure-document-method",
-            "ruleIndex": -1,
-            "rule": null,
-            "kind": "fail",
-            "level": "error",
-            "message": {
-              "text": "User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities",
-              "markdown": null,
-              "id": null,
-              "arguments": [],
-              "properties": null
-            },
-            "analysisTarget": null,
-            "locations": [
-              {
-                "id": -1,
-                "physicalLocation": {
-                  "address": null,
-                  "artifactLocation": {
-                    "uri": "static/js/app.js",
-                    "uriBaseId": "%SRCROOT%",
-                    "index": -1,
-                    "description": null,
-                    "properties": null
-                  },
-                  "region": {
-                    "startLine": 762,
-                    "startColumn": 13,
-                    "endLine": 762,
+                    "endLine": 100,
                     "endColumn": 45,
                     "charOffset": -1,
                     "charLength": null,
@@ -46371,8 +46089,8 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -46404,16 +46122,16 @@
                     "properties": null
                   },
                   "region": {
-                    "startLine": 1368,
-                    "startColumn": 5,
-                    "endLine": 1368,
-                    "endColumn": 32,
+                    "startLine": 177,
+                    "startColumn": 13,
+                    "endLine": 177,
+                    "endColumn": 40,
                     "charOffset": -1,
                     "charLength": null,
                     "byteOffset": -1,
                     "byteLength": null,
                     "snippet": {
-                      "text": "    container.innerHTML = html;",
+                      "text": "            container.innerHTML = html;",
                       "binary": null,
                       "rendered": null,
                       "properties": null
@@ -46465,8 +46183,384 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
+                }
+              }
+            }
+          },
+          {
+            "ruleId": "javascript.browser.security.insecure-document-method.insecure-document-method",
+            "ruleIndex": -1,
+            "rule": null,
+            "kind": "fail",
+            "level": "error",
+            "message": {
+              "text": "User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities",
+              "markdown": null,
+              "id": null,
+              "arguments": [],
+              "properties": null
+            },
+            "analysisTarget": null,
+            "locations": [
+              {
+                "id": -1,
+                "physicalLocation": {
+                  "address": null,
+                  "artifactLocation": {
+                    "uri": "static/js/app.js",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": -1,
+                    "description": null,
+                    "properties": null
+                  },
+                  "region": {
+                    "startLine": 381,
+                    "startColumn": 13,
+                    "endLine": 381,
+                    "endColumn": 51,
+                    "charOffset": -1,
+                    "charLength": null,
+                    "byteOffset": -1,
+                    "byteLength": null,
+                    "snippet": {
+                      "text": "            submitButton.innerHTML = originalText;",
+                      "binary": null,
+                      "rendered": null,
+                      "properties": null
+                    },
+                    "message": null,
+                    "sourceLanguage": null,
+                    "properties": null
+                  },
+                  "contextRegion": null,
+                  "properties": null
+                },
+                "logicalLocations": [],
+                "message": null,
+                "annotations": [],
+                "relationships": [],
+                "properties": null
+              }
+            ],
+            "guid": null,
+            "correlationGuid": null,
+            "occurrenceCount": null,
+            "partialFingerprints": null,
+            "fingerprints": {
+              "matchBasedId/v1": "requires login"
+            },
+            "stacks": [],
+            "codeFlows": [],
+            "graphs": [],
+            "graphTraversals": [],
+            "relatedLocations": [],
+            "suppressions": null,
+            "baselineState": null,
+            "rank": -1.0,
+            "attachments": [],
+            "hostedViewerUri": null,
+            "workItemUris": null,
+            "provenance": null,
+            "fixes": [],
+            "taxa": [],
+            "webRequest": null,
+            "webResponse": null,
+            "properties": {
+              "tags": [
+                "semgrep"
+              ],
+              "scanner_name": "semgrep",
+              "scanner_version": "3.0.0",
+              "scanner_details": {
+                "tool_name": "semgrep",
+                "tool_version": "3.0.0",
+                "tool_invocation": {
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
+                }
+              }
+            }
+          },
+          {
+            "ruleId": "javascript.browser.security.insecure-document-method.insecure-document-method",
+            "ruleIndex": -1,
+            "rule": null,
+            "kind": "fail",
+            "level": "error",
+            "message": {
+              "text": "User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities",
+              "markdown": null,
+              "id": null,
+              "arguments": [],
+              "properties": null
+            },
+            "analysisTarget": null,
+            "locations": [
+              {
+                "id": -1,
+                "physicalLocation": {
+                  "address": null,
+                  "artifactLocation": {
+                    "uri": "static/js/app.js",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": -1,
+                    "description": null,
+                    "properties": null
+                  },
+                  "region": {
+                    "startLine": 680,
+                    "startColumn": 17,
+                    "endLine": 680,
+                    "endColumn": 49,
+                    "charOffset": -1,
+                    "charLength": null,
+                    "byteOffset": -1,
+                    "byteLength": null,
+                    "snippet": {
+                      "text": "                button.innerHTML = originalText;",
+                      "binary": null,
+                      "rendered": null,
+                      "properties": null
+                    },
+                    "message": null,
+                    "sourceLanguage": null,
+                    "properties": null
+                  },
+                  "contextRegion": null,
+                  "properties": null
+                },
+                "logicalLocations": [],
+                "message": null,
+                "annotations": [],
+                "relationships": [],
+                "properties": null
+              }
+            ],
+            "guid": null,
+            "correlationGuid": null,
+            "occurrenceCount": null,
+            "partialFingerprints": null,
+            "fingerprints": {
+              "matchBasedId/v1": "requires login"
+            },
+            "stacks": [],
+            "codeFlows": [],
+            "graphs": [],
+            "graphTraversals": [],
+            "relatedLocations": [],
+            "suppressions": null,
+            "baselineState": null,
+            "rank": -1.0,
+            "attachments": [],
+            "hostedViewerUri": null,
+            "workItemUris": null,
+            "provenance": null,
+            "fixes": [],
+            "taxa": [],
+            "webRequest": null,
+            "webResponse": null,
+            "properties": {
+              "tags": [
+                "semgrep"
+              ],
+              "scanner_name": "semgrep",
+              "scanner_version": "3.0.0",
+              "scanner_details": {
+                "tool_name": "semgrep",
+                "tool_version": "3.0.0",
+                "tool_invocation": {
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
+                }
+              }
+            }
+          },
+          {
+            "ruleId": "javascript.browser.security.insecure-document-method.insecure-document-method",
+            "ruleIndex": -1,
+            "rule": null,
+            "kind": "fail",
+            "level": "error",
+            "message": {
+              "text": "User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities",
+              "markdown": null,
+              "id": null,
+              "arguments": [],
+              "properties": null
+            },
+            "analysisTarget": null,
+            "locations": [
+              {
+                "id": -1,
+                "physicalLocation": {
+                  "address": null,
+                  "artifactLocation": {
+                    "uri": "static/js/app.js",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": -1,
+                    "description": null,
+                    "properties": null
+                  },
+                  "region": {
+                    "startLine": 719,
+                    "startColumn": 17,
+                    "endLine": 719,
+                    "endColumn": 49,
+                    "charOffset": -1,
+                    "charLength": null,
+                    "byteOffset": -1,
+                    "byteLength": null,
+                    "snippet": {
+                      "text": "                button.innerHTML = originalText;",
+                      "binary": null,
+                      "rendered": null,
+                      "properties": null
+                    },
+                    "message": null,
+                    "sourceLanguage": null,
+                    "properties": null
+                  },
+                  "contextRegion": null,
+                  "properties": null
+                },
+                "logicalLocations": [],
+                "message": null,
+                "annotations": [],
+                "relationships": [],
+                "properties": null
+              }
+            ],
+            "guid": null,
+            "correlationGuid": null,
+            "occurrenceCount": null,
+            "partialFingerprints": null,
+            "fingerprints": {
+              "matchBasedId/v1": "requires login"
+            },
+            "stacks": [],
+            "codeFlows": [],
+            "graphs": [],
+            "graphTraversals": [],
+            "relatedLocations": [],
+            "suppressions": null,
+            "baselineState": null,
+            "rank": -1.0,
+            "attachments": [],
+            "hostedViewerUri": null,
+            "workItemUris": null,
+            "provenance": null,
+            "fixes": [],
+            "taxa": [],
+            "webRequest": null,
+            "webResponse": null,
+            "properties": {
+              "tags": [
+                "semgrep"
+              ],
+              "scanner_name": "semgrep",
+              "scanner_version": "3.0.0",
+              "scanner_details": {
+                "tool_name": "semgrep",
+                "tool_version": "3.0.0",
+                "tool_invocation": {
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
+                }
+              }
+            }
+          },
+          {
+            "ruleId": "javascript.browser.security.insecure-document-method.insecure-document-method",
+            "ruleIndex": -1,
+            "rule": null,
+            "kind": "fail",
+            "level": "error",
+            "message": {
+              "text": "User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities",
+              "markdown": null,
+              "id": null,
+              "arguments": [],
+              "properties": null
+            },
+            "analysisTarget": null,
+            "locations": [
+              {
+                "id": -1,
+                "physicalLocation": {
+                  "address": null,
+                  "artifactLocation": {
+                    "uri": "static/js/app.js",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": -1,
+                    "description": null,
+                    "properties": null
+                  },
+                  "region": {
+                    "startLine": 804,
+                    "startColumn": 13,
+                    "endLine": 804,
+                    "endColumn": 45,
+                    "charOffset": -1,
+                    "charLength": null,
+                    "byteOffset": -1,
+                    "byteLength": null,
+                    "snippet": {
+                      "text": "            button.innerHTML = originalText;",
+                      "binary": null,
+                      "rendered": null,
+                      "properties": null
+                    },
+                    "message": null,
+                    "sourceLanguage": null,
+                    "properties": null
+                  },
+                  "contextRegion": null,
+                  "properties": null
+                },
+                "logicalLocations": [],
+                "message": null,
+                "annotations": [],
+                "relationships": [],
+                "properties": null
+              }
+            ],
+            "guid": null,
+            "correlationGuid": null,
+            "occurrenceCount": null,
+            "partialFingerprints": null,
+            "fingerprints": {
+              "matchBasedId/v1": "requires login"
+            },
+            "stacks": [],
+            "codeFlows": [],
+            "graphs": [],
+            "graphTraversals": [],
+            "relatedLocations": [],
+            "suppressions": null,
+            "baselineState": null,
+            "rank": -1.0,
+            "attachments": [],
+            "hostedViewerUri": null,
+            "workItemUris": null,
+            "provenance": null,
+            "fixes": [],
+            "taxa": [],
+            "webRequest": null,
+            "webResponse": null,
+            "properties": {
+              "tags": [
+                "semgrep"
+              ],
+              "scanner_name": "semgrep",
+              "scanner_version": "3.0.0",
+              "scanner_details": {
+                "tool_name": "semgrep",
+                "tool_version": "3.0.0",
+                "tool_invocation": {
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -46498,9 +46592,9 @@
                     "properties": null
                   },
                   "region": {
-                    "startLine": 1519,
+                    "startLine": 1552,
                     "startColumn": 51,
-                    "endLine": 1519,
+                    "endLine": 1552,
                     "endColumn": 60,
                     "charOffset": -1,
                     "charLength": null,
@@ -46559,8 +46653,8 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -46592,9 +46686,9 @@
                     "properties": null
                   },
                   "region": {
-                    "startLine": 1607,
+                    "startLine": 1640,
                     "startColumn": 9,
-                    "endLine": 1607,
+                    "endLine": 1640,
                     "endColumn": 65,
                     "charOffset": -1,
                     "charLength": null,
@@ -46653,8 +46747,8 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -46686,9 +46780,9 @@
                     "properties": null
                   },
                   "region": {
-                    "startLine": 1716,
+                    "startLine": 1749,
                     "startColumn": 9,
-                    "endLine": 1716,
+                    "endLine": 1749,
                     "endColumn": 65,
                     "charOffset": -1,
                     "charLength": null,
@@ -46747,8 +46841,8 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -46780,9 +46874,9 @@
                     "properties": null
                   },
                   "region": {
-                    "startLine": 1841,
+                    "startLine": 1874,
                     "startColumn": 5,
-                    "endLine": 1841,
+                    "endLine": 1874,
                     "endColumn": 32,
                     "charOffset": -1,
                     "charLength": null,
@@ -46841,8 +46935,8 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -46874,9 +46968,9 @@
                     "properties": null
                   },
                   "region": {
-                    "startLine": 1921,
+                    "startLine": 1954,
                     "startColumn": 5,
-                    "endLine": 1921,
+                    "endLine": 1954,
                     "endColumn": 32,
                     "charOffset": -1,
                     "charLength": null,
@@ -46935,8 +47029,8 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -46968,9 +47062,9 @@
                     "properties": null
                   },
                   "region": {
-                    "startLine": 1987,
+                    "startLine": 2020,
                     "startColumn": 5,
-                    "endLine": 1987,
+                    "endLine": 2020,
                     "endColumn": 32,
                     "charOffset": -1,
                     "charLength": null,
@@ -47029,8 +47123,102 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
+                }
+              }
+            }
+          },
+          {
+            "ruleId": "javascript.browser.security.insecure-document-method.insecure-document-method",
+            "ruleIndex": -1,
+            "rule": null,
+            "kind": "fail",
+            "level": "error",
+            "message": {
+              "text": "User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities",
+              "markdown": null,
+              "id": null,
+              "arguments": [],
+              "properties": null
+            },
+            "analysisTarget": null,
+            "locations": [
+              {
+                "id": -1,
+                "physicalLocation": {
+                  "address": null,
+                  "artifactLocation": {
+                    "uri": "static/js/app.js",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": -1,
+                    "description": null,
+                    "properties": null
+                  },
+                  "region": {
+                    "startLine": 2090,
+                    "startColumn": 5,
+                    "endLine": 2090,
+                    "endColumn": 32,
+                    "charOffset": -1,
+                    "charLength": null,
+                    "byteOffset": -1,
+                    "byteLength": null,
+                    "snippet": {
+                      "text": "    container.innerHTML = html;",
+                      "binary": null,
+                      "rendered": null,
+                      "properties": null
+                    },
+                    "message": null,
+                    "sourceLanguage": null,
+                    "properties": null
+                  },
+                  "contextRegion": null,
+                  "properties": null
+                },
+                "logicalLocations": [],
+                "message": null,
+                "annotations": [],
+                "relationships": [],
+                "properties": null
+              }
+            ],
+            "guid": null,
+            "correlationGuid": null,
+            "occurrenceCount": null,
+            "partialFingerprints": null,
+            "fingerprints": {
+              "matchBasedId/v1": "requires login"
+            },
+            "stacks": [],
+            "codeFlows": [],
+            "graphs": [],
+            "graphTraversals": [],
+            "relatedLocations": [],
+            "suppressions": null,
+            "baselineState": null,
+            "rank": -1.0,
+            "attachments": [],
+            "hostedViewerUri": null,
+            "workItemUris": null,
+            "provenance": null,
+            "fixes": [],
+            "taxa": [],
+            "webRequest": null,
+            "webResponse": null,
+            "properties": {
+              "tags": [
+                "semgrep"
+              ],
+              "scanner_name": "semgrep",
+              "scanner_version": "3.0.0",
+              "scanner_details": {
+                "tool_name": "semgrep",
+                "tool_version": "3.0.0",
+                "tool_invocation": {
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -47132,8 +47320,8 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -47235,8 +47423,8 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -47268,9 +47456,9 @@
                     "properties": null
                   },
                   "region": {
-                    "startLine": 91,
+                    "startLine": 99,
                     "startColumn": 33,
-                    "endLine": 95,
+                    "endLine": 103,
                     "endColumn": 40,
                     "charOffset": -1,
                     "charLength": null,
@@ -47338,8 +47526,8 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -47371,9 +47559,9 @@
                     "properties": null
                   },
                   "region": {
-                    "startLine": 109,
+                    "startLine": 117,
                     "startColumn": 5,
-                    "endLine": 109,
+                    "endLine": 117,
                     "endColumn": 105,
                     "charOffset": -1,
                     "charLength": null,
@@ -47441,8 +47629,8 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -47474,9 +47662,9 @@
                     "properties": null
                   },
                   "region": {
-                    "startLine": 110,
+                    "startLine": 118,
                     "startColumn": 5,
-                    "endLine": 110,
+                    "endLine": 118,
                     "endColumn": 66,
                     "charOffset": -1,
                     "charLength": null,
@@ -47544,8 +47732,8 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -47647,8 +47835,8 @@
                 "tool_name": "semgrep",
                 "tool_version": "3.0.0",
                 "tool_invocation": {
-                  "start_time": "2025-09-07T17:53:48.160452+00:00",
-                  "end_time": "2025-09-07T17:54:28.644087+00:00"
+                  "start_time": "2025-09-09T13:24:18.703140+00:00",
+                  "end_time": "2025-09-09T13:24:59.870935+00:00"
                 }
               }
             }
@@ -47783,17 +47971,17 @@
         "target": "/Users/akothurk/Documents/Code/Github/networth-tracker",
         "target_type": "source",
         "exit_code": 0,
-        "finding_count": 20,
-        "start_time": "2025-09-07T17:53:48.160452Z",
-        "end_time": "2025-09-07T17:54:28.644087Z",
-        "duration": 40.483635,
+        "finding_count": 22,
+        "start_time": "2025-09-09T13:24:18.703140Z",
+        "end_time": "2025-09-09T13:24:59.870935Z",
+        "duration": 41.167795,
         "severity_counts": {
           "suppressed": 7,
           "critical": 0,
           "high": 0,
           "medium": 0,
           "low": 0,
-          "info": 13
+          "info": 15
         },
         "status": "PASSED"
       }
@@ -47802,7 +47990,7 @@
   "validation_checkpoints": [
     {
       "checkpoint_name": "task_queue_validation",
-      "timestamp": "2025-09-07T13:53:48.159858",
+      "timestamp": "2025-09-09T09:24:18.702403",
       "expected_scanners": [
         "semgrep"
       ],
@@ -47819,7 +48007,7 @@
     },
     {
       "checkpoint_name": "execution_completion",
-      "timestamp": "2025-09-07T13:54:28.712614",
+      "timestamp": "2025-09-09T09:24:59.937724",
       "expected_scanners": [
         "semgrep"
       ],
@@ -47836,7 +48024,7 @@
     },
     {
       "checkpoint_name": "result_completeness",
-      "timestamp": "2025-09-07T13:54:28.712871",
+      "timestamp": "2025-09-09T09:24:59.938016",
       "expected_scanners": [
         "bandit",
         "cdk-nag",

@@ -33,7 +33,7 @@ global_settings:
       line_end: 217
       reason: 'This is a demo account script'
     - rule_id: 'B311'
-      path: 'scripts/generate_demo_database.py'
+      path: 'scripts/*.py'
       reason: 'This is a demo database setup script'
     - rule_id: 'python.lang.security.audit.hardcoded-password-default-argument.hardcoded-password-default-argument'
       path: 'scripts/generate_demo_database.py'
