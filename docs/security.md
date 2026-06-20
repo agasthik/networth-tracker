@@ -451,13 +451,13 @@ def security_audit():
 ./scripts/start.sh --stop
 
 # Backup current state
-./venv/bin/python scripts/init_db.py --backup
+python scripts/init_db.py --backup
 
 # Restore from clean backup
-./venv/bin/python scripts/init_db.py --restore backup_file.db
+python scripts/init_db.py --restore backup_file.db
 
 # Verify integrity
-./venv/bin/python scripts/init_db.py --verify
+python scripts/init_db.py --verify
 
 # Restart with enhanced monitoring
 ./scripts/start.sh --env production

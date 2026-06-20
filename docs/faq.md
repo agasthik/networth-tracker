@@ -206,7 +206,7 @@ pip list  # Should show installed packages
 **Check for port conflicts:**
 ```bash
 # Try a different port
-./venv/bin/python scripts/start.py --port 5001
+python scripts/start.py --port 5001
 # Or use the startup scripts
 ./scripts/start.sh --port 5001  # macOS/Linux
 scripts\start.bat --port 5001   # Windows
@@ -389,7 +389,7 @@ See `requirements.txt` for the complete list with specific versions.
 2. Download the new version
 3. Replace application files (keep your database files)
 4. Update dependencies: `pip install -r requirements.txt`
-5. Run database migrations if needed: `./venv/bin/python scripts/init_db.py --migrate`
+5. Run database migrations if needed: `python scripts/init_db.py --migrate`
 6. Test the application with your existing data
 
 **For portable installations:**
@@ -407,7 +407,7 @@ If your question isn't answered here:
 1. **Check the logs**: Look in the `logs/` directory for error messages
 2. **Review documentation**: Check the [User Guide](user-guide.md) and [Installation Guide](installation.md)
 3. **Try demo database**: Import demo database to test functionality (see [Demo Database Guide](demo-data.md))
-4. **Validate configuration**: Run `./venv/bin/python scripts/start.py --validate-only`
+4. **Validate configuration**: Run `python scripts/start.py --validate-only`
 
 **Common log locations:**
 - `logs/networth_tracker.log`: General application logs
@@ -420,13 +420,13 @@ If your question isn't answered here:
 scripts\start.bat --status   # Windows
 
 # Validate configuration
-./venv/bin/python scripts/start.py --validate-only
+python scripts/start.py --validate-only
 # Or use startup scripts
 ./scripts/start.sh --validate  # macOS/Linux
 scripts\start.bat --validate   # Windows
 
 # Verify database
-./venv/bin/python scripts/init_db.py --verify
+python scripts/init_db.py --verify
 
 # View recent logs
 tail -20 logs/networth_tracker.log  # macOS/Linux

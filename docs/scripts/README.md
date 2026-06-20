@@ -11,7 +11,7 @@ Main Python startup script with comprehensive configuration and environment mana
 
 **Usage:**
 ```bash
-./venv/bin/python scripts/start.py [OPTIONS]
+python scripts/start.py [OPTIONS]
 ```
 
 **Options:**
@@ -27,16 +27,16 @@ Main Python startup script with comprehensive configuration and environment mana
 **Examples:**
 ```bash
 # Start in production mode
-./venv/bin/python scripts/start.py
+python scripts/start.py
 
 # Start in development mode with debug
-./venv/bin/python scripts/start.py --env development --debug
+python scripts/start.py --env development --debug
 
 # Validate configuration only
-./venv/bin/python scripts/start.py --validate-only
+python scripts/start.py --validate-only
 
 # Start as daemon
-./venv/bin/python scripts/start.py --daemon
+python scripts/start.py --daemon
 ```
 
 #### `start.sh` (Unix/Linux/macOS)
@@ -93,7 +93,7 @@ Database initialization and management script.
 
 **Usage:**
 ```bash
-./venv/bin/python scripts/init_db.py [OPTIONS]
+python scripts/init_db.py [OPTIONS]
 ```
 
 **Options:**
@@ -110,19 +110,19 @@ Database initialization and management script.
 **Examples:**
 ```bash
 # Create new database
-./venv/bin/python scripts/init_db.py --create
+python scripts/init_db.py --create
 
 # Run migrations
-./venv/bin/python scripts/init_db.py --migrate
+python scripts/init_db.py --migrate
 
 # Create backup
-./venv/bin/python scripts/init_db.py --backup
+python scripts/init_db.py --backup
 
 # Verify database
-./venv/bin/python scripts/init_db.py --verify
+python scripts/init_db.py --verify
 
 # Reset demo database
-./venv/bin/python scripts/init_db.py --reset --demo --force
+python scripts/init_db.py --reset --demo --force
 ```
 
 ## Quick Start
@@ -143,7 +143,7 @@ Database initialization and management script.
 
 3. **Initialize database:**
    ```bash
-   ./venv/bin/python scripts/init_db.py --create
+   python scripts/init_db.py --create
    ```
 
 4. **Start application:**
@@ -155,7 +155,7 @@ Database initialization and management script.
    scripts\start.bat
 
    # Or directly with Python
-   ./venv/bin/python scripts/start.py
+   python scripts/start.py
    ```
 
 ### Development Setup
@@ -165,7 +165,7 @@ Database initialization and management script.
 export FLASK_ENV=development
 
 # Create development database
-./venv/bin/python scripts/init_db.py --create --env development
+python scripts/init_db.py --create --env development
 
 # Start in development mode
 ./scripts/start.sh -e development -D
@@ -178,7 +178,7 @@ export FLASK_ENV=development
 export FLASK_ENV=production
 
 # Create production database
-./venv/bin/python scripts/init_db.py --create --env production
+python scripts/init_db.py --create --env production
 
 # Start in production mode
 ./scripts/start.sh -e production
@@ -312,10 +312,10 @@ Check log files for detailed error information:
 Use the validation tools to check configuration:
 ```bash
 # Validate configuration
-./venv/bin/python scripts/start.py --validate-only
+python scripts/start.py --validate-only
 
 # Verify database
-./venv/bin/python scripts/init_db.py --verify
+python scripts/init_db.py --verify
 
 # Check application status
 ./scripts/start.sh --status
@@ -340,7 +340,7 @@ Use the validation tools to check configuration:
 
 ```bash
 # Use custom database path
-./venv/bin/python scripts/start.py --env production
+python scripts/start.py --env production
 export DATABASE_PATH=/custom/path/networth.db
 
 # Use custom port and host
@@ -351,13 +351,13 @@ export DATABASE_PATH=/custom/path/networth.db
 
 ```bash
 # Create backup
-./venv/bin/python scripts/init_db.py --backup
+python scripts/init_db.py --backup
 
 # Reset database (with backup)
-./venv/bin/python scripts/init_db.py --reset --force
+python scripts/init_db.py --reset --force
 
 # Verify after operations
-./venv/bin/python scripts/init_db.py --verify
+python scripts/init_db.py --verify
 ```
 
 This scripts directory provides a complete toolkit for managing the Networth Tracker application across different environments and platforms.

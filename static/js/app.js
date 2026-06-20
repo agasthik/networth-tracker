@@ -53,12 +53,26 @@ function confirmDeleteDemoAccounts() {
     document.getElementById('confirmDemoCount').textContent = demoAccounts.length;
 
     const demoAccountsList = document.getElementById('demoAccountsList');
-    demoAccountsList.innerHTML = demoAccounts.map(account => `
-        <li class="mb-1">
-            <i class="fas fa-flask demo-icon"></i>
-            <strong>${account.name}</strong> (${account.institution})
-        </li>
-    `).join('');
+    demoAccountsList.innerHTML = '';
+    demoAccounts.forEach(account => {
+        const listItem = document.createElement('li');
+        listItem.className = 'mb-1';
+
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-flask demo-icon';
+
+        const accountName = document.createElement('strong');
+        accountName.textContent = account.name || 'Unnamed Account';
+
+        listItem.appendChild(icon);
+        listItem.appendChild(document.createTextNode(' '));
+        listItem.appendChild(accountName);
+        listItem.appendChild(
+            document.createTextNode(` (${account.institution || 'Unknown Institution'})`)
+        );
+
+        demoAccountsList.appendChild(listItem);
+    });
 
     // Show confirmation modal
     const modal = new bootstrap.Modal(document.getElementById('deleteDemoAccountsModal'));
@@ -1404,9 +1418,9 @@ function updateRecentActivity() {
 function initializeCharts() {
     // Initialize Chart.js if not already loaded
     if (typeof Chart === 'undefined') {
-        // Load Chart.js dynamically
+        // Load the vendored local Chart.js bundle if it is missing.
         const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        script.src = '/static/vendor/chartjs/chart.umd.min.js';
         script.onload = function () {
             console.log('Chart.js loaded');
             if (portfolioData) {
@@ -1450,7 +1464,7 @@ function displayAccountDetailsModal(accountId, performanceData) {
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="fas fa-chart-line me-2"></i>
-                            ${account.name} - Performance Details
+                            <span id="accountDetailsTitleText"></span>
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
@@ -1533,7 +1547,7 @@ function displayAccountDetailsModal(accountId, performanceData) {
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="button" class="btn btn-primary" onclick="showAccountForm('${account.account_type}', '${account.id}')">
+                        <button type="button" class="btn btn-primary" id="accountDetailsEditButton">
                             Edit Account
                         </button>
                     </div>
@@ -1551,6 +1565,16 @@ function displayAccountDetailsModal(accountId, performanceData) {
     // Add modal to page
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 
+    const titleText = document.getElementById('accountDetailsTitleText');
+    if (titleText) {
+        titleText.textContent = `${account.name || 'Unnamed Account'} - Performance Details`;
+    }
+
+    const editButton = document.getElementById('accountDetailsEditButton');
+    if (editButton) {
+        editButton.addEventListener('click', () => showAccountForm(account.account_type, account.id));
+    }
+
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('accountDetailsModal'));
     modal.show();
@@ -1561,16 +1585,43 @@ function displayAccountDetailsModal(accountId, performanceData) {
     });
 }
 
-// Helper function to create demo indicator HTML
-function getDemoIndicatorHTML(account) {
-    if (account.is_demo) {
-        return `
-            <span class="demo-badge me-2">
-                <i class="fas fa-flask me-1"></i>Demo
-            </span>
-        `;
+// Helper function to create a demo indicator element.
+function createDemoIndicatorElement(account) {
+    if (!account.is_demo) {
+        return null;
     }
-    return '';
+
+    const badge = document.createElement('span');
+    badge.className = 'demo-badge me-2';
+
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-flask me-1';
+
+    badge.appendChild(icon);
+    badge.appendChild(document.createTextNode('Demo'));
+    return badge;
+}
+
+function appendDemoIndicator(parent, account) {
+    const badge = createDemoIndicatorElement(account);
+    if (badge) {
+        parent.appendChild(badge);
+        parent.appendChild(document.createTextNode(' '));
+    }
+}
+
+function createIconButton(buttonClassName, title, iconClassName, onClick) {
+    const button = document.createElement('button');
+    button.className = buttonClassName;
+    button.title = title;
+    button.type = 'button';
+    button.addEventListener('click', onClick);
+
+    const icon = document.createElement('i');
+    icon.className = iconClassName;
+    button.appendChild(icon);
+
+    return button;
 }
 
 // Helper function to get demo CSS class for account cards
@@ -1634,11 +1685,7 @@ function updateCDAccountsList() {
 
         const title = document.createElement('h6');
         title.className = 'card-title mb-1';
-        // Create demo indicator safely - assuming getDemoIndicatorHTML returns safe HTML
-        // If it contains user data, this should be refactored to use DOM methods
-        const demoIndicator = document.createElement('span');
-        demoIndicator.innerHTML = getDemoIndicatorHTML(account);
-        title.appendChild(demoIndicator);
+        appendDemoIndicator(title, account);
         title.appendChild(document.createTextNode(account.name || 'Unnamed Account'));
 
         const institution = document.createElement('p');
@@ -1745,9 +1792,7 @@ function updateSavingsAccountsList() {
 
         const title = document.createElement('h6');
         title.className = 'card-title mb-1';
-        const demoIndicator = document.createElement('span');
-        demoIndicator.innerHTML = getDemoIndicatorHTML(account);
-        title.appendChild(demoIndicator);
+        appendDemoIndicator(title, account);
         title.appendChild(document.createTextNode(account.name || 'Unnamed Account'));
 
         const institution = document.createElement('p');
@@ -1834,44 +1879,79 @@ function update401kAccountsList() {
         return;
     }
 
-    let html = '';
+    container.innerHTML = '';
     accounts401k.forEach(account => {
-        html += `
-            <div class="card mb-3 ${getDemoCardClass(account)}">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h6 class="card-title mb-1">
-                                ${getDemoIndicatorHTML(account)}
-                                ${account.name}
-                            </h6>
-                            <p class="text-muted mb-1">${account.institution}</p>
-                            <small class="text-muted">
-                                Employer Match: ${formatCurrency(account.employer_match)} |
-                                Contribution Limit: ${formatCurrency(account.contribution_limit)}
-                            </small>
-                        </div>
-                        <div class="col-md-2 text-end">
-                            <h5 class="mb-0">${formatCurrency(account.current_balance)}</h5>
-                        </div>
-                        <div class="col-md-2 text-end">
-                            <button class="btn btn-sm btn-outline-info me-1" onclick="showAccountDetails('${account.id}')" title="View Details">
-                                <i class="fas fa-chart-line"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="showAccountForm('401K', '${account.id}')" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAccount('${account.id}')">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
+        const cardDiv = document.createElement('div');
+        cardDiv.className = `card mb-3 ${getDemoCardClass(account)}`;
 
-    container.innerHTML = html;
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body';
+
+        const row = document.createElement('div');
+        row.className = 'row align-items-center';
+
+        const leftCol = document.createElement('div');
+        leftCol.className = 'col-md-8';
+
+        const title = document.createElement('h6');
+        title.className = 'card-title mb-1';
+        appendDemoIndicator(title, account);
+        title.appendChild(document.createTextNode(account.name || 'Unnamed Account'));
+
+        const institution = document.createElement('p');
+        institution.className = 'text-muted mb-1';
+        institution.textContent = account.institution || 'Unknown Institution';
+
+        const details = document.createElement('small');
+        details.className = 'text-muted';
+        details.textContent = `Employer Match: ${formatCurrency(account.employer_match)} | Contribution Limit: ${formatCurrency(account.contribution_limit)}`;
+
+        leftCol.appendChild(title);
+        leftCol.appendChild(institution);
+        leftCol.appendChild(details);
+
+        const valueCol = document.createElement('div');
+        valueCol.className = 'col-md-2 text-end';
+
+        const value = document.createElement('h5');
+        value.className = 'mb-0';
+        value.textContent = formatCurrency(account.current_balance);
+        valueCol.appendChild(value);
+
+        const actionsCol = document.createElement('div');
+        actionsCol.className = 'col-md-2 text-end';
+        actionsCol.appendChild(
+            createIconButton(
+                'btn btn-sm btn-outline-info me-1',
+                'View Details',
+                'fas fa-chart-line',
+                () => showAccountDetails(account.id)
+            )
+        );
+        actionsCol.appendChild(
+            createIconButton(
+                'btn btn-sm btn-outline-primary me-1',
+                'Edit',
+                'fas fa-edit',
+                () => showAccountForm('401K', account.id)
+            )
+        );
+        actionsCol.appendChild(
+            createIconButton(
+                'btn btn-sm btn-outline-danger',
+                'Delete',
+                'fas fa-trash',
+                () => deleteAccount(account.id)
+            )
+        );
+
+        row.appendChild(leftCol);
+        row.appendChild(valueCol);
+        row.appendChild(actionsCol);
+        cardBody.appendChild(row);
+        cardDiv.appendChild(cardBody);
+        container.appendChild(cardDiv);
+    });
 }
 
 function updateTradingAccountsList() {
@@ -1895,7 +1975,7 @@ function updateTradingAccountsList() {
         return;
     }
 
-    let html = '';
+    container.innerHTML = '';
     tradingAccounts.forEach(account => {
         let totalStockValue = 0;
         let totalGainLoss = 0;
@@ -1912,46 +1992,83 @@ function updateTradingAccountsList() {
 
         const totalValue = (account.cash_balance || 0) + totalStockValue;
 
-        html += `
-            <div class="card mb-3 ${getDemoCardClass(account)}">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h6 class="card-title mb-1">
-                                ${getDemoIndicatorHTML(account)}
-                                ${account.name}
-                            </h6>
-                            <p class="text-muted mb-1">${account.broker_name}</p>
-                            <small class="text-muted">
-                                Cash: ${formatCurrency(account.cash_balance)} |
-                                Stocks: ${formatCurrency(totalStockValue)} |
-                                Positions: ${account.positions ? account.positions.length : 0}
-                            </small>
-                        </div>
-                        <div class="col-md-2 text-end">
-                            <h5 class="mb-0">${formatCurrency(totalValue)}</h5>
-                            <small class="${totalGainLoss >= 0 ? 'text-success' : 'text-danger'}">
-                                ${totalGainLoss >= 0 ? '+' : ''}${formatCurrency(totalGainLoss)}
-                            </small>
-                        </div>
-                        <div class="col-md-2 text-end">
-                            <button class="btn btn-sm btn-outline-info me-1" onclick="showAccountDetails('${account.id}')" title="View Details">
-                                <i class="fas fa-chart-line"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="showAccountForm('TRADING', '${account.id}')" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAccount('${account.id}')" title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
+        const cardDiv = document.createElement('div');
+        cardDiv.className = `card mb-3 ${getDemoCardClass(account)}`;
 
-    container.innerHTML = html;
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body';
+
+        const row = document.createElement('div');
+        row.className = 'row align-items-center';
+
+        const leftCol = document.createElement('div');
+        leftCol.className = 'col-md-8';
+
+        const title = document.createElement('h6');
+        title.className = 'card-title mb-1';
+        appendDemoIndicator(title, account);
+        title.appendChild(document.createTextNode(account.name || 'Unnamed Account'));
+
+        const broker = document.createElement('p');
+        broker.className = 'text-muted mb-1';
+        broker.textContent = account.broker_name || 'Unknown Broker';
+
+        const details = document.createElement('small');
+        details.className = 'text-muted';
+        details.textContent = `Cash: ${formatCurrency(account.cash_balance)} | Stocks: ${formatCurrency(totalStockValue)} | Positions: ${account.positions ? account.positions.length : 0}`;
+
+        leftCol.appendChild(title);
+        leftCol.appendChild(broker);
+        leftCol.appendChild(details);
+
+        const valueCol = document.createElement('div');
+        valueCol.className = 'col-md-2 text-end';
+
+        const value = document.createElement('h5');
+        value.className = 'mb-0';
+        value.textContent = formatCurrency(totalValue);
+
+        const gainLoss = document.createElement('small');
+        gainLoss.className = totalGainLoss >= 0 ? 'text-success' : 'text-danger';
+        gainLoss.textContent = `${totalGainLoss >= 0 ? '+' : ''}${formatCurrency(totalGainLoss)}`;
+
+        valueCol.appendChild(value);
+        valueCol.appendChild(gainLoss);
+
+        const actionsCol = document.createElement('div');
+        actionsCol.className = 'col-md-2 text-end';
+        actionsCol.appendChild(
+            createIconButton(
+                'btn btn-sm btn-outline-info me-1',
+                'View Details',
+                'fas fa-chart-line',
+                () => showAccountDetails(account.id)
+            )
+        );
+        actionsCol.appendChild(
+            createIconButton(
+                'btn btn-sm btn-outline-primary me-1',
+                'Edit',
+                'fas fa-edit',
+                () => showAccountForm('TRADING', account.id)
+            )
+        );
+        actionsCol.appendChild(
+            createIconButton(
+                'btn btn-sm btn-outline-danger',
+                'Delete',
+                'fas fa-trash',
+                () => deleteAccount(account.id)
+            )
+        );
+
+        row.appendChild(leftCol);
+        row.appendChild(valueCol);
+        row.appendChild(actionsCol);
+        cardBody.appendChild(row);
+        cardDiv.appendChild(cardBody);
+        container.appendChild(cardDiv);
+    });
 }
 
 function updateIBondsAccountsList() {
@@ -1975,49 +2092,83 @@ function updateIBondsAccountsList() {
         return;
     }
 
-    let html = '';
+    container.innerHTML = '';
     ibondsAccounts.forEach(account => {
         const purchaseDate = new Date(account.purchase_date);
         const maturityDate = new Date(account.maturity_date);
         const yearsHeld = Math.floor((new Date() - purchaseDate) / (1000 * 60 * 60 * 24 * 365));
 
-        html += `
-            <div class="card mb-3 ${getDemoCardClass(account)}">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h6 class="card-title mb-1">
-                                ${getDemoIndicatorHTML(account)}
-                                ${account.name}
-                            </h6>
-                            <p class="text-muted mb-1">U.S. Treasury</p>
-                            <small class="text-muted">
-                                Purchase: ${formatCurrency(account.purchase_amount)} |
-                                Fixed Rate: ${account.fixed_rate}% |
-                                Held: ${yearsHeld} years
-                            </small>
-                        </div>
-                        <div class="col-md-2 text-end">
-                            <h5 class="mb-0">${formatCurrency(account.current_value)}</h5>
-                        </div>
-                        <div class="col-md-2 text-end">
-                            <button class="btn btn-sm btn-outline-info me-1" onclick="showAccountDetails('${account.id}')" title="View Details">
-                                <i class="fas fa-chart-line"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="showAccountForm('I_BONDS', '${account.id}')" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAccount('${account.id}')" title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
+        const cardDiv = document.createElement('div');
+        cardDiv.className = `card mb-3 ${getDemoCardClass(account)}`;
 
-    container.innerHTML = html;
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body';
+
+        const row = document.createElement('div');
+        row.className = 'row align-items-center';
+
+        const leftCol = document.createElement('div');
+        leftCol.className = 'col-md-8';
+
+        const title = document.createElement('h6');
+        title.className = 'card-title mb-1';
+        appendDemoIndicator(title, account);
+        title.appendChild(document.createTextNode(account.name || 'Unnamed Account'));
+
+        const issuer = document.createElement('p');
+        issuer.className = 'text-muted mb-1';
+        issuer.textContent = 'U.S. Treasury';
+
+        const details = document.createElement('small');
+        details.className = 'text-muted';
+        details.textContent = `Purchase: ${formatCurrency(account.purchase_amount)} | Fixed Rate: ${account.fixed_rate}% | Held: ${yearsHeld} years`;
+
+        leftCol.appendChild(title);
+        leftCol.appendChild(issuer);
+        leftCol.appendChild(details);
+
+        const valueCol = document.createElement('div');
+        valueCol.className = 'col-md-2 text-end';
+
+        const value = document.createElement('h5');
+        value.className = 'mb-0';
+        value.textContent = formatCurrency(account.current_value);
+        valueCol.appendChild(value);
+
+        const actionsCol = document.createElement('div');
+        actionsCol.className = 'col-md-2 text-end';
+        actionsCol.appendChild(
+            createIconButton(
+                'btn btn-sm btn-outline-info me-1',
+                'View Details',
+                'fas fa-chart-line',
+                () => showAccountDetails(account.id)
+            )
+        );
+        actionsCol.appendChild(
+            createIconButton(
+                'btn btn-sm btn-outline-primary me-1',
+                'Edit',
+                'fas fa-edit',
+                () => showAccountForm('I_BONDS', account.id)
+            )
+        );
+        actionsCol.appendChild(
+            createIconButton(
+                'btn btn-sm btn-outline-danger',
+                'Delete',
+                'fas fa-trash',
+                () => deleteAccount(account.id)
+            )
+        );
+
+        row.appendChild(leftCol);
+        row.appendChild(valueCol);
+        row.appendChild(actionsCol);
+        cardBody.appendChild(row);
+        cardDiv.appendChild(cardBody);
+        container.appendChild(cardDiv);
+    });
 }
 
 function updateHSAAccountsList() {
@@ -2041,53 +2192,91 @@ function updateHSAAccountsList() {
         return;
     }
 
-    let html = '';
+    container.innerHTML = '';
     hsaAccounts.forEach(account => {
         const contributionProgress = account.annual_contribution_limit > 0 ?
             (account.current_year_contributions / account.annual_contribution_limit * 100) : 0;
         const remainingCapacity = Math.max(0, account.annual_contribution_limit - account.current_year_contributions);
 
-        html += `
-            <div class="card mb-3 ${getDemoCardClass(account)}">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h6 class="card-title mb-1">
-                                ${getDemoIndicatorHTML(account)}
-                                ${account.name}
-                            </h6>
-                            <p class="text-muted mb-1">${account.institution}</p>
-                            <small class="text-muted">
-                                Contributions: ${formatCurrency(account.current_year_contributions)} / ${formatCurrency(account.annual_contribution_limit)}
-                                (${contributionProgress.toFixed(1)}%) |
-                                Remaining: ${formatCurrency(remainingCapacity)}
-                            </small>
-                        </div>
-                        <div class="col-md-2 text-end">
-                            <h5 class="mb-0">${formatCurrency(account.current_balance)}</h5>
-                            <small class="text-muted">
-                                Cash: ${formatCurrency(account.cash_balance)}<br>
-                                Invested: ${formatCurrency(account.investment_balance)}
-                            </small>
-                        </div>
-                        <div class="col-md-2 text-end">
-                            <button class="btn btn-sm btn-outline-info me-1" onclick="showAccountDetails('${account.id}')" title="View Details">
-                                <i class="fas fa-chart-line"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="showAccountForm('HSA', '${account.id}')" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAccount('${account.id}')" title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
+        const cardDiv = document.createElement('div');
+        cardDiv.className = `card mb-3 ${getDemoCardClass(account)}`;
 
-    container.innerHTML = html;
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body';
+
+        const row = document.createElement('div');
+        row.className = 'row align-items-center';
+
+        const leftCol = document.createElement('div');
+        leftCol.className = 'col-md-8';
+
+        const title = document.createElement('h6');
+        title.className = 'card-title mb-1';
+        appendDemoIndicator(title, account);
+        title.appendChild(document.createTextNode(account.name || 'Unnamed Account'));
+
+        const institution = document.createElement('p');
+        institution.className = 'text-muted mb-1';
+        institution.textContent = account.institution || 'Unknown Institution';
+
+        const details = document.createElement('small');
+        details.className = 'text-muted';
+        details.textContent = `Contributions: ${formatCurrency(account.current_year_contributions)} / ${formatCurrency(account.annual_contribution_limit)} (${contributionProgress.toFixed(1)}%) | Remaining: ${formatCurrency(remainingCapacity)}`;
+
+        leftCol.appendChild(title);
+        leftCol.appendChild(institution);
+        leftCol.appendChild(details);
+
+        const valueCol = document.createElement('div');
+        valueCol.className = 'col-md-2 text-end';
+
+        const value = document.createElement('h5');
+        value.className = 'mb-0';
+        value.textContent = formatCurrency(account.current_balance);
+
+        const cashInvested = document.createElement('small');
+        cashInvested.className = 'text-muted';
+        cashInvested.appendChild(document.createTextNode(`Cash: ${formatCurrency(account.cash_balance)}`));
+        cashInvested.appendChild(document.createElement('br'));
+        cashInvested.appendChild(document.createTextNode(`Invested: ${formatCurrency(account.investment_balance)}`));
+
+        valueCol.appendChild(value);
+        valueCol.appendChild(cashInvested);
+
+        const actionsCol = document.createElement('div');
+        actionsCol.className = 'col-md-2 text-end';
+        actionsCol.appendChild(
+            createIconButton(
+                'btn btn-sm btn-outline-info me-1',
+                'View Details',
+                'fas fa-chart-line',
+                () => showAccountDetails(account.id)
+            )
+        );
+        actionsCol.appendChild(
+            createIconButton(
+                'btn btn-sm btn-outline-primary me-1',
+                'Edit',
+                'fas fa-edit',
+                () => showAccountForm('HSA', account.id)
+            )
+        );
+        actionsCol.appendChild(
+            createIconButton(
+                'btn btn-sm btn-outline-danger',
+                'Delete',
+                'fas fa-trash',
+                () => deleteAccount(account.id)
+            )
+        );
+
+        row.appendChild(leftCol);
+        row.appendChild(valueCol);
+        row.appendChild(actionsCol);
+        cardBody.appendChild(row);
+        cardDiv.appendChild(cardBody);
+        container.appendChild(cardDiv);
+    });
 }
 
 // Loading States

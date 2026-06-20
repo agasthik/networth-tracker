@@ -6,13 +6,13 @@ This script creates a standalone demo database with comprehensive synthetic fina
 
 ```bash
 # Create demo database with default settings
-./venv/bin/python scripts/generate_demo_database.py
+python scripts/generate_demo_database.py
 
 # Create demo database with custom path
-./venv/bin/python scripts/generate_demo_database.py custom_demo.db
+python scripts/generate_demo_database.py custom_demo.db
 
 # Create demo database with custom path and password
-./venv/bin/python scripts/generate_demo_database.py custom_demo.db mypassword
+python scripts/generate_demo_database.py custom_demo.db mypassword
 ```
 
 ## Generated Data

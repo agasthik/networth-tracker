@@ -332,7 +332,7 @@ context = ErrorContext(
 Run the error handling tests:
 
 ```bash
-./venv/bin/python test_error_handling.py
+python test_error_handling.py
 ```
 
 This will test:

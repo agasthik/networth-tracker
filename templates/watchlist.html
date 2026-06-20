@@ -342,21 +342,23 @@
             }
         });
 
-        let html = '<div class="table-responsive"><table class="table table-hover">';
-        html += `
-        <thead>
-            <tr>
-                <th>Symbol</th>
-                <th>Current Price</th>
-                <th>Daily Change</th>
-                <th>% Change</th>
-                <th>Notes</th>
-                <th>Last Updated</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-    `;
+        const tableWrapper = document.createElement('div');
+        tableWrapper.className = 'table-responsive';
+
+        const table = document.createElement('table');
+        table.className = 'table table-hover';
+
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        ['Symbol', 'Current Price', 'Daily Change', '% Change', 'Notes', 'Last Updated', 'Actions']
+            .forEach(label => {
+                const th = document.createElement('th');
+                th.textContent = label;
+                headerRow.appendChild(th);
+            });
+        thead.appendChild(headerRow);
+
+        const tbody = document.createElement('tbody');
 
         sortedData.forEach(stock => {
             const changeClass = (stock.daily_change >= 0) ? 'text-success' : 'text-danger';
@@ -365,41 +367,81 @@
             const lastUpdate = stock.last_price_update ?
                 new Date(stock.last_price_update).toLocaleString() : 'Never';
 
-            html += `
-            <tr>
-                <td>
-                    <strong>${stock.symbol}</strong>
-                </td>
-                <td>
-                    <strong>$${(stock.current_price || 0).toFixed(2)}</strong>
-                </td>
-                <td class="${changeClass}">
-                    <i class="fas ${changeIcon} me-1"></i>
-                    $${Math.abs(stock.daily_change || 0).toFixed(2)}
-                </td>
-                <td class="${changeClass}">
-                    <strong>${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%</strong>
-                </td>
-                <td>
-                    <small class="text-muted">${stock.notes || 'No notes'}</small>
-                </td>
-                <td>
-                    <small class="text-muted">${lastUpdate}</small>
-                </td>
-                <td>
-                    <button class="btn btn-sm btn-outline-info me-1" onclick="updateSinglePrice('${stock.symbol}')" title="Update Price">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="showRemoveStockModal('${stock.symbol}')" title="Remove">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
+            const row = document.createElement('tr');
+
+            const symbolCell = document.createElement('td');
+            const symbolValue = document.createElement('strong');
+            symbolValue.textContent = stock.symbol || '';
+            symbolCell.appendChild(symbolValue);
+
+            const priceCell = document.createElement('td');
+            const priceValue = document.createElement('strong');
+            priceValue.textContent = `$${(stock.current_price || 0).toFixed(2)}`;
+            priceCell.appendChild(priceValue);
+
+            const changeCell = document.createElement('td');
+            changeCell.className = changeClass;
+            const changeIconElement = document.createElement('i');
+            changeIconElement.className = `fas ${changeIcon} me-1`;
+            changeCell.appendChild(changeIconElement);
+            changeCell.appendChild(document.createTextNode(`$${Math.abs(stock.daily_change || 0).toFixed(2)}`));
+
+            const percentCell = document.createElement('td');
+            percentCell.className = changeClass;
+            const percentValue = document.createElement('strong');
+            percentValue.textContent = `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`;
+            percentCell.appendChild(percentValue);
+
+            const notesCell = document.createElement('td');
+            const notesValue = document.createElement('small');
+            notesValue.className = 'text-muted';
+            notesValue.textContent = stock.notes || 'No notes';
+            notesCell.appendChild(notesValue);
+
+            const updatedCell = document.createElement('td');
+            const updatedValue = document.createElement('small');
+            updatedValue.className = 'text-muted';
+            updatedValue.textContent = lastUpdate;
+            updatedCell.appendChild(updatedValue);
+
+            const actionsCell = document.createElement('td');
+
+            const updateButton = document.createElement('button');
+            updateButton.className = 'btn btn-sm btn-outline-info me-1';
+            updateButton.type = 'button';
+            updateButton.title = 'Update Price';
+            updateButton.addEventListener('click', event => updateSinglePrice(stock.symbol, event));
+            const updateIcon = document.createElement('i');
+            updateIcon.className = 'fas fa-sync-alt';
+            updateButton.appendChild(updateIcon);
+
+            const removeButton = document.createElement('button');
+            removeButton.className = 'btn btn-sm btn-outline-danger';
+            removeButton.type = 'button';
+            removeButton.title = 'Remove';
+            removeButton.addEventListener('click', () => showRemoveStockModal(stock.symbol));
+            const removeIcon = document.createElement('i');
+            removeIcon.className = 'fas fa-trash';
+            removeButton.appendChild(removeIcon);
+
+            actionsCell.appendChild(updateButton);
+            actionsCell.appendChild(removeButton);
+
+            row.appendChild(symbolCell);
+            row.appendChild(priceCell);
+            row.appendChild(changeCell);
+            row.appendChild(percentCell);
+            row.appendChild(notesCell);
+            row.appendChild(updatedCell);
+            row.appendChild(actionsCell);
+            tbody.appendChild(row);
         });
 
-        html += '</tbody></table></div>';
-        container.innerHTML = html;
+        table.appendChild(thead);
+        table.appendChild(tbody);
+        tableWrapper.appendChild(table);
+        container.innerHTML = '';
+        container.appendChild(tableWrapper);
     }
 
     function updateWatchlistSummary() {
@@ -589,8 +631,8 @@
             });
     }
 
-    function updateSinglePrice(symbol) {
-        const button = event.target.closest('button');
+    function updateSinglePrice(symbol, event) {
+        const button = event.currentTarget;
         const originalHTML = button.innerHTML;
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         button.disabled = true;

@@ -9,6 +9,8 @@ set -e  # Exit on any error
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+VENV_DIR="$PROJECT_DIR/venv"
+VENV_PYTHON="$VENV_DIR/bin/python"
 
 # Default values
 ENVIRONMENT="production"
@@ -42,6 +44,26 @@ print_warning() {
 
 print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
+}
+
+create_virtualenv() {
+    print_info "Creating virtual environment..."
+    python3 -m venv "$VENV_DIR"
+}
+
+is_virtualenv_usable() {
+    [[ -x "$VENV_PYTHON" ]] || return 1
+    "$VENV_PYTHON" -c "import sys" >/dev/null 2>&1
+}
+
+repair_virtualenv() {
+    if [[ -d "$VENV_DIR" ]]; then
+        local backup_dir="${TMPDIR:-/tmp}/networth-tracker-venv.broken.$(date +%Y%m%d%H%M%S)"
+        print_warning "Virtual environment is invalid; moving it to $backup_dir"
+        mv "$VENV_DIR" "$backup_dir"
+    fi
+
+    create_virtualenv
 }
 
 # Function to show usage
@@ -96,17 +118,17 @@ check_prerequisites() {
     fi
 
     # Check if virtual environment exists
-    if [[ ! -d "$PROJECT_DIR/venv" ]]; then
-        print_warning "Virtual environment not found at $PROJECT_DIR/venv"
-        print_info "Creating virtual environment..."
-        python3 -m venv "$PROJECT_DIR/venv"
+    if [[ ! -d "$VENV_DIR" ]]; then
+        print_warning "Virtual environment not found at $VENV_DIR"
+        create_virtualenv
+    elif ! is_virtualenv_usable; then
+        repair_virtualenv
     fi
 
     # Check if requirements are installed
-    source "$PROJECT_DIR/venv/bin/activate"
-    if ! python3 -c "import flask" &>/dev/null; then
+    if ! "$VENV_PYTHON" -c "import flask" &>/dev/null; then
         print_info "Installing requirements..."
-        pip install -r "$PROJECT_DIR/requirements.txt"
+        "$VENV_PYTHON" -m pip install -r "$PROJECT_DIR/requirements.txt"
     fi
 
     print_success "Prerequisites check completed"
@@ -273,33 +295,27 @@ check_prerequisites
 # Set file permissions
 set_permissions
 
-# Activate virtual environment
-source "$PROJECT_DIR/venv/bin/activate"
-
 # Set environment variables
 export FLASK_ENV="$ENVIRONMENT"
 export FLASK_APP="app.py"
 
 # Build Python command
-PYTHON_CMD="python3 $SCRIPT_DIR/start.py"
-PYTHON_CMD="$PYTHON_CMD --env $ENVIRONMENT"
-PYTHON_CMD="$PYTHON_CMD --host $HOST"
-PYTHON_CMD="$PYTHON_CMD --port $PORT"
+PYTHON_CMD=("$VENV_PYTHON" "$SCRIPT_DIR/start.py" "--env" "$ENVIRONMENT" "--host" "$HOST" "--port" "$PORT")
 
 if [[ "$DEBUG" == "true" ]]; then
-    PYTHON_CMD="$PYTHON_CMD --debug"
+    PYTHON_CMD+=("--debug")
 fi
 
 if [[ "$DAEMON" == "true" ]]; then
-    PYTHON_CMD="$PYTHON_CMD --daemon"
+    PYTHON_CMD+=("--daemon")
 fi
 
 if [[ "$VALIDATE_ONLY" == "true" ]]; then
-    PYTHON_CMD="$PYTHON_CMD --validate-only"
+    PYTHON_CMD+=("--validate-only")
 fi
 
 if [[ "$CREATE_DIRS" == "true" ]]; then
-    PYTHON_CMD="$PYTHON_CMD --create-dirs"
+    PYTHON_CMD+=("--create-dirs")
 fi
 
 # Check if already running (unless validating, creating dirs, or restarting)
@@ -312,5 +328,5 @@ if [[ "$VALIDATE_ONLY" == "false" && "$CREATE_DIRS" == "false" && "$RESTART_MODE
 fi
 
 # Execute the command
-print_info "Executing: $PYTHON_CMD"
-exec $PYTHON_CMD
+print_info "Executing: ${PYTHON_CMD[*]}"
+exec "${PYTHON_CMD[@]}"

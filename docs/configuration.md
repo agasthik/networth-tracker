@@ -31,7 +31,7 @@ The application supports three environments, controlled by the `FLASK_ENV` envir
 ### Development Environment
 ```bash
 export FLASK_ENV=development
-./venv/bin/python scripts/start.py
+python scripts/start.py
 ```
 
 **Features:**
@@ -43,7 +43,7 @@ export FLASK_ENV=development
 ### Production Environment (Default)
 ```bash
 export FLASK_ENV=production  # or omit (default)
-./venv/bin/python scripts/start.py
+python scripts/start.py
 ```
 
 **Features:**
@@ -56,7 +56,7 @@ export FLASK_ENV=production  # or omit (default)
 ### Testing Environment
 ```bash
 export FLASK_ENV=testing
-./venv/bin/python scripts/start.py
+python scripts/start.py
 ```
 
 **Features:**
@@ -186,33 +186,33 @@ The `scripts/start.py` script provides several configuration options:
 ### Basic Usage
 ```bash
 # Start with default settings
-./venv/bin/python scripts/start.py
+python scripts/start.py
 
 # Start in development mode
-./venv/bin/python scripts/start.py --env development
+python scripts/start.py --env development
 
 # Start with debug mode
-./venv/bin/python scripts/start.py --debug
+python scripts/start.py --debug
 
 # Start on different port
-./venv/bin/python scripts/start.py --port 5001
+python scripts/start.py --port 5001
 ```
 
 ### Configuration Management
 ```bash
 # Validate configuration only
-./venv/bin/python scripts/start.py --validate-only
+python scripts/start.py --validate-only
 
 # Create necessary directories
-./venv/bin/python scripts/start.py --create-dirs
+python scripts/start.py --create-dirs
 
 # Start in daemon mode (Unix/Linux/macOS only)
-./venv/bin/python scripts/start.py --daemon --pid-file networth.pid
+python scripts/start.py --daemon --pid-file networth.pid
 ```
 
 ### Full Options
 ```bash
-./venv/bin/python scripts/start.py \
+python scripts/start.py \
     --env production \
     --host 127.0.0.1 \
     --port 5000 \
@@ -279,10 +279,10 @@ networth-tracker/
 ### Validation Command
 ```bash
 # Validate current configuration
-./venv/bin/python scripts/start.py --validate-only
+python scripts/start.py --validate-only
 
 # Validate specific environment
-./venv/bin/python scripts/start.py --env development --validate-only
+python scripts/start.py --env development --validate-only
 ```
 
 ### Validation Checks
@@ -319,7 +319,7 @@ export FLASK_ENV=development
 export LOG_LEVEL=DEBUG
 export DATABASE_PATH=dev_networth.db
 export MAX_LOG_SIZE=52428800  # 50MB for development
-./venv/bin/python scripts/start.py --debug
+python scripts/start.py --debug
 ```
 
 ### Production Setup
@@ -330,7 +330,7 @@ export DATABASE_PATH=/opt/networth/data/networth.db
 export LOG_DIR=/opt/networth/logs
 export BACKUP_DIR=/opt/networth/backups
 export SECRET_KEY=your-production-secret-key-here
-./venv/bin/python scripts/start.py --daemon --pid-file /var/run/networth.pid
+python scripts/start.py --daemon --pid-file /var/run/networth.pid
 ```
 
 ### Testing Setup
@@ -338,7 +338,7 @@ export SECRET_KEY=your-production-secret-key-here
 export FLASK_ENV=testing
 export DATABASE_PATH=:memory:
 export LOG_LEVEL=DEBUG
-./venv/bin/python scripts/start.py --validate-only
+python scripts/start.py --validate-only
 ```
 
 ## Troubleshooting Configuration
@@ -355,13 +355,13 @@ chmod 600 *.db
 **Missing Directories**
 ```bash
 # Create required directories
-./venv/bin/python scripts/start.py --create-dirs
+python scripts/start.py --create-dirs
 ```
 
 **Invalid Configuration**
 ```bash
 # Validate configuration
-./venv/bin/python scripts/start.py --validate-only
+python scripts/start.py --validate-only
 ```
 
 **Environment Issues**
@@ -379,7 +379,7 @@ export FLASK_ENV=production
 # Start with maximum verbosity
 export FLASK_ENV=development
 export LOG_LEVEL=DEBUG
-./venv/bin/python scripts/start.py --env development --debug
+python scripts/start.py --env development --debug
 ```
 
 ### Configuration Reset
@@ -388,10 +388,10 @@ export LOG_LEVEL=DEBUG
 unset FLASK_ENV LOG_LEVEL DATABASE_PATH
 
 # Recreate directories with defaults
-./venv/bin/python scripts/start.py --create-dirs
+python scripts/start.py --create-dirs
 
 # Validate default configuration
-./venv/bin/python scripts/start.py --validate-only
+python scripts/start.py --validate-only
 ```
 
 This configuration system provides a robust, secure, and flexible foundation for the Networth Tracker application while maintaining simplicity for end users.

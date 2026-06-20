@@ -14,10 +14,10 @@ cd networth-tracker
 scripts\start.bat   # Windows
 
 # Or manually
-python3 -m venv venv
-source venv/bin/activate  # macOS/Linux: venv\Scripts\activate on Windows
-./venv/bin/pip install -r requirements.txt
-./venv/bin/python scripts/start.py
+python3 -m venv .venv
+source .venv/bin/activate  # macOS/Linux: .venv\Scripts\activate on Windows
+python -m pip install -r requirements.txt
+python scripts/start.py
 ```
 
 Open your browser to `http://127.0.0.1:5000`
@@ -180,7 +180,7 @@ networth-tracker/
 ### Development Resources
 - **[Installation Guide](docs/installation.md)** - Complete setup instructions
 - **[Configuration Reference](docs/configuration.md)** - Environment and security settings
-- **Test Suite** - Run `./venv/bin/python -m pytest` for comprehensive testing
+- **Test Suite** - Run `python -m pytest` from an activated virtual environment for comprehensive testing
 
 ## 📄 License
 
