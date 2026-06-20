@@ -24,12 +24,16 @@ ASSETS = {
 
 GOOGLE_FONTS_URL = (
     "https://fonts.googleapis.com/css2"
-    "?family=Inter:wght@300;400;500;600;700;800"
+    "?family=Cormorant+Garamond:wght@400;500;600;700"
+    "&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700"
+    "&family=Inter:wght@300;400;500;600;700;800"
     "&family=JetBrains+Mono:wght@400;500;600"
     "&display=swap"
 )
 
 FONT_DESTINATIONS = {
+    "Cormorant Garamond": ("cormorant-garamond", "Cormorant Garamond"),
+    "DM Sans": ("dm-sans", "DM Sans"),
     "Inter": ("inter", "Inter"),
     "JetBrains Mono": ("jetbrains-mono", "JetBrains Mono"),
 }
