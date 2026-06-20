@@ -40,7 +40,7 @@ scripts\start.bat
 ./scripts/start.sh
 
 # Or directly with Python:
-./venv/bin/python scripts/start.py
+python scripts/start.py
 ```
 
 ### 4. Access the Application

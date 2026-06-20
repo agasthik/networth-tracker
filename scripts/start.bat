@@ -72,22 +72,45 @@ if errorlevel 1 (
     exit /b 1
 )
 
+set "VENV_PYTHON=%PROJECT_DIR%\venv\Scripts\python.exe"
+
 REM Check if virtual environment exists
 if not exist "%PROJECT_DIR%\venv" (
     call :print_warning "Virtual environment not found at %PROJECT_DIR%\venv"
-    call :print_info "Creating virtual environment..."
-    python -m venv "%PROJECT_DIR%\venv"
+    call :recreate_virtualenv
+    if errorlevel 1 exit /b 1
+)
+
+REM Check if virtual environment is usable
+if exist "%PROJECT_DIR%\venv" (
+    "%VENV_PYTHON%" -c "import sys" >nul 2>&1
+    if errorlevel 1 (
+        call :print_warning "Virtual environment is invalid"
+        call :recreate_virtualenv
+        if errorlevel 1 exit /b 1
+    )
 )
 
 REM Check if requirements are installed
 if not exist "%PROJECT_DIR%\venv\Lib\site-packages\flask" (
     call :print_info "Installing requirements..."
-    call "%PROJECT_DIR%\venv\Scripts\activate.bat"
-    pip install -r "%PROJECT_DIR%\requirements.txt"
+    "%VENV_PYTHON%" -m pip install -r "%PROJECT_DIR%\requirements.txt"
+    if errorlevel 1 exit /b 1
 )
 
 call :print_success "Prerequisites check completed"
 goto :eof
+
+:recreate_virtualenv
+set "VENV_BACKUP=%TEMP%\networth-tracker-venv.broken.%RANDOM%"
+if exist "%PROJECT_DIR%\venv" (
+    call :print_warning "Moving invalid virtual environment to %VENV_BACKUP%"
+    move "%PROJECT_DIR%\venv" "%VENV_BACKUP%" >nul
+    if errorlevel 1 exit /b 1
+)
+call :print_info "Creating virtual environment..."
+python -m venv "%PROJECT_DIR%\venv"
+exit /b %errorlevel%
 
 REM Function to create directories
 :create_directories
@@ -261,29 +284,23 @@ if errorlevel 1 exit /b 1
 REM Create directories
 call :create_directories
 
-REM Activate virtual environment
-call "%PROJECT_DIR%\venv\Scripts\activate.bat"
-
 REM Set environment variables
 set "FLASK_ENV=%ENVIRONMENT%"
 set "FLASK_APP=app.py"
 
-REM Build Python command
-set "PYTHON_CMD=python "%SCRIPT_DIR%start.py""
-set "PYTHON_CMD=%PYTHON_CMD% --env %ENVIRONMENT%"
-set "PYTHON_CMD=%PYTHON_CMD% --host %HOST%"
-set "PYTHON_CMD=%PYTHON_CMD% --port %PORT%"
+REM Build Python arguments
+set "PYTHON_ARGS=--env %ENVIRONMENT% --host %HOST% --port %PORT%"
 
 if "%DEBUG%"=="true" (
-    set "PYTHON_CMD=%PYTHON_CMD% --debug"
+    set "PYTHON_ARGS=%PYTHON_ARGS% --debug"
 )
 
 if "%VALIDATE_ONLY%"=="true" (
-    set "PYTHON_CMD=%PYTHON_CMD% --validate-only"
+    set "PYTHON_ARGS=%PYTHON_ARGS% --validate-only"
 )
 
 if "%CREATE_DIRS%"=="true" (
-    set "PYTHON_CMD=%PYTHON_CMD% --create-dirs"
+    set "PYTHON_ARGS=%PYTHON_ARGS% --create-dirs"
 )
 
 REM Check if already running (unless validating, creating dirs, or restarting)
@@ -297,5 +314,5 @@ if "%VALIDATE_ONLY%"=="false" if "%CREATE_DIRS%"=="false" if "%RESTART_MODE%"=="
 )
 
 REM Execute the command
-call :print_info "Executing: %PYTHON_CMD%"
-%PYTHON_CMD%
+call :print_info "Executing: %VENV_PYTHON% %SCRIPT_DIR%start.py %PYTHON_ARGS%"
+"%VENV_PYTHON%" "%SCRIPT_DIR%start.py" %PYTHON_ARGS%

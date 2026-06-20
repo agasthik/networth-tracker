@@ -45,7 +45,7 @@ source venv/bin/activate  # macOS/Linux
 venv\Scripts\activate     # Windows
 
 # Generate demo database
-./venv/bin/python scripts/generate_demo_database.py
+python scripts/generate_demo_database.py
 ```
 
 This creates a file called `demo_networth.db` in your project directory.
@@ -63,7 +63,7 @@ If available, you can download a pre-generated demo database file and place it i
 scripts\start.bat   # Windows
 
 # Or manually
-./venv/bin/python scripts/start.py
+python scripts/start.py
 ```
 
 ### Step 2: Access Import Functionality

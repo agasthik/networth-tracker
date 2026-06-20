@@ -27,17 +27,17 @@ Run these commands to quickly diagnose common issues:
 scripts\start.bat --status   # Windows
 
 # Validate configuration
-./venv/bin/python scripts/start.py --validate-only
+python scripts/start.py --validate-only
 
 # Verify database
-./venv/bin/python scripts/init_db.py --verify
+python scripts/init_db.py --verify
 
 # Or using startup scripts
 ./scripts/start.sh --validate  # macOS/Linux
 scripts\start.bat --validate   # Windows
 
 # Verify database integrity
-./venv/bin/python scripts/init_db.py --verify
+python scripts/init_db.py --verify
 
 # Check recent logs
 tail -20 logs/networth_tracker.log  # macOS/Linux
@@ -201,7 +201,7 @@ kill <PID>  # macOS/Linux
 taskkill /PID <PID> /F  # Windows
 
 # Use a different port
-./venv/bin/python scripts/start.py --port 5001
+python scripts/start.py --port 5001
 ./scripts/start.sh --port 5001  # macOS/Linux
 scripts\start.bat --port 5001   # Windows
 ```
@@ -217,16 +217,16 @@ scripts\start.bat --port 5001   # Windows
 
 ```bash
 # Check for Python errors
-./venv/bin/python scripts/start.py --env development --debug
+python scripts/start.py --env development --debug
 
 # Check configuration
-./venv/bin/python scripts/start.py --validate-only
+python scripts/start.py --validate-only
 
 # Check logs
 cat logs/networth_tracker_errors.log
 
-# Try minimal startup
-python -c "from app import app; app.run(debug=True)"
+# Try the configured development entrypoint
+python scripts/start.py --env development --debug
 ```
 
 ### Import Errors
@@ -239,7 +239,7 @@ python -c "from app import app; app.run(debug=True)"
 
 ```bash
 # Ensure virtual environment is activated
-which python  # Should point to venv/bin/python
+which python  # Should point to .venv/bin/python
 
 # Check if modules are installed
 pip list | grep flask
@@ -278,7 +278,7 @@ mv networth.db networth.db.backup  # macOS/Linux
 move networth.db networth.db.backup  # Windows
 
 # Create new database
-./venv/bin/python scripts/init_db.py --create --force
+python scripts/init_db.py --create --force
 ```
 
 ### Session Timeout Issues
@@ -293,7 +293,7 @@ The session timeout is configured in the application code, not through environme
 
 ```bash
 # Check current configuration
-./venv/bin/python scripts/start.py --validate-only
+python scripts/start.py --validate-only
 
 # Session timeout is controlled by PERMANENT_SESSION_LIFETIME in config.py
 # Default is 2 hours for production, 8 hours for development
@@ -389,7 +389,7 @@ copy networth.db networth.db.corrupt  # Windows
 sqlite3 networth.db ".recover" | sqlite3 networth_recovered.db
 
 # Verify recovered database
-./venv/bin/python scripts/init_db.py --verify
+python scripts/init_db.py --verify
 
 # If recovery successful, replace original
 mv networth_recovered.db networth.db  # macOS/Linux
@@ -411,13 +411,13 @@ move networth_recovered.db networth.db  # Windows
 
 ```bash
 # Check current database version
-./venv/bin/python scripts/init_db.py --verify
+python scripts/init_db.py --verify
 
 # Backup before migration
-./venv/bin/python scripts/init_db.py --backup
+python scripts/init_db.py --backup
 
 # Run migration manually
-./venv/bin/python scripts/init_db.py --migrate
+python scripts/init_db.py --migrate
 
 # If migration fails, restore backup
 cp backups/latest_backup.db networth.db

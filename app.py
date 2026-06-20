@@ -2785,73 +2785,6 @@ def get_watchlist_stock(symbol):
         )
 
 
-@app.route('/debug/update-prices')
-@require_auth
-def debug_update_prices():
-    """Debug endpoint to force update watchlist prices."""
-    try:
-        from services.watchlist import WatchlistService
-        from services.stock_prices import StockPriceService
-
-        db_service = auth_manager.get_database_service()
-        if not db_service:
-            return "Database service not available", 500
-
-        stock_service = StockPriceService()
-        watchlist_service = WatchlistService(db_service, stock_service)
-
-        # Get current watchlist
-        watchlist = watchlist_service.get_watchlist()
-
-        if not watchlist:
-            return "No items in watchlist", 200
-
-        result_html = "<h2>Watchlist Price Update Debug</h2>"
-        result_html += f"<p>Found {len(watchlist)} items in watchlist:</p><ul>"
-
-        for item in watchlist:
-            result_html += f"<li>{item.symbol}: ${item.current_price or 0:.2f} (last updated: {item.last_price_update or 'Never'})</li>"
-
-        result_html += "</ul><h3>Updating prices...</h3><ul>"
-
-        # Update each item individually for better debugging
-        for item in watchlist:
-            try:
-                current_price = stock_service.get_current_price(item.symbol)
-
-                # Calculate daily change
-                daily_change = None
-                daily_change_percent = None
-                if item.current_price is not None:
-                    daily_change = current_price - item.current_price
-                    if item.current_price > 0:
-                        daily_change_percent = (daily_change / item.current_price) * 100
-
-                # Update the item
-                item.update_price(
-                    current_price=current_price,
-                    daily_change=daily_change,
-                    daily_change_percent=daily_change_percent
-                )
-
-                # Store it
-                watchlist_service._store_watchlist_item(item)
-
-                result_html += f"<li>✓ {item.symbol}: Updated to ${current_price:.2f}"
-                if daily_change is not None:
-                    change_sign = "+" if daily_change >= 0 else ""
-                    result_html += f" ({change_sign}{daily_change:.2f}, {change_sign}{daily_change_percent:.2f}%)"
-                result_html += "</li>"
-
-            except Exception as e:
-                result_html += f"<li>✗ {item.symbol}: Failed - {str(e)}</li>"
-
-        result_html += "</ul><p><a href='/watchlist'>← Back to Watchlist</a></p>"
-        return result_html
-
-    except Exception as e:
-        return f"Error: {str(e)}", 500
-
 @app.route('/api/watchlist/prices', methods=['PUT'])
 @api_endpoint
 @log_data_operation('UPDATE', 'watchlist_prices')
@@ -3294,10 +3227,13 @@ if __name__ == '__main__':
     # Ensure database directory exists
     os.makedirs(os.path.dirname(config.DATABASE_PATH) if os.path.dirname(config.DATABASE_PATH) else '.', exist_ok=True)
 
-    # Run Flask development server
+    host = os.environ.get('HOST', '127.0.0.1')
+    port = int(os.environ.get('PORT', '5000'))
+
+    # Run the app using the active configuration instead of forcing debug mode.
     app.run(
-        host='127.0.0.1',  # Localhost only for security
-        port=5000,
-        debug=True,
+        host=host,
+        port=port,
+        debug=config.DEBUG,
         threaded=True
     )

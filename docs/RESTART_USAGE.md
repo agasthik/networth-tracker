@@ -6,9 +6,9 @@ The start scripts have been updated to include restart functionality for easier 
 
 ### Python Script (`scripts/start.py`)
 ```bash
-./venv/bin/python scripts/start.py --restart    # Restart the application
-./venv/bin/python scripts/start.py --stop       # Stop the application
-./venv/bin/python scripts/start.py --status     # Check if running
+python scripts/start.py --restart    # Restart the application
+python scripts/start.py --stop       # Stop the application
+python scripts/start.py --status     # Check if running
 ```
 
 ### Shell Script (`scripts/start.sh`) - Unix/Linux/macOS
@@ -30,7 +30,7 @@ scripts\start.bat --status      # Check if running
 ### Restart the application
 ```bash
 # Using Python script directly
-./venv/bin/python scripts/start.py --restart
+python scripts/start.py --restart
 
 # Using shell script (Unix/Linux/macOS)
 ./scripts/start.sh --restart
@@ -42,7 +42,7 @@ scripts\start.bat --restart
 ### Stop the application
 ```bash
 # Using Python script directly
-./venv/bin/python scripts/start.py --stop
+python scripts/start.py --stop
 
 # Using shell script (Unix/Linux/macOS)
 ./scripts/start.sh --stop
@@ -54,7 +54,7 @@ scripts\start.bat --stop
 ### Check application status
 ```bash
 # Using Python script directly
-./venv/bin/python scripts/start.py --status
+python scripts/start.py --status
 
 # Using shell script (Unix/Linux/macOS)
 ./scripts/start.sh --status
