@@ -1,12 +1,15 @@
 # Net Worth Tracker
 
-A secure, privacy-first financial portfolio management application that runs locally on your machine. Track your investments across multiple account types with military-grade encryption and complete data privacy.
+A secure, privacy-first financial portfolio management application that runs locally on your machine. Track your investments across multiple account types with strong authenticated encryption and complete data privacy.
 
-## 🚀 Quick Start
+> [!IMPORTANT]
+> **Scope & Intended Use** — This is a fully-featured **single-user application meant to run locally on one trusted computer** — not a demo, but also not built for hosted/multi-user deployment. It binds to `127.0.0.1` only, serves traffic over the Flask built-in server (no bundled production WSGI server), and does not use TLS. The `production` environment simply disables debug mode; it is **not** a hardened production deployment. Do not expose it to a LAN or the internet without significant hardening (real WSGI server, TLS, a fixed `SECRET_KEY`, and secure cookies). See the [Deployment Guide](docs/deployment.md) for details.
+
+## Quick Start
 
 ```bash
 # Clone or download the application
-git clone <repository-url> networth-tracker
+git clone https://github.com/agasthik/networth-tracker.git networth-tracker
 cd networth-tracker
 
 # Set up and start (automated)
@@ -22,22 +25,22 @@ python scripts/start.py
 
 Open your browser to `http://127.0.0.1:5000`
 
-## ✨ Key Features
+## Key Features
 
-### 🔒 **Privacy & Security First**
+### Privacy & Security First
 - **Local-only storage** - Your data never leaves your computer
-- **Military-grade encryption** - AES-256 encryption for all financial data
+- **Strong encryption** - AES-128-CBC + HMAC-SHA256 (Fernet) protects sensitive financial fields
 - **No cloud dependencies** - Works completely offline
 - **Zero data collection** - No analytics, tracking, or telemetry
 
-### 💼 **Comprehensive Portfolio Tracking**
+### Comprehensive Portfolio Tracking
 - **Multiple Account Types**: CDs, Savings, 401k, Trading, I-bonds, HSA
 - **Real-time Stock Prices** - Automatic updates for trading accounts via yfinance
 - **Historical Performance** - Track your portfolio growth over time with automated snapshots
 - **Multi-broker Support** - Manage accounts across different institutions
 - **Stock Watchlist** - Monitor stocks without owning them
 
-### 🛠 **User-Friendly Features**
+### User-Friendly Features
 - **Demo Database** - Import realistic synthetic data to explore features
 - **Export/Import** - Encrypted backups for data portability
 - **Cross-platform** - Windows, macOS, and Linux support
@@ -45,13 +48,13 @@ Open your browser to `http://127.0.0.1:5000`
 - **Comprehensive Error Handling** - User-friendly error messages and recovery
 - **Flexible Configuration** - Environment-specific settings (development, production, testing)
 
-## 📸 Dashboard Preview
+## Dashboard Preview
 
 ![Networth Tracker Dashboard](docs/images/Networth-Tracker-Dashboard.jpg)
 
 *The main dashboard provides a comprehensive overview of your portfolio with real-time account summaries, asset allocation charts, and quick stats. The clean, responsive interface makes it easy to track your financial progress across all account types.*
 
-## 📚 Documentation
+## Documentation
 
 ### Getting Started
 - **[Installation Guide](docs/installation.md)** - Step-by-step setup for all platforms
@@ -69,7 +72,7 @@ Open your browser to `http://127.0.0.1:5000`
 - **[Troubleshooting Guide](docs/troubleshooting.md)** - Common issues and solutions
 - **[Scripts Documentation](docs/scripts/README.md)** - Startup and utility scripts
 
-## 🏗 Project Structure
+## Project Structure
 
 ```
 networth-tracker/
@@ -87,7 +90,7 @@ networth-tracker/
 ├── services/             # Business logic services
 │   ├── auth.py           # Authentication and session management
 │   ├── database.py       # Encrypted SQLite operations
-│   ├── encryption.py     # AES-256 encryption service
+│   ├── encryption.py     # Fernet (AES-128-CBC + HMAC-SHA256) encryption service
 │   ├── historical.py     # Historical data tracking
 │   ├── stock_prices.py   # Real-time stock price fetching
 │   ├── export_import.py  # Data backup/restore
@@ -103,7 +106,7 @@ networth-tracker/
 └── data/                # Database files location
 ```
 
-## 🔧 System Requirements
+## System Requirements
 
 ### Minimum Requirements
 - **Python**: 3.10 or higher
@@ -118,10 +121,10 @@ networth-tracker/
 - **Storage**: 500 MB free disk space (for data and backups)
 - **Browser**: Modern web browser (Chrome, Firefox, Safari, Edge)
 
-## 🛡 Security Features
+## Security Features
 
 ### Data Protection
-- **AES-256 Encryption**: All financial data encrypted at rest
+- **Authenticated Encryption**: Sensitive financial fields encrypted at rest with AES-128-CBC + HMAC-SHA256 (Fernet); indexing/routing columns such as account name, institution, type, and timestamps remain in plaintext
 - **PBKDF2 Key Derivation**: 100,000 iterations with random salt
 - **Master Password**: Single password protects all your data
 - **Secure File Permissions**: Database files protected at OS level
@@ -138,7 +141,7 @@ networth-tracker/
 - **Minimal API Usage**: Only stock price lookups via yfinance (symbols only)
 - **Rate Limited**: Stock API calls are rate-limited to prevent abuse
 
-## 🎯 Supported Account Types
+## Supported Account Types
 
 | Account Type | Features |
 |--------------|----------|
@@ -149,11 +152,11 @@ networth-tracker/
 | **I-bonds** | Purchase amount, inflation adjustments, maturity tracking |
 | **HSA (Health Savings Account)** | Contribution limits, employer contributions, investment tracking |
 
-## 🏛 Technical Architecture
+## Technical Architecture
 
 ### Core Technologies
 - **Backend**: Python 3.10+ with Flask web framework
-- **Database**: SQLite with AES-256 encryption
+- **Database**: SQLite with field-level Fernet encryption (AES-128-CBC + HMAC-SHA256)
 - **Frontend**: HTML templates (Jinja2), CSS, JavaScript
 - **Security**: cryptography library for encryption, PBKDF2 key derivation
 - **Stock Data**: yfinance library for real-time stock prices
@@ -166,10 +169,10 @@ networth-tracker/
 
 ### Environment Support
 - **Development**: Debug mode, verbose logging, development database
-- **Production**: Optimized performance, secure file permissions, production logging
+- **Production**: Debug mode disabled, strict file permissions, production logging — still a local, single-user, `127.0.0.1`-only setup on the Flask built-in server (see the Scope & Intended Use note above and the [Deployment Guide](docs/deployment.md))
 - **Testing**: In-memory database, comprehensive test coverage
 
-## 🚦 Getting Help
+## Getting Help
 
 ### Support Resources
 1. **[FAQ](docs/faq.md)** - Common questions and answers
@@ -182,14 +185,12 @@ networth-tracker/
 - **[Configuration Reference](docs/configuration.md)** - Environment and security settings
 - **Test Suite** - Run `python -m pytest` from an activated virtual environment for comprehensive testing
 
-## 📄 License
+## License
 
-This project is designed for personal financial management with a focus on privacy and security.
+Released under the [Creative Commons CC0 1.0 Universal](LICENSE) public-domain dedication. This project is designed for personal financial management with a focus on privacy and security.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please read the documentation for development setup and contribution guidelines.
 
 ---
-
-**⚠️ Important Security Note**: This application is designed for personal use on trusted computers. Always use strong master passwords (12+ characters) and keep regular encrypted backups of your data.
