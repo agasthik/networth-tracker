@@ -8,7 +8,7 @@ import json
 import tempfile
 import os
 from datetime import datetime, date
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, MagicMock, patch
 
 from services.export_import import ExportImportService
 from services.encryption import EncryptionService
@@ -28,7 +28,7 @@ class TestExportImportService:
     @pytest.fixture
     def mock_db_service(self):
         """Create mock database service for testing."""
-        mock_db = Mock(spec=DatabaseService)
+        mock_db = MagicMock(spec=DatabaseService)
 
         # Mock account data
         mock_accounts = [
@@ -527,7 +527,7 @@ class TestExportImportService:
         encrypted_backup = export_service.create_encrypted_backup(original_export)
 
         # Create import service with fresh mock database
-        import_mock_db = Mock(spec=DatabaseService)
+        import_mock_db = MagicMock(spec=DatabaseService)
         import_mock_db.get_account.return_value = None
         import_mock_db.create_account.return_value = 'new-account-id'
         import_mock_db.create_stock_position.return_value = 'new-pos-id'
@@ -574,7 +574,7 @@ class TestExportImportService:
     def test_large_dataset_export_import(self, encryption_service):
         """Test export/import with large dataset."""
         # Create mock database with large dataset
-        large_mock_db = Mock(spec=DatabaseService)
+        large_mock_db = MagicMock(spec=DatabaseService)
 
         # Generate large number of accounts
         large_accounts = []

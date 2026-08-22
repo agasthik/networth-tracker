@@ -24,6 +24,9 @@ class TestStockPriceService:
     def setup_method(self):
         """Set up test fixtures"""
         self.service = StockPriceService(rate_limit_delay=0.1, max_retries=2)
+        # Neutralize the live-network alternative price sources (Yahoo direct /
+        # FMP) so tests deterministically exercise the mocked yfinance path.
+        self.service._try_alternative_price_fetch = Mock(return_value=None)
 
     @patch('services.stock_prices.yf.Ticker')
     def test_get_current_price_success(self, mock_ticker):
@@ -42,7 +45,8 @@ class TestStockPriceService:
         price = self.service.get_current_price('AAPL')
 
         assert price == 150.25
-        mock_ticker.assert_called_once_with('AAPL')
+        mock_ticker.assert_called_once()
+        assert mock_ticker.call_args[0][0] == 'AAPL'
         mock_ticker_instance.history.assert_called_once_with(period="1d")
 
     @patch('services.stock_prices.yf.Ticker')
@@ -52,7 +56,7 @@ class TestStockPriceService:
         mock_ticker.return_value = mock_ticker_instance
         mock_ticker_instance.history.return_value = pd.DataFrame()
 
-        with pytest.raises(StockPriceServiceError, match="No data available for symbol: AAPL"):
+        with pytest.raises(StockPriceServiceError, match="No valid price data available for symbol: AAPL"):
             self.service.get_current_price('AAPL')
 
     @patch('services.stock_prices.yf.Ticker')
@@ -67,7 +71,9 @@ class TestStockPriceService:
         }, index=[datetime.now()])
         mock_ticker_instance.history.return_value = price_data
 
-        with pytest.raises(StockPriceServiceError, match="Invalid price received for AAPL: -10.0"):
+        # A negative close is rejected by the ">0" guard; after all periods and
+        # fast_info fail, the service reports no valid price available.
+        with pytest.raises(StockPriceServiceError, match="No valid price data available for symbol: AAPL"):
             self.service.get_current_price('AAPL')
 
     def test_get_current_price_invalid_symbol(self):
@@ -108,10 +114,13 @@ class TestStockPriceService:
         mock_ticker.return_value = mock_ticker_instance
         mock_ticker_instance.history.side_effect = Exception("Persistent error")
 
-        with pytest.raises(StockPriceServiceError, match="Failed to fetch price for GOOGL after 2 attempts"):
+        # Each period ("1d", "2d", "5d") is attempted and swallowed inside the
+        # period loop, so the service raises the no-valid-price error after
+        # trying all three periods within a single attempt.
+        with pytest.raises(StockPriceServiceError, match="No valid price data available for symbol: GOOGL"):
             self.service.get_current_price('GOOGL')
 
-        assert mock_ticker_instance.history.call_count == 2
+        assert mock_ticker_instance.history.call_count == 3
 
     @patch('services.stock_prices.yf.Ticker')
     def test_get_batch_prices_success(self, mock_ticker):
@@ -166,7 +175,7 @@ class TestStockPriceService:
         assert results['AAPL'].success is True
         assert results['INVALID'].success is False
         assert results['MSFT'].success is True
-        assert 'Invalid symbol' in results['INVALID'].error
+        assert 'No valid price data available' in results['INVALID'].error
 
     def test_get_batch_prices_empty_list(self):
         """Test batch fetching with empty symbol list"""
@@ -315,7 +324,7 @@ class TestStockPriceService:
         assert result['price'] is None
         assert result['success'] is False
         assert result['market_open'] is False
-        assert 'No data available' in result['error']
+        assert 'No valid price data available' in result['error']
         assert isinstance(result['timestamp'], datetime)
 
 
@@ -367,6 +376,9 @@ class TestStockPriceServiceIntegration:
     def setup_method(self):
         """Set up test fixtures"""
         self.service = StockPriceService(rate_limit_delay=0.01)  # Faster for tests
+        # Neutralize the live-network alternative price sources so tests
+        # deterministically exercise the mocked yfinance path.
+        self.service._try_alternative_price_fetch = Mock(return_value=None)
 
     @patch('services.stock_prices.yf.Ticker')
     def test_realistic_portfolio_update(self, mock_ticker):

@@ -41,6 +41,7 @@ class DatabaseMigration:
             3: self._migrate_to_v3_add_metadata_column,
             4: self._migrate_to_v4_add_broker_support,
             5: self._migrate_to_v5_add_watchlist_support,
+            6: self._migrate_to_v6_consolidate_stock_positions,
             # Future migrations can be added here
         }
 
@@ -422,6 +423,43 @@ class DatabaseMigration:
 
         self.db_service.connection.commit()
         logger.info("Watchlist support migration completed")
+
+    def _migrate_to_v6_consolidate_stock_positions(self):
+        """
+        Migration to version 6: Move embedded trading positions into their table.
+
+        The stock_positions table is authoritative. Legacy embedded positions
+        are added only when their symbols are not already represented there.
+        """
+        logger.info("Applying migration v6: Consolidating stock positions")
+
+        trading_accounts = self.db_service.get_accounts('TRADING')
+        for account in trading_accounts:
+            if 'positions' not in account:
+                continue
+
+            embedded_positions = account.get('positions') or []
+            table_positions = self.db_service.get_stock_positions(account['id'])
+            table_symbols = {
+                position['symbol'].upper() for position in table_positions
+            }
+            merged_positions = list(table_positions)
+            merged_symbols = set(table_symbols)
+            for position in embedded_positions:
+                symbol = str(position.get('symbol', '')).upper()
+                if not symbol or symbol in merged_symbols:
+                    continue
+                merged_positions.append(position)
+                merged_symbols.add(symbol)
+
+            self.db_service.replace_stock_positions(account['id'], merged_positions)
+
+            account_without_positions = account.copy()
+            account_without_positions.pop('positions', None)
+            account_without_positions.pop('schema_version', None)
+            self.db_service.update_account(account['id'], account_without_positions)
+
+        logger.info("Stock position consolidation migration completed")
 
     def add_custom_migration(self, version: int, migration_func: Callable):
         """

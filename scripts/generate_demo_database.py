@@ -25,6 +25,7 @@ from models.accounts import (
     StockPosition, HistoricalSnapshot, AccountType, ChangeType
 )
 from services.encryption import EncryptionService
+from services.contribution_limits import require_contribution_limits
 
 
 class DemoDataGenerator:
@@ -131,10 +132,13 @@ class DemoDataGenerator:
     def _generate_401k_accounts(self, count: int) -> List[Account401k]:
         """Generate sample 401k accounts with realistic contribution data."""
         accounts = []
+        contribution_limits = require_contribution_limits()
         for i in range(count):
             balance = round(random.uniform(25000, 150000), 2)
             employer_match = round(random.uniform(3.0, 6.0), 1)
-            contribution_limit = 23000.0  # 2024 limit
+            contribution_limit = float(
+                contribution_limits.retirement_401k_employee
+            )
             employer_contribution = round(random.uniform(2000, 8000), 2)
             created_date = datetime.now() - timedelta(days=random.randint(365, 2555))
 
@@ -227,21 +231,20 @@ class DemoDataGenerator:
     def _generate_hsa_accounts(self, count: int) -> List[HSAAccount]:
         """Generate sample HSA accounts with realistic contribution data."""
         accounts = []
+        contribution_limits = require_contribution_limits()
         for i in range(count):
-            # HSA contribution limits for 2024: $4,150 individual, $8,300 family
-            # Additional $1,000 catch-up for 55+
             is_family_plan = random.choice([True, False])
             is_over_55 = random.choice([True, False]) if random.random() < 0.3 else False
 
             if is_family_plan:
-                annual_limit = 8300.0
+                annual_limit = float(contribution_limits.hsa_family)
                 plan_type = "Family"
             else:
-                annual_limit = 4150.0
+                annual_limit = float(contribution_limits.hsa_individual)
                 plan_type = "Individual"
 
             if is_over_55:
-                annual_limit += 1000.0
+                annual_limit += contribution_limits.hsa_catch_up
                 plan_type += " (55+ Catch-up)"
 
             # Generate realistic balances and contributions
@@ -404,7 +407,7 @@ class DemoDataGenerator:
 class DemoDatabaseCreator:
     """Create standalone demo database with schema migration support."""
 
-    SCHEMA_VERSION = 5
+    SCHEMA_VERSION = 6
 
     def __init__(self, db_path: str = "networth_demo.db", password: str = "demo123"):
         """
@@ -578,6 +581,7 @@ class DemoDatabaseCreator:
 
             # Prepare account data
             account_dict = account.to_dict()
+            account_dict.pop('positions', None)
 
             # Separate public and sensitive data
             public_data = {

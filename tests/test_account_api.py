@@ -72,8 +72,13 @@ class TestAccountAPI:
 
     def test_get_accounts_unauthenticated(self, client):
         """Test getting accounts without authentication."""
+        # API routes are wrapped with @api_endpoint, which returns a structured
+        # JSON error (HTTP 403) rather than redirecting to the login page.
         response = client.get('/api/accounts')
-        assert response.status_code == 302  # Redirect to login
+        assert response.status_code == 403
+
+        data = json.loads(response.data)
+        assert data['error'] is True
 
     def test_create_cd_account_success(self, authenticated_client):
         """Test creating a CD account successfully."""
@@ -619,7 +624,7 @@ class TestAccountAPI:
 
         data = json.loads(response.data)
         assert data['error'] is True
-        assert 'Investment balance plus cash balance must equal current balance' in data['message']
+        assert 'Balance mismatch' in data['message']
         assert data['code'] == 'ACCOUNT_VALIDATION_ERROR'
 
     def test_delete_account_success(self, authenticated_client):

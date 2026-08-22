@@ -6,7 +6,7 @@ Tests the extended export/import service with HSA accounts and watchlist data.
 import pytest
 import json
 from datetime import datetime, date
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, MagicMock, patch
 
 from services.export_import import ExportImportService
 from services.encryption import EncryptionService
@@ -26,7 +26,7 @@ class TestExportImportHSAWatchlist:
     @pytest.fixture
     def mock_db_service_with_hsa_watchlist(self):
         """Create mock database service with HSA accounts and watchlist data."""
-        mock_db = Mock(spec=DatabaseService)
+        mock_db = MagicMock(spec=DatabaseService)
 
         # Mock account data including HSA accounts
         mock_accounts = [
@@ -236,7 +236,7 @@ class TestExportImportHSAWatchlist:
         }
 
         # Create mock database for import
-        import_mock_db = Mock(spec=DatabaseService)
+        import_mock_db = MagicMock(spec=DatabaseService)
         import_mock_db.get_account.return_value = None  # Account doesn't exist
         import_mock_db.create_account.return_value = 'new-hsa-id'
         import_mock_db.get_watchlist_item.return_value = None
@@ -309,7 +309,7 @@ class TestExportImportHSAWatchlist:
         }
 
         # Create mock database for import
-        import_mock_db = Mock(spec=DatabaseService)
+        import_mock_db = MagicMock(spec=DatabaseService)
         import_mock_db.get_watchlist_item.return_value = None  # Items don't exist
         import_mock_db.create_watchlist_item.return_value = 'new-watch-id'
 
@@ -371,7 +371,7 @@ class TestExportImportHSAWatchlist:
         }
 
         # Create mock database for import
-        import_mock_db = Mock(spec=DatabaseService)
+        import_mock_db = MagicMock(spec=DatabaseService)
         import_mock_db.get_watchlist_item.return_value = {'symbol': 'EXISTING', 'notes': 'Old notes'}
         import_mock_db.update_watchlist_item.return_value = True
 
@@ -488,7 +488,7 @@ class TestExportImportHSAWatchlist:
         encrypted_backup = export_service.create_encrypted_backup(original_export)
 
         # Create import service with fresh mock database
-        import_mock_db = Mock(spec=DatabaseService)
+        import_mock_db = MagicMock(spec=DatabaseService)
         import_mock_db.get_account.return_value = None
         import_mock_db.get_watchlist_item.return_value = None
         import_mock_db.create_account.return_value = 'new-account-id'
@@ -518,7 +518,7 @@ class TestExportImportHSAWatchlist:
     def test_export_import_error_handling_watchlist(self, encryption_service):
         """Test error handling in watchlist export/import operations."""
         # Create mock database that raises errors
-        error_mock_db = Mock(spec=DatabaseService)
+        error_mock_db = MagicMock(spec=DatabaseService)
         error_mock_db.get_accounts.return_value = []
         error_mock_db.get_watchlist_items.side_effect = Exception("Watchlist database error")
 
@@ -544,7 +544,7 @@ class TestExportImportHSAWatchlist:
         }
 
         # Create import service
-        import_mock_db = Mock(spec=DatabaseService)
+        import_mock_db = MagicMock(spec=DatabaseService)
         import_service = ExportImportService(import_mock_db, encryption_service)
 
         # Import should handle errors gracefully

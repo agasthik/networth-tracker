@@ -190,6 +190,10 @@ function loadAccountForm(accountType, container, accountId = null) {
         .then(html => {
             container.innerHTML = html;
 
+            if (accountType === 'TRADING') {
+                initializeTradingAccountForm();
+            }
+
             // If editing, populate form with existing data
             if (accountId) {
                 populateAccountForm(accountId, accountType);
@@ -226,6 +230,135 @@ function loadAccountForm(accountType, container, accountId = null) {
         });
 }
 
+function initializeTradingAccountForm() {
+    const cashBalance = document.getElementById('tradingCashBalance');
+    if (cashBalance) {
+        cashBalance.addEventListener('input', calculateTradingSummary);
+    }
+    calculateTradingSummary();
+}
+
+function addStockPosition() {
+    const template = document.getElementById('stockPositionTemplate');
+    const container = document.getElementById('stockPositionsList');
+    if (!template || !container) return;
+
+    const clone = template.content.cloneNode(true);
+    clone.querySelector('.stock-purchase-date').value =
+        new Date().toISOString().split('T')[0];
+    clone.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', calculateTradingSummary);
+    });
+    clone.querySelector('.stock-symbol').addEventListener('input', function () {
+        this.value = this.value.toUpperCase();
+    });
+
+    if (!container.querySelector('.stock-position')) {
+        container.innerHTML = '';
+    }
+    container.appendChild(clone);
+    calculateTradingSummary();
+}
+
+function removeStockPosition(button) {
+    const container = document.getElementById('stockPositionsList');
+    button.closest('.stock-position').remove();
+
+    if (!container.querySelector('.stock-position')) {
+        container.innerHTML = `
+            <div class="text-muted text-center py-3">
+                <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                <p>No stock positions added yet. Click "Add Position" to get started.</p>
+            </div>
+        `;
+    }
+    calculateTradingSummary();
+}
+
+function fetchStockPrice(button) {
+    const position = button.closest('.stock-position');
+    const symbol = position.querySelector('.stock-symbol').value.trim().toUpperCase();
+    if (!symbol) {
+        showNotification('Enter a stock symbol first.', 'warning');
+        return;
+    }
+
+    const originalHtml = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    fetch(`/api/stocks/${encodeURIComponent(symbol)}/price`)
+        .then(response => response.json().then(data => {
+            if (!response.ok) throw new Error(data.message || 'Price lookup failed');
+            return data;
+        }))
+        .then(data => {
+            position.querySelector('.stock-current-price').value =
+                Number(data.price).toFixed(2);
+            position.querySelector('.stock-last-price-update').value = data.timestamp;
+            calculateTradingSummary();
+        })
+        .catch(error => {
+            showNotification(error.message || 'Unable to fetch the stock price.', 'danger');
+        })
+        .finally(() => {
+            button.disabled = false;
+            button.innerHTML = originalHtml;
+        });
+}
+
+function calculatePositionValue(position) {
+    const shares = parseFloat(position.querySelector('.stock-shares').value) || 0;
+    const purchasePrice =
+        parseFloat(position.querySelector('.stock-purchase-price').value) || 0;
+    const currentPrice =
+        parseFloat(position.querySelector('.stock-current-price').value) || purchasePrice;
+    const totalValue = shares * currentPrice;
+    const totalCost = shares * purchasePrice;
+    const gainLoss = totalValue - totalCost;
+    const gainLossPercent = totalCost > 0 ? gainLoss / totalCost * 100 : 0;
+
+    position.querySelector('.position-total-value').textContent = totalValue.toFixed(2);
+    const gainLossElement = position.querySelector('.position-gain-loss');
+    gainLossElement.textContent =
+        `$${gainLoss.toFixed(2)} (${gainLossPercent.toFixed(2)}%)`;
+    gainLossElement.className =
+        `position-gain-loss ${gainLoss >= 0 ? 'text-success' : 'text-danger'}`;
+}
+
+function calculateTradingSummary() {
+    const form = document.getElementById('tradingAccountForm');
+    if (!form) return;
+
+    const cashBalance =
+        parseFloat(form.querySelector('#tradingCashBalance').value) || 0;
+    let totalStockValue = 0;
+    let totalGainLoss = 0;
+
+    form.querySelectorAll('.stock-position').forEach(position => {
+        calculatePositionValue(position);
+        const shares = parseFloat(position.querySelector('.stock-shares').value) || 0;
+        const purchasePrice =
+            parseFloat(position.querySelector('.stock-purchase-price').value) || 0;
+        const currentPrice =
+            parseFloat(position.querySelector('.stock-current-price').value) ||
+            purchasePrice;
+        totalStockValue += shares * currentPrice;
+        totalGainLoss += shares * (currentPrice - purchasePrice);
+    });
+
+    form.querySelector('#totalCashBalance').textContent =
+        '$' + cashBalance.toFixed(2);
+    form.querySelector('#totalStockValue').textContent =
+        '$' + totalStockValue.toFixed(2);
+    form.querySelector('#totalAccountValue').textContent =
+        '$' + (cashBalance + totalStockValue).toFixed(2);
+    const gainLossElement = form.querySelector('#totalGainLoss');
+    gainLossElement.textContent = '$' + totalGainLoss.toFixed(2);
+    gainLossElement.className =
+        totalGainLoss >= 0 ? 'text-success' : 'text-danger';
+}
+
 function populateAccountForm(accountId, accountType) {
     const account = AppState.accounts.find(acc => acc.id === accountId);
     if (!account) return;
@@ -233,6 +366,10 @@ function populateAccountForm(accountId, accountType) {
     // Populate common fields
     const form = document.querySelector(`#${accountType.toLowerCase()}AccountForm`);
     if (!form) return;
+    const accountIdInput = form.querySelector('[name="account_id"]');
+    if (accountIdInput) {
+        accountIdInput.value = account.id;
+    }
 
     // Fill in form fields based on account data
     Object.keys(account).forEach(key => {
@@ -255,9 +392,12 @@ function populateAccountForm(accountId, accountType) {
             const lastPosition = positionElements[positionElements.length - 1];
 
             lastPosition.querySelector('.stock-symbol').value = position.symbol;
+            lastPosition.querySelector('.stock-position-id').value = position.id || '';
             lastPosition.querySelector('.stock-shares').value = position.shares;
             lastPosition.querySelector('.stock-purchase-price').value = position.purchase_price;
             lastPosition.querySelector('.stock-purchase-date').value = position.purchase_date;
+            lastPosition.querySelector('.stock-last-price-update').value =
+                position.last_price_update || '';
             if (position.current_price) {
                 lastPosition.querySelector('.stock-current-price').value = position.current_price;
             }
@@ -315,24 +455,33 @@ function submitAccountForm(event, accountType) {
 
     // Handle stock positions for trading accounts
     if (accountType === 'TRADING') {
+        filteredData.institution = filteredData.broker_name;
         const positions = [];
         const stockPositions = form.querySelectorAll('.stock-position');
 
         stockPositions.forEach(position => {
+            const positionId = position.querySelector('.stock-position-id').value;
             const symbol = position.querySelector('.stock-symbol').value;
             const shares = position.querySelector('.stock-shares').value;
             const purchasePrice = position.querySelector('.stock-purchase-price').value;
             const purchaseDate = position.querySelector('.stock-purchase-date').value;
             const currentPrice = position.querySelector('.stock-current-price').value;
+            const lastPriceUpdate =
+                position.querySelector('.stock-last-price-update').value;
 
             if (symbol && shares && purchasePrice && purchaseDate) {
-                positions.push({
+                const positionData = {
                     symbol: symbol.toUpperCase(),
                     shares: parseFloat(shares),
                     purchase_price: parseFloat(purchasePrice),
                     purchase_date: purchaseDate,
-                    current_price: currentPrice ? parseFloat(currentPrice) : parseFloat(purchasePrice)
-                });
+                    current_price: currentPrice ? parseFloat(currentPrice) : null
+                };
+                if (positionId) positionData.id = positionId;
+                if (lastPriceUpdate) {
+                    positionData.last_price_update = lastPriceUpdate;
+                }
+                positions.push(positionData);
             }
         });
 
@@ -353,6 +502,11 @@ function submitAccountForm(event, accountType) {
     // Determine if this is an update or create
     const accountId = filteredData.account_id;
     const isUpdate = accountId && accountId.trim() !== '';
+    delete filteredData.account_id;
+    delete filteredData.account_number;
+    if (isUpdate) {
+        delete filteredData.type;
+    }
 
     const url = isUpdate ? `/api/accounts/${accountId}` : '/api/accounts';
     const method = isUpdate ? 'PUT' : 'POST';
@@ -1188,12 +1342,12 @@ function updatePortfolioSummary(data) {
         monthlyGainElement.className = change >= 0 ? 'text-success' : 'text-danger';
     }
 
-    // For yearly gain, we'll use a simple estimate (monthly * 12)
+    // Yearly gain uses the real trailing-365-day change from the backend.
     const yearlyGainElement = document.getElementById('yearlyGain');
     if (yearlyGainElement && data.performance) {
-        const yearlyEstimate = data.performance.monthly_change * 12;
-        yearlyGainElement.textContent = `${yearlyEstimate >= 0 ? '+' : ''}${formatCurrency(yearlyEstimate)}`;
-        yearlyGainElement.className = yearlyEstimate >= 0 ? 'text-success' : 'text-danger';
+        const yearlyChange = data.performance.yearly_change || 0;
+        yearlyGainElement.textContent = `${yearlyChange >= 0 ? '+' : ''}${formatCurrency(yearlyChange)}`;
+        yearlyGainElement.className = yearlyChange >= 0 ? 'text-success' : 'text-danger';
     }
 }
 

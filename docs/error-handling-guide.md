@@ -6,7 +6,7 @@ This document describes the comprehensive error handling and logging system impl
 
 The error handling system provides:
 - **Custom exception classes** for different error types
-- **Structured error responses** for all API endpoints
+- **Structured error responses** for routes using the error decorators
 - **Comprehensive logging** with multiple levels and file rotation
 - **User-friendly error messages** with recovery suggestions
 - **Flask integration** with decorators and middleware
@@ -249,11 +249,14 @@ The system registers global error handlers for:
   "timestamp": "2025-08-09T10:42:31.231141",
   "user_action": "Please provide all required fields",
   "context": {
-    "ip": "127.0.0.1",
-    "user_agent": "Mozilla/5.0..."
+    "field": "name"
   }
 }
 ```
+
+Only `ErrorContext.additional_data` is serialized into the response `context`.
+Fields such as `request_id`, `user_id`, `account_id`, and `operation` are used
+for logging but are not automatically included in the client response.
 
 ### View Responses (HTML)
 
@@ -266,9 +269,18 @@ For view endpoints, errors are:
 
 ### Sensitive Data Protection
 
-- Passwords and keys are automatically redacted from logs
-- Technical details only shown in debug mode
-- Security events are specially logged for audit trails
+- `log_function_call` redacts values whose argument names contain `password`,
+  `key`, `token`, or `secret`
+- `AppError.technical_details` is serialized only in debug mode
+- Helpers are available for security-event and data-access logging
+
+Redaction is not a global log filter. Arbitrary logger calls are not scrubbed,
+so callers must not log secrets, decrypted payloads, account numbers, or backup
+contents.
+
+The debug gate applies to `AppError.to_dict()`. Manually constructed responses
+in legacy routes can have different behavior, so it must not be treated as a
+global response-scrubbing control.
 
 ### Audit Logging
 
@@ -332,7 +344,8 @@ context = ErrorContext(
 Run the error handling tests:
 
 ```bash
-python test_error_handling.py
+./venv/bin/python -m pytest tests/test_error_handling_comprehensive.py -q
+./venv/bin/python -m pytest tests/test_error_edge_cases.py -q
 ```
 
 This will test:
@@ -350,33 +363,32 @@ Monitor the log files for:
 - Error patterns and frequency
 - Security events
 - Performance issues
-- User behavior patterns
+- Request and data-operation events emitted by decorated routes
 
 ### Error Tracking
 
 The system provides:
-- Unique request IDs for tracking
+- Request IDs in decorated-route logs
 - Structured error codes for categorization
 - Context information for debugging
-- Stack traces for technical errors
+- Stack traces in server logs for unexpected exceptions
 
 ## Configuration
 
-### Environment Variables
+`config.py` reads logging environment variables, but the current
+`setup_app_logging()` call does not consume them. It uses `DEBUG` only when
+application debug mode is active, otherwise `INFO`, and writes fixed files
+under repository `logs/` with a 10 MiB rotation threshold and five retained
+backups.
 
-- `FLASK_DEBUG=true` - Enable debug mode and technical details
-- `LOG_LEVEL=DEBUG` - Set logging level
-- `LOG_DIR=/path/to/logs` - Custom log directory
+Technical details are included in normal Flask error serialization only when
+`current_app.debug` is true. Outside an application context,
+`AppError.to_dict()` checks `FLASK_DEBUG`, but that is not the normal request
+path.
 
-### Application Settings
+The application does not load `.env` files.
 
-```python
-# In app.py
-debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-app_logger = setup_app_logging(debug_mode=debug_mode)
-```
-
-## Future Enhancements
+## Potential Improvements
 
 Potential improvements:
 - Integration with external monitoring services

@@ -1,100 +1,35 @@
-# Font and Typography Improvements
+# Typography Update
 
-## Overview
-Updated the Net Worth Tracker application to use modern, attractive fonts that improve readability and user experience.
+> Historical note: the original typography change has since been revised. This
+> file records the current typography state so it does not present the earlier
+> Inter-based design as active.
 
-## Font Changes
+## Current Fonts
 
-### Primary Font: Inter
-- **Usage**: Main UI text, headings, buttons, forms, navigation
-- **Weights**: 300, 400, 500, 600, 700, 800
-- **Benefits**:
-  - Excellent readability at all sizes
-  - Modern, professional appearance
-  - Optimized for digital interfaces
-  - Great letter spacing and character recognition
+The active stylesheet uses:
 
-### Secondary Font: JetBrains Mono
-- **Usage**: Numbers, currency values, codes, monospace content
-- **Weights**: 400, 500, 600
-- **Benefits**:
-  - Clear distinction between similar characters (0 vs O, 1 vs l)
-  - Consistent character width for aligned number displays
-  - Professional appearance for financial data
-  - Excellent readability for numerical content
+- **DM Sans** for interface text, controls, navigation, and body copy
+- **Cormorant Garamond** for display headings and selected titles
+- **JetBrains Mono** for currency, numeric, and code-like values
 
-## Typography Improvements
+`Inter` remains available in the vendored font bundle but is not the primary
+font in `static/css/styles.css`.
 
-### Headings (h1-h6)
-- Font family: Inter
-- Improved font weights (600-700)
-- Better line height (1.3)
-- Consistent color scheme (#2c3e50)
-- Proper letter spacing
+## Loading
 
-### Body Text
-- Font family: Inter
-- Font weight: 400
-- Line height: 1.6 for better readability
-- Consistent color scheme
+Fonts are declared in `static/vendor/fonts/css/fonts.css` and loaded from local
+files under `static/vendor/fonts/`. The current interface does not depend on
+Google Fonts or another font CDN.
 
-### Buttons
-- Font family: Inter
-- Font weight: 600
-- Letter spacing: 0.025em for better readability
-- Modern gradient backgrounds
-- Smooth hover transitions
+Local font loading supports the application's local-first operation. System
+font fallbacks remain in the CSS for cases where a font asset cannot load.
 
-### Forms
-- Labels: Inter, weight 600, better letter spacing
-- Inputs: Inter for text, JetBrains Mono for numbers
-- Improved focus states with better color contrast
-- Rounded corners (0.5rem) for modern appearance
+## Source of Truth
 
-### Tables
-- Headers: Inter, weight 600, better background color
-- Data cells: Inter for text, JetBrains Mono for numbers
-- Improved vertical alignment
+Current typography variables and component rules are in:
 
-### Cards
-- Titles: Inter, weight 600
-- Content: Inter, weight 400
-- Rounded corners (0.75rem)
-- Better box shadows
+- `static/css/styles.css`
+- `static/vendor/fonts/css/fonts.css`
 
-### Navigation
-- Brand: Inter, weight 700, larger size (1.5rem)
-- Links: Inter, weight 500
-- Smooth hover effects
-
-## Currency and Number Display
-
-### Special Classes Added
-- `.currency`: JetBrains Mono for currency values
-- `.number`: JetBrains Mono for numerical data
-- `.percentage`: JetBrains Mono for percentages
-
-### Applied To
-- Total net worth display
-- Account totals in summary cards
-- Quick stats numbers
-- Monthly/yearly gains
-- All financial data throughout the application
-
-## Responsive Design
-- Adjusted font sizes for mobile devices
-- Maintained readability across all screen sizes
-- Proper scaling of typography elements
-
-## Benefits
-1. **Improved Readability**: Inter font provides excellent readability at all sizes
-2. **Professional Appearance**: Modern font stack gives the application a polished look
-3. **Better Number Recognition**: JetBrains Mono ensures financial data is easy to read and distinguish
-4. **Consistent Typography**: Unified font system across all UI elements
-5. **Enhanced User Experience**: Better visual hierarchy and information organization
-6. **Accessibility**: Improved contrast and readability for all users
-
-## Browser Support
-- Google Fonts CDN ensures reliable font loading
-- Fallback fonts specified for compatibility
-- Preconnect links for optimal performance
+Those files supersede any implementation details from the original typography
+change.

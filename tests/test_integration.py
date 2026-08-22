@@ -13,6 +13,7 @@ import unittest
 import tempfile
 import os
 import json
+from datetime import date, datetime, timedelta
 from unittest.mock import patch, MagicMock
 
 # Mock Flask app configuration before importing
@@ -24,7 +25,17 @@ from services.auth import AuthenticationManager
 from services.stock_prices import StockPriceService
 from services.historical import HistoricalDataService
 from services.export_import import ExportImportService
-from models.accounts import AccountFactory, AccountType
+from models.accounts import AccountFactory, AccountType, ChangeType
+
+
+class _FakeSession(dict):
+    """Dict-based stand-in for the Flask session.
+
+    Supports both item access (session['key']) and attribute access
+    (session.permanent) so it can be used to patch ``services.auth.session``
+    outside of a real Flask request context.
+    """
+    pass
 
 
 class TestServiceIntegration(unittest.TestCase):
@@ -36,17 +47,24 @@ class TestServiceIntegration(unittest.TestCase):
         self.db_fd, self.db_path = tempfile.mkstemp(suffix='.db')
 
         # Initialize services
-        self.encryption_service = EncryptionService()
         self.test_password = "TestPassword123!"
-        self.encryption_service.derive_key(self.test_password)
 
         self.auth_manager = AuthenticationManager(self.db_path)
         self.auth_manager.set_master_password(self.test_password)
 
-        self.db_service = DatabaseService(self.db_path, self.encryption_service)
+        # Reuse the auth manager's encryption and database services so that the
+        # encryption key (derived with the salt stored in the DB) matches. Creating
+        # a separate EncryptionService would derive a key with a different random
+        # salt, causing decryption (InvalidToken) failures.
+        self.encryption_service = self.auth_manager.encryption_service
+        self.db_service = self.auth_manager.db_service
         self.db_service.connect()
 
         self.stock_service = StockPriceService(rate_limit_delay=0.01)
+        # Force deterministic behavior: disable the live HTTP "alternative" price
+        # fetch (Yahoo direct / FMP) so tests exercise the mocked yfinance path
+        # instead of making real network calls.
+        self.stock_service._try_alternative_price_fetch = lambda symbol: None
         self.historical_service = HistoricalDataService(self.db_service)
         self.export_service = ExportImportService(self.db_service, self.encryption_service)
 
@@ -62,7 +80,7 @@ class TestServiceIntegration(unittest.TestCase):
         self.assertFalse(self.auth_manager.is_setup_required())
 
         # Test password verification with database
-        with patch('flask.session', {}):
+        with patch('services.auth.session', _FakeSession()):
             result = self.auth_manager.verify_password(self.test_password)
             self.assertTrue(result)
 
@@ -97,7 +115,7 @@ class TestServiceIntegration(unittest.TestCase):
 
         # Create initial historical snapshot
         snapshot_id = self.historical_service.create_snapshot(
-            account, 'INITIAL_ENTRY', {'note': 'Account created'}
+            account, ChangeType.INITIAL_ENTRY, {'note': 'Account created'}
         )
 
         self.assertIsNotNone(snapshot_id)
@@ -131,8 +149,7 @@ class TestServiceIntegration(unittest.TestCase):
         account_id = self.db_service.create_account(account_dict)
 
         # Add stock positions to database
-        from datetime import date
-        purchase_date = int(date.today().timestamp())
+        purchase_date = int(datetime.now().timestamp())
 
         position_id1 = self.db_service.create_stock_position(
             account_id, 'AAPL', 100.0, 150.0, purchase_date
@@ -219,23 +236,23 @@ class TestServiceIntegration(unittest.TestCase):
 
             # Create historical snapshots
             account.id = account_id
-            self.historical_service.create_snapshot(account, 'INITIAL_ENTRY')
+            self.historical_service.create_snapshot(account, ChangeType.INITIAL_ENTRY)
 
         # Add stock position to trading account
-        from datetime import date
         trading_account_id = created_account_ids[1]
         self.db_service.create_stock_position(
-            trading_account_id, 'MSFT', 75.0, 300.0, int(date.today().timestamp())
+            trading_account_id, 'MSFT', 75.0, 300.0, int(datetime.now().timestamp())
         )
 
         # Export all data
-        export_data = self.export_service.export_all_data()
+        export_data = self.export_service.export_data()
 
-        # Verify export structure
+        # Verify export structure. stock_positions and historical_snapshots are
+        # dicts keyed by account id; backup metadata lives under 'backup_metadata'.
         self.assertIn('accounts', export_data)
         self.assertIn('historical_snapshots', export_data)
         self.assertIn('stock_positions', export_data)
-        self.assertIn('metadata', export_data)
+        self.assertIn('backup_metadata', export_data)
 
         self.assertEqual(len(export_data['accounts']), 2)
         self.assertGreater(len(export_data['historical_snapshots']), 0)
@@ -250,12 +267,12 @@ class TestServiceIntegration(unittest.TestCase):
         self.assertEqual(len(remaining_accounts), 0)
 
         # Import data
-        import_result = self.export_service.import_all_data(export_data)
+        import_result = self.export_service.import_data(export_data)
 
-        self.assertTrue(import_result['success'])
+        self.assertEqual(len(import_result['errors']), 0)
         self.assertEqual(import_result['accounts_imported'], 2)
-        self.assertEqual(import_result['positions_imported'], 1)
-        self.assertGreater(import_result['snapshots_imported'], 0)
+        self.assertEqual(import_result['stock_positions_imported'], 1)
+        self.assertGreater(import_result['historical_snapshots_imported'], 0)
 
         # Verify data restoration
         restored_accounts = self.db_service.get_accounts()
@@ -324,15 +341,17 @@ class TestServiceIntegration(unittest.TestCase):
 
     def test_error_handling_integration(self):
         """Test error handling across integrated services."""
-        # Test database error handling
+        # Test account validation error handling. The database layer persists raw
+        # dictionaries without validating them; validation is the responsibility of
+        # AccountFactory, which is the single entry point for constructing accounts.
         with self.assertRaises(Exception):
             invalid_account_data = {
                 'name': '',  # Invalid empty name
                 'institution': 'Test Bank',
-                'type': 'INVALID_TYPE',
+                'account_type': 'INVALID_TYPE',
                 'current_balance': -1000.0  # Invalid negative balance
             }
-            self.db_service.create_account(invalid_account_data)
+            AccountFactory.create_account_from_dict(invalid_account_data)
 
         # Test stock service error handling
         with patch('services.stock_prices.yf.Ticker') as mock_ticker:
@@ -346,15 +365,15 @@ class TestServiceIntegration(unittest.TestCase):
             temp_auth = AuthenticationManager(":memory:")
             temp_auth.set_master_password("weak")  # Too weak
 
-        # Test export/import error handling
+        # Test export/import error handling. import_data raises when the backup
+        # format is invalid (e.g. missing the required 'backup_metadata' key).
         invalid_import_data = {
             'accounts': 'invalid_format',  # Should be list
-            'metadata': {'version': '999.0'}  # Unsupported version
+            'metadata': {'version': '999.0'}  # Wrong key / unsupported version
         }
 
-        import_result = self.export_service.import_all_data(invalid_import_data)
-        self.assertFalse(import_result['success'])
-        self.assertIn('error', import_result)
+        with self.assertRaises(Exception):
+            self.export_service.import_data(invalid_import_data)
 
     def test_concurrent_operations_integration(self):
         """Test concurrent operations across services."""
@@ -384,19 +403,31 @@ class TestServiceIntegration(unittest.TestCase):
 
         def create_snapshot(value, change_type):
             try:
-                snapshot_id = self.historical_service.create_snapshot(
+                # Each thread uses its own DatabaseService instance. The service
+                # mixes a thread-local connection with a shared ``self.connection``
+                # attribute, so sharing a single instance across threads would leak
+                # a connection into the wrong thread. A dedicated instance per
+                # thread keeps each SQLite connection thread-confined.
+                db = DatabaseService(self.db_path, self.encryption_service)
+                db.connect()
+                hist = HistoricalDataService(db)
+                snapshot_id = hist.create_snapshot(
                     account, change_type, {'concurrent_test': True}
                 )
                 results.append(snapshot_id)
+                db.close()
             except Exception as e:
                 errors.append(str(e))
 
         def update_account_balance(new_balance):
             try:
+                db = DatabaseService(self.db_path, self.encryption_service)
+                db.connect()
                 updated_data = account_dict.copy()
                 updated_data['current_balance'] = new_balance
-                success = self.db_service.update_account(account_id, updated_data)
+                success = db.update_account(account_id, updated_data)
                 results.append(success)
+                db.close()
             except Exception as e:
                 errors.append(str(e))
 
@@ -405,7 +436,7 @@ class TestServiceIntegration(unittest.TestCase):
 
         # Create multiple historical snapshots concurrently
         for i in range(3):
-            thread = threading.Thread(target=create_snapshot, args=(5000 + i * 100, 'MANUAL_UPDATE'))
+            thread = threading.Thread(target=create_snapshot, args=(5000 + i * 100, ChangeType.MANUAL_UPDATE))
             threads.append(thread)
             thread.start()
 
@@ -453,8 +484,7 @@ class TestServiceIntegration(unittest.TestCase):
         account_id = self.db_service.create_account(account_dict)
 
         # Add stock positions
-        from datetime import date
-        purchase_date = int(date.today().timestamp())
+        purchase_date = int(datetime.now().timestamp())
 
         positions_data = [
             ('AAPL', 100.0, 150.0),
@@ -472,7 +502,7 @@ class TestServiceIntegration(unittest.TestCase):
         # Create historical snapshot
         trading_account.id = account_id
         initial_snapshot = self.historical_service.create_snapshot(
-            trading_account, 'INITIAL_ENTRY'
+            trading_account, ChangeType.INITIAL_ENTRY
         )
 
         # Update stock prices and verify consistency
@@ -503,7 +533,7 @@ class TestServiceIntegration(unittest.TestCase):
 
         # Create snapshot after price update
         price_update_snapshot = self.historical_service.create_snapshot(
-            trading_account, 'STOCK_PRICE_UPDATE',
+            trading_account, ChangeType.STOCK_PRICE_UPDATE,
             {'total_portfolio_value': total_portfolio_value}
         )
 
@@ -523,21 +553,18 @@ class TestServiceIntegration(unittest.TestCase):
         self.assertEqual(retrieved_account['name'], "Consistency Test Trading")
 
         # 4. Export should include all data consistently
-        export_data = self.export_service.export_all_data()
+        export_data = self.export_service.export_data()
 
         # Find our account in export
         our_account = next(acc for acc in export_data['accounts']
                           if acc['name'] == "Consistency Test Trading")
         self.assertIsNotNone(our_account)
 
-        # Find our positions in export
-        our_positions = [pos for pos in export_data['stock_positions']
-                        if pos['trading_account_id'] == account_id]
+        # stock_positions and historical_snapshots are dicts keyed by account id.
+        our_positions = export_data['stock_positions'].get(account_id, [])
         self.assertEqual(len(our_positions), 3)
 
-        # Find our snapshots in export
-        our_snapshots = [snap for snap in export_data['historical_snapshots']
-                        if snap['account_id'] == account_id]
+        our_snapshots = export_data['historical_snapshots'].get(account_id, [])
         self.assertEqual(len(our_snapshots), 2)
 
 

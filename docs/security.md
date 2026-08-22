@@ -1,494 +1,172 @@
 # Security Guide
 
-Comprehensive security guide for the Networth Tracker application, covering data protection, privacy, and security best practices.
+This document describes the controls implemented by the current application and
+their limits. Networth Tracker is intended to run as a single-user application
+on a trusted computer and bind only to `127.0.0.1`.
 
-## Table of Contents
+## Security Model
 
-- [Security Overview](#security-overview)
-- [Data Encryption](#data-encryption)
-- [Authentication and Access Control](#authentication-and-access-control)
-- [File System Security](#file-system-security)
-- [Network Security](#network-security)
-- [Privacy Protection](#privacy-protection)
-- [Security Best Practices](#security-best-practices)
-- [Threat Model](#threat-model)
-- [Security Monitoring](#security-monitoring)
+The application reduces exposure by storing data locally, requiring a master
+password, encrypting selected record payloads, and restricting sensitive files
+on Unix-like systems. It is not a hardened multi-user service, an encrypted
+database product, or a substitute for full-disk encryption.
 
-## Security Overview
+Do not bind the server to a public or LAN interface. The application currently
+uses Flask's built-in server and does not implement the controls required for an
+internet-facing financial application.
 
-The Networth Tracker is designed with a **security-first, privacy-first** approach:
+## Encryption
 
-### Core Security Principles
+`EncryptionService` derives a Fernet key from the master password and a random
+16-byte database salt using PBKDF2-HMAC-SHA256 with 100,000 iterations. Fernet
+uses AES-128-CBC for confidentiality and HMAC-SHA256 for authentication.
 
-1. **Local-First**: All data stored locally, no cloud dependencies
-2. **Encryption at Rest**: All sensitive data encrypted in the database
-3. **Zero-Knowledge**: No external services have access to financial data
-4. **Minimal Attack Surface**: Localhost-only operation
-5. **Defense in Depth**: Multiple layers of security controls
+The iteration count is fixed in the implementation. It is not configurable.
 
-### Security Architecture
+### Encrypted fields
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Browser Interface                        │
-├─────────────────────────────────────────────────────────────┤
-│                  Flask Application                          │
-│  ┌─────────────────┐  ┌─────────────────┐                  │
-│  │  Authentication │  │   Session Mgmt  │                  │
-│  └─────────────────┘  └─────────────────┘                  │
-├─────────────────────────────────────────────────────────────┤
-│                  Encryption Layer                           │
-│  ┌─────────────────┐  ┌─────────────────┐                  │
-│  │  Data Encryption│  │  Key Management │                  │
-│  └─────────────────┘  └─────────────────┘                  │
-├─────────────────────────────────────────────────────────────┤
-│                 Encrypted SQLite Database                   │
-├─────────────────────────────────────────────────────────────┤
-│                  File System Security                       │
-│  ┌─────────────────┐  ┌─────────────────┐                  │
-│  │  File Permissions│  │  Access Control │                  │
-│  └─────────────────┘  └─────────────────┘                  │
-└─────────────────────────────────────────────────────────────┘
-```
+- Account-type-specific payload fields, including balances and account-specific
+  settings
+- Watchlist payload fields such as notes and cached price details
+- Historical snapshot metadata
+- Export payloads created by the Export Data action
 
-## Data Encryption
+### Plaintext SQLite fields
 
-### Encryption at Rest
+- Account IDs, names, institutions, types, timestamps, schema versions, and
+  demo markers
+- Stock symbols, share quantities, purchase prices, purchase dates, current
+  prices, and update timestamps
+- Historical account IDs, timestamps, values, and change types
+- Watchlist IDs, symbols, dates, and demo markers
+- The password salt and salted password-verification hash
+- Database schema, indexes, and row counts
 
-All sensitive financial data is encrypted before storage using industry-standard encryption:
+The SQLite file itself is not encrypted. Someone who can read it can inspect
+the plaintext fields and encrypted blobs. Use operating-system full-disk
+encryption if whole-file protection is required.
 
-#### Encryption Algorithm
-- **Algorithm**: Fernet (AES-128 in CBC mode with HMAC-SHA256)
-- **Key Derivation**: PBKDF2 with SHA-256
-- **Iterations**: 100,000 (configurable)
-- **Salt**: 16-byte random salt per database
+## Master Password
 
-#### Implementation Details
+Initial setup requires at least 12 characters and at least one uppercase
+letter, lowercase letter, digit, and character from:
 
-```python
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-
-class EncryptionService:
-    def derive_key(self, password: str, salt: bytes) -> bytes:
-        """Derive encryption key from master password."""
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,  # OWASP recommended minimum
-        )
-        key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
-        return key
+```text
+!@#$%^&*()_+-=[]{}|;:,.<>?
 ```
 
-#### What Gets Encrypted
+There is no password recovery or reset workflow. The password is not stored,
+but the database stores a random salt and a salted SHA-256 verification hash.
+The same salt is used to derive the Fernet key.
 
-- **Account Information**: Names, institutions, balances, values
-- **Stock Positions**: Symbols, shares, prices, purchase dates
-- **Historical Data**: All historical snapshots and performance data
-- **Configuration Data**: Sensitive application settings
+The verification hash is compared with normal string equality rather than a
+constant-time comparison. Keep the application local and treat this as a
+current implementation limitation.
 
-#### What Doesn't Get Encrypted
+The derived key remains in the application's `EncryptionService` object for the
+life of the process. Logout clears the browser session and closes the active
+database service, but it does not erase that key object from process memory.
+Stop the process when finished on a shared or untrusted computer.
 
-- **Database Schema**: Table structures and indexes
-- **Application Logs**: System logs (no financial data included)
-- **Stock Symbols**: Only symbols sent to APIs (no quantities or values)
+## Sessions and Browser Requests
 
-### Key Management
+- Sessions expire after two hours of inactivity.
+- Session cookies are `HttpOnly` and `SameSite=Lax`.
+- `Secure` is false because the supported local URL uses HTTP.
+- Logout clears the Flask session.
 
-#### Master Password
-- **Purpose**: Derives the database encryption key
-- **Requirements**: Minimum 12 characters, complexity recommended
-- **Storage**: Never stored in plaintext, only used for key derivation
-- **Recovery**: No password recovery mechanism (by design for security)
+Current limitations:
 
-#### Key Derivation Process
-1. User enters master password
-2. Random salt retrieved from database
-3. PBKDF2 derives encryption key (100,000 iterations)
-4. Key used to encrypt/decrypt data
-5. Key cleared from memory after use
+- Concurrent sessions are not restricted.
+- There is no CSRF token or explicit Origin/Referer validation for
+  state-changing requests. `SameSite=Lax` reduces some cross-site request risk
+  but is not complete CSRF protection.
+- Login attempts are not rate limited or locked out.
+- Uploaded backup files do not have an explicit application-level size limit.
 
-#### Security Considerations
-- **Memory Protection**: Keys cleared from memory after use
-- **No Key Storage**: Encryption keys never stored on disk
-- **Salt Uniqueness**: Each database has a unique random salt
-- **Iteration Count**: Configurable, minimum 100,000 iterations
+Keep the application bound to `127.0.0.1`, do not browse untrusted sites while
+an authenticated session is open, and log out when finished.
 
-## Authentication and Access Control
+## External Network Calls
 
-### Master Password Authentication
+Stock quote refreshes use `StockPriceService` and may contact yfinance/Yahoo
+Finance providers. Requests identify stock symbols. Account names, quantities,
+balances, purchase prices, and the master password are not intentionally sent
+to quote providers.
 
-#### Password Requirements
-```python
-# Configurable password policy
-MIN_PASSWORD_LENGTH = 12
-REQUIRE_UPPERCASE = True
-REQUIRE_LOWERCASE = True
-REQUIRE_NUMBERS = True
-REQUIRE_SPECIAL_CHARS = False  # Optional but recommended
-```
+The application is usable without quote refreshes, but cached prices can become
+stale when the network or provider is unavailable.
 
-#### Password Validation
-- **Length**: Minimum 12 characters (configurable)
-- **Complexity**: Mixed case, numbers recommended
-- **Common Passwords**: Checked against common password lists
-- **Strength Meter**: Visual feedback during setup
+## File Permissions
 
-#### Authentication Flow
-1. User enters master password
-2. Password hashed and compared with stored hash
-3. If valid, encryption key derived for session
-4. Session established with timeout
-5. Automatic logout after inactivity
+On Unix-like systems, configuration initialization attempts to apply:
 
-### Session Management
+| Resource | Mode |
+| --- | --- |
+| Database, backup, log, and temporary files | `0600` |
+| `data/`, `backups/`, `logs/`, and `temp/` directories | `0700` |
 
-#### Session Security
-```python
-# Flask session configuration
-SESSION_COOKIE_SECURE = False      # HTTP for localhost
-SESSION_COOKIE_HTTPONLY = True     # No JavaScript access
-SESSION_COOKIE_SAMESITE = 'Lax'    # CSRF protection
-PERMANENT_SESSION_LIFETIME = timedelta(hours=2)  # Auto-logout
-```
+Windows permissions are managed by Windows ACLs; the application does not
+change them.
 
-#### Session Features
-- **Automatic Timeout**: Configurable inactivity timeout
-- **Secure Cookies**: HTTPOnly and SameSite protection
-- **Session Invalidation**: Logout clears all session data
-- **Concurrent Sessions**: Only one active session per instance
+Verify permissions when data is stored outside the repository:
 
-## File System Security
-
-### File Permissions
-
-#### Unix/Linux/macOS Permissions
 ```bash
-# Database files (owner read/write only)
-chmod 600 *.db
-
-# Log files (owner read/write, others read)
-chmod 644 logs/*.log
-
-# Backup files (owner read/write only)
-chmod 600 backups/*
-
-# Configuration files (owner read/write only)
-chmod 600 .env*
-
-# Application directory (owner full access)
-chmod 750 /opt/networth-tracker
+chmod 700 /path/to/networth-data
+chmod 600 /path/to/networth-data/*.db
 ```
 
-#### Windows Security
-```cmd
-# Remove inheritance and set explicit permissions
-icacls "networth-tracker" /inheritance:r
-icacls "networth-tracker" /grant:r "%USERNAME%:(OI)(CI)F"
+## Backups and Recovery
 
-# Restrict database file access
-icacls "*.db" /grant:r "%USERNAME%:F"
-```
+The web Export Data action encrypts its output with the key active in the
+current session. The export does not contain the database salt needed to derive
+that key on a new database.
 
-### Directory Structure Security
+Consequences:
 
-```
-networth-tracker/
-├── data/           # 700 - Database files (owner only)
-├── logs/           # 755 - Log files (readable by others)
-├── backups/        # 700 - Backup files (owner only)
-├── temp/           # 700 - Temporary files (owner only)
-└── config/         # 700 - Configuration files (owner only)
-```
+- An export can be imported back into the same database while authenticated
+  with the same key.
+- A normal export is not currently a standalone disaster-recovery or
+  cross-computer backup.
+- Entering a backup password in the import dialog supports generated demo
+  backups, which use a fixed demo salt. It does not reconstruct the key for a
+  normal export.
+- An export cannot recover data after the master password or original database
+  salt is lost.
 
-### Automatic Permission Setting
+For recoverable backups, stop the application and copy the entire SQLite
+database file. That file contains the salt, password-verification data, and
+encrypted records:
 
-The application automatically sets secure permissions on startup:
-
-```python
-def set_secure_permissions():
-    """Set secure file permissions on startup."""
-    if os.name != 'nt':  # Unix-like systems
-        # Database files
-        for db_file in glob.glob('*.db'):
-            os.chmod(db_file, 0o600)
-
-        # Backup files
-        for backup_file in glob.glob('backups/*'):
-            os.chmod(backup_file, 0o600)
-
-        # Configuration files
-        for config_file in glob.glob('.env*'):
-            os.chmod(config_file, 0o600)
-```
-
-## Network Security
-
-### Localhost-Only Operation
-
-#### Binding Configuration
-- **Host**: 127.0.0.1 (localhost only)
-- **Port**: 5000 (configurable)
-- **External Access**: Explicitly disabled
-- **Firewall**: No inbound rules required
-
-#### Network Isolation
-```python
-# Flask application binding
-app.run(
-    host='127.0.0.1',  # Localhost only
-    port=5000,
-    debug=False
-)
-```
-
-### External API Security
-
-#### Stock Price API
-- **Data Sent**: Only stock symbols (e.g., "AAPL", "GOOGL")
-- **Data NOT Sent**: No quantities, values, or personal information
-- **Rate Limiting**: Respects API rate limits
-- **Timeout**: Configurable request timeouts
-- **Error Handling**: Graceful degradation if API unavailable
-
-#### API Security Measures
-```python
-class StockPriceService:
-    def get_stock_price(self, symbol: str) -> float:
-        """Get stock price - only symbol is transmitted."""
-        # Validate symbol format (letters only)
-        if not re.match(r'^[A-Z]{1,5}$', symbol):
-            raise ValueError("Invalid stock symbol")
-
-        # Make API request with timeout
-        response = requests.get(
-            f"https://api.example.com/quote/{symbol}",
-            timeout=30,
-            headers={'User-Agent': 'NetworthTracker/1.0'}
-        )
-
-        # No financial data in request or logs
-        return response.json()['price']
-```
-
-## Privacy Protection
-
-### Data Minimization
-
-#### What We Collect
-- **Financial Data**: Only what you enter for tracking
-- **Usage Data**: None (no analytics or telemetry)
-- **Personal Data**: None (no names, addresses, SSNs)
-- **System Data**: Only local logs for debugging
-
-#### What We Don't Collect
-- **Browsing History**: No tracking of web activity
-- **Location Data**: No GPS or location tracking
-- **Device Information**: No device fingerprinting
-- **Network Data**: No network traffic analysis
-
-### Local-First Architecture
-
-#### Data Storage
-- **Location**: Local machine only
-- **Cloud Sync**: None (by design)
-- **Backups**: User-controlled local backups only
-- **Sharing**: No automatic sharing or synchronization
-
-#### Privacy Benefits
-- **No Cloud Exposure**: Data never leaves your machine
-- **No Third-Party Access**: No external services access your data
-- **User Control**: Complete control over your data
-- **Offline Operation**: Full functionality without internet
-
-### Data Anonymization
-
-#### Demo Database
-- **Synthetic Data**: Realistic but fake financial data
-- **No Real Information**: No actual financial institutions or accounts
-- **Safe Exploration**: Learn features without privacy risk
-- **Importable Data**: Can be imported through standard import functionality
-
-## Security Best Practices
-
-### For Users
-
-#### Password Security
-1. **Strong Master Password**: Use a unique, complex password
-2. **Password Manager**: Consider using a password manager
-3. **Regular Changes**: Change password if compromised
-4. **No Sharing**: Never share your master password
-
-#### System Security
-1. **Keep Updated**: Update operating system and Python
-2. **Antivirus**: Use reputable antivirus software
-3. **Firewall**: Enable system firewall
-4. **Physical Security**: Secure physical access to computer
-
-#### Data Protection
-1. **Regular Backups**: Export data regularly
-2. **Secure Storage**: Store backups in secure locations
-3. **Multiple Copies**: Keep backups in multiple locations
-4. **Test Restores**: Periodically test backup restoration
-
-### For Administrators
-
-#### Deployment Security
-1. **Secure Installation**: Follow deployment security guidelines
-2. **File Permissions**: Verify correct file permissions
-3. **Network Isolation**: Ensure localhost-only binding
-4. **Process Security**: Run with minimal privileges
-
-#### Monitoring
-1. **Log Monitoring**: Monitor application logs for issues
-2. **File Integrity**: Monitor database file integrity
-3. **Access Monitoring**: Monitor file access patterns
-4. **Performance Monitoring**: Monitor for unusual activity
-
-## Threat Model
-
-### Threats Addressed
-
-#### Local Threats
-- **Physical Access**: Database encryption protects against unauthorized access
-- **Malware**: File permissions and encryption provide protection
-- **Data Theft**: Encrypted storage prevents data extraction
-- **Privilege Escalation**: Minimal privileges and sandboxing
-
-#### Network Threats
-- **Man-in-the-Middle**: Localhost-only operation eliminates network exposure
-- **Eavesdropping**: No sensitive data transmitted over network
-- **Remote Access**: No remote access capabilities
-- **API Attacks**: Only stock symbols transmitted to external APIs
-
-### Threats Not Addressed
-
-#### Advanced Persistent Threats
-- **Sophisticated Malware**: Advanced malware with keyloggers
-- **State-Level Actors**: Nation-state level attacks
-- **Hardware Attacks**: Physical hardware tampering
-- **Social Engineering**: Attacks targeting the user directly
-
-#### Mitigation Strategies
-- **Defense in Depth**: Multiple security layers
-- **User Education**: Security awareness training
-- **Regular Updates**: Keep system and application updated
-- **Monitoring**: Implement security monitoring
-
-## Security Monitoring
-
-### Log Analysis
-
-#### Security-Relevant Events
-```python
-# Authentication events
-logger.info(f"Login attempt from {request.remote_addr}")
-logger.warning(f"Failed login attempt: {failed_attempts}")
-logger.info(f"User logged out: session_duration={duration}")
-
-# Data access events
-logger.info(f"Database accessed: operation={operation}")
-logger.warning(f"Database error: {error_message}")
-
-# File system events
-logger.info(f"File permissions set: {file_path}")
-logger.warning(f"Permission denied: {file_path}")
-```
-
-#### Log Monitoring Script
 ```bash
-#!/bin/bash
-# Monitor security events in logs
-
-# Check for failed login attempts
-grep "Failed login" logs/networth_tracker.log | tail -10
-
-# Check for permission errors
-grep "Permission denied" logs/networth_tracker_errors.log
-
-# Check for database errors
-grep "Database error" logs/networth_tracker_errors.log
+./venv/bin/python scripts/start.py --stop
+cp /path/to/networth.db /secure/backup/networth-$(date +%Y%m%d-%H%M%S).db
+chmod 600 /secure/backup/networth-*.db
 ```
 
-### Security Validation
+Do not copy a live database. Test recovery with a separate `DATABASE_PATH`
+before relying on a backup.
 
-#### Automated Security Checks
-```python
-def security_audit():
-    """Perform automated security audit."""
-    issues = []
+## Logs
 
-    # Check file permissions
-    for db_file in glob.glob('*.db'):
-        if oct(os.stat(db_file).st_mode)[-3:] != '600':
-            issues.append(f"Insecure database permissions: {db_file}")
+Logs may include operation names, IDs, errors, paths, and request information.
+The `log_function_call` helper redacts argument values when their key names
+contain `password`, `key`, `token`, or `secret`; arbitrary log messages are not
+automatically scrubbed.
 
-    # Check for weak passwords (if configurable)
-    if len(config.SECRET_KEY) < 32:
-        issues.append("Weak secret key detected")
+Do not add logs containing passwords, keys, decrypted payloads, account
+numbers, or backup contents.
 
-    # Check for outdated dependencies
-    # Implementation depends on requirements
+## Threats and Limits
 
-    return issues
-```
+The design helps against casual inspection of selected payload fields and
+reduces remote exposure through localhost binding. It does not protect against:
 
-### Incident Response
+- Malware, keyloggers, debuggers, or an attacker controlling the running user
+  account
+- Memory inspection while the process is authenticated
+- Plaintext-field disclosure from a copied SQLite file
+- Compromise caused by exposing the built-in server to a network
+- Loss of the database and salt when only normal export files remain
 
-#### Security Incident Procedures
-1. **Immediate Response**: Stop application if compromise suspected
-2. **Assessment**: Determine scope and impact of incident
-3. **Containment**: Isolate affected systems
-4. **Recovery**: Restore from clean backups if necessary
-5. **Lessons Learned**: Update security measures
-
-#### Recovery Procedures
-```bash
-# Emergency shutdown
-./scripts/start.sh --stop
-
-# Backup current state
-python scripts/init_db.py --backup
-
-# Restore from clean backup
-python scripts/init_db.py --restore backup_file.db
-
-# Verify integrity
-python scripts/init_db.py --verify
-
-# Restart with enhanced monitoring
-./scripts/start.sh --env production
-```
-
-## Security Compliance
-
-### Standards Alignment
-
-#### OWASP Guidelines
-- **A01 - Broken Access Control**: Strong authentication and session management
-- **A02 - Cryptographic Failures**: Industry-standard encryption
-- **A03 - Injection**: Parameterized queries and input validation
-- **A04 - Insecure Design**: Security-first architecture
-- **A05 - Security Misconfiguration**: Secure defaults and configuration
-
-#### Privacy Regulations
-- **GDPR Compliance**: Local storage, user control, data minimization
-- **CCPA Compliance**: No data collection or sharing
-- **PIPEDA Compliance**: Privacy by design principles
-
-### Security Documentation
-
-This security guide should be reviewed and updated regularly to address:
-- New threats and vulnerabilities
-- Changes in security best practices
-- Updates to encryption standards
-- Regulatory requirement changes
-
----
-
-**Security Review Date**: 2025-01-09
-**Next Review Due**: 2025-07-09
-**Security Contact**: See main documentation for support
+No GDPR, CCPA, PIPEDA, OWASP, or other compliance certification is claimed.

@@ -42,7 +42,14 @@ class TestWatchlistAPI:
 
         with app.test_client() as client:
             with app.app_context():
-                # Mock authentication to be always authenticated
+                # Mock authentication to be always authenticated.
+                # ``is_setup_required`` must be stubbed too: the @api_endpoint
+                # decorator checks it, and the shared auth_manager singleton can
+                # be left reporting "setup required" by earlier tests that
+                # re-__init__ it against a since-deleted temp database. Without
+                # this stub the endpoints 403 in a full-suite run (but pass when
+                # this file runs alone), i.e. an order-dependent failure.
+                app.auth_manager.is_setup_required = Mock(return_value=False)
                 app.auth_manager.is_authenticated = Mock(return_value=True)
                 app.auth_manager.require_authentication = Mock(return_value=True)
 
@@ -175,19 +182,21 @@ class TestWatchlistAPI:
         """Test adding duplicate symbol to watchlist"""
         test_client, mock_db_service, mock_encryption_service = client
 
-        from services.watchlist import WatchlistServiceError
+        from services.error_handler import WatchlistDuplicateError
 
         with patch('services.watchlist.WatchlistService') as mock_watchlist_service_class:
             mock_service = Mock()
-            mock_service.add_stock.side_effect = WatchlistServiceError("Stock AAPL is already in the watchlist")
+            mock_service.add_stock.side_effect = WatchlistDuplicateError('AAPL')
             mock_watchlist_service_class.return_value = mock_service
 
             response = test_client.post('/api/watchlist', json={'symbol': 'AAPL'})
 
+            # A real duplicate raises WatchlistDuplicateError (a VALIDATION-type
+            # AppError). The route re-raises it and @api_endpoint maps it to 400.
             assert response.status_code == 400
             data = json.loads(response.data)
             assert data['error'] is True
-            assert 'already in the watchlist' in data['message']
+            assert 'already in your watchlist' in data['message']
 
     def test_remove_from_watchlist_success(self, client):
         """Test successful removal of stock from watchlist"""
@@ -281,9 +290,24 @@ class TestWatchlistAPI:
             'TSLA': False
         }
 
+        # WatchlistService.update_prices() returns a structured dict with
+        # 'results', 'summary' and 'timestamp' keys.
+        service_return = {
+            'success': True,
+            'results': update_results,
+            'summary': {
+                'total_items': 3,
+                'successful_updates': 2,
+                'failed_updates': 1,
+                'successful_symbols': ['AAPL', 'GOOGL'],
+                'failed_symbols': ['TSLA']
+            },
+            'timestamp': datetime.now().isoformat()
+        }
+
         with patch('services.watchlist.WatchlistService') as mock_watchlist_service_class:
             mock_service = Mock()
-            mock_service.update_prices.return_value = update_results
+            mock_service.update_prices.return_value = service_return
             mock_watchlist_service_class.return_value = mock_service
 
             response = test_client.put('/api/watchlist/prices')
@@ -306,9 +330,22 @@ class TestWatchlistAPI:
         """Test price update with empty watchlist"""
         test_client, mock_db_service, mock_encryption_service = client
 
+        empty_return = {
+            'success': True,
+            'results': {},
+            'summary': {
+                'total_items': 0,
+                'successful_updates': 0,
+                'failed_updates': 0,
+                'successful_symbols': [],
+                'failed_symbols': []
+            },
+            'timestamp': datetime.now().isoformat()
+        }
+
         with patch('services.watchlist.WatchlistService') as mock_watchlist_service_class:
             mock_service = Mock()
-            mock_service.update_prices.return_value = {}
+            mock_service.update_prices.return_value = empty_return
             mock_watchlist_service_class.return_value = mock_service
 
             response = test_client.put('/api/watchlist/prices')
@@ -366,6 +403,8 @@ class TestWatchlistAPI:
 
             assert response.status_code == 500
             data = json.loads(response.data)
+            # Every endpoint raises DatabaseError, which @api_endpoint renders
+            # as the shared {'error': True, 'message': ...} envelope.
             assert data['error'] is True
             assert 'Database service not available' in data['message']
 

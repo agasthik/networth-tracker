@@ -38,6 +38,23 @@ global_settings:
     - rule_id: 'python.lang.security.audit.hardcoded-password-default-argument.hardcoded-password-default-argument'
       path: 'scripts/generate_demo_database.py'
       reason: 'This is a demo database setup script'
+    # Suppress detect-secrets keyword findings (false positives from test/demo secret keywords)
+    - rule_id: 'SECRET-SECRET-KEYWORD'
+      path: 'tests/*.py'
+      reason: 'Test files contain mock passwords, master keys, secret keywords for testing encryption/auth flows'
+    - rule_id: 'SECRET-SECRET-KEYWORD'
+      path: 'scripts/create_demo_backup.py'
+      line_start: 217
+      line_end: 217
+      reason: 'Demo backup script - exposed finding at line 217'
+    - rule_id: 'SECRET-SECRET-KEYWORD'
+      path: 'scripts/generate_demo_database.py'
+      reason: 'Demo database generator script - contains intentional placeholder passwords and secret keywords for creating synthetic demo data (e.g. demo_password = "demo123")'
+    - rule_id: 'SECRET-SECRET-KEYWORD'
+      path: 'scripts/README_demo_generator.md'
+      line_start: 65
+      line_end: 65
+      reason: 'Demo generator docs - exposed finding at line 65'
 
 # Whether to fail with non-zero exit code if actionable findings are found
 fail_on_findings: true

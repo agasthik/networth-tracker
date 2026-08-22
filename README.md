@@ -14,8 +14,8 @@ cd networth-tracker
 scripts\start.bat   # Windows
 
 # Or manually
-python3 -m venv .venv
-source .venv/bin/activate  # macOS/Linux: .venv\Scripts\activate on Windows
+python3 -m venv venv
+source venv/bin/activate  # macOS/Linux: venv\Scripts\activate on Windows
 python -m pip install -r requirements.txt
 python scripts/start.py
 ```
@@ -57,7 +57,7 @@ Open your browser to `http://127.0.0.1:5000`
 - **[Installation Guide](docs/installation.md)** - Step-by-step setup for all platforms
 - **[Quick Start Guide](docs/quick-start.md)** - Get running in 5 minutes
 - **[User Guide](docs/user-guide.md)** - Complete feature documentation
-- **[Demo Database Guide](docs/demo-data.md)** - Explore features with synthetic data
+- **[Demo Environment Guide](docs/demo-data.md)** - Explore features with synthetic data in an isolated database
 
 ### Configuration & Deployment
 - **[Configuration Reference](docs/configuration.md)** - Detailed configuration options
@@ -106,14 +106,14 @@ networth-tracker/
 ## 🔧 System Requirements
 
 ### Minimum Requirements
-- **Python**: 3.8 or higher
+- **Python**: 3.10 or higher
 - **RAM**: 512 MB available memory
 - **Storage**: 100 MB free disk space
 - **OS**: Windows 10+, macOS 10.14+, Linux (Ubuntu 18.04+)
 - **Network**: Internet connection for stock price updates (optional)
 
 ### Recommended
-- **Python**: 3.9 or higher
+- **Python**: 3.11 or higher
 - **RAM**: 1 GB available memory
 - **Storage**: 500 MB free disk space (for data and backups)
 - **Browser**: Modern web browser (Chrome, Firefox, Safari, Edge)
@@ -152,7 +152,7 @@ networth-tracker/
 ## 🏛 Technical Architecture
 
 ### Core Technologies
-- **Backend**: Python 3.8+ with Flask web framework
+- **Backend**: Python 3.10+ with Flask web framework
 - **Database**: SQLite with AES-256 encryption
 - **Frontend**: HTML templates (Jinja2), CSS, JavaScript
 - **Security**: cryptography library for encryption, PBKDF2 key derivation
@@ -175,7 +175,7 @@ networth-tracker/
 1. **[FAQ](docs/faq.md)** - Common questions and answers
 2. **[Troubleshooting](docs/troubleshooting.md)** - Issue resolution guide
 3. **Log Files** - Check `logs/` directory for error details
-4. **[Demo Database Guide](docs/demo-data.md)** - Test functionality with synthetic data
+4. **[Demo Environment Guide](docs/demo-data.md)** - Test functionality with synthetic data in an isolated database
 
 ### Development Resources
 - **[Installation Guide](docs/installation.md)** - Complete setup instructions

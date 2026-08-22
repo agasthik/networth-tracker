@@ -8,7 +8,8 @@ import json
 import uuid
 import os
 import threading
-from datetime import datetime
+from contextlib import contextmanager
+from datetime import date, datetime
 from typing import List, Optional, Dict, Any, Union
 from pathlib import Path
 
@@ -26,7 +27,7 @@ logger = get_logger(__name__)
 class DatabaseService:
     """Service for encrypted SQLite database operations."""
 
-    SCHEMA_VERSION = 5
+    SCHEMA_VERSION = 6
 
     def __init__(self, db_path: str, encryption_service: EncryptionService):
         """
@@ -145,6 +146,46 @@ class DatabaseService:
             # Try to connect if no connection exists
             return self.connect()
         return connection
+
+    def _commit(self):
+        """
+        Commit the current connection unless a transaction() block is active.
+
+        Individual write methods call this instead of committing directly so
+        that a surrounding transaction() can batch them into a single atomic
+        unit (all-or-nothing) rather than persisting each write immediately.
+        """
+        if getattr(self._thread_local, 'suppress_commit', False):
+            return
+        self.connection.commit()
+
+    @contextmanager
+    def transaction(self):
+        """
+        Run a block of writes atomically.
+
+        Write methods inside the block defer their commits; the whole block is
+        committed once on success or rolled back entirely on any exception, so
+        an operation like an import can never partially succeed. Nested
+        transaction() blocks join the outermost transaction.
+
+        Raises:
+            The original exception after rolling back, so callers can react.
+        """
+        conn = self.connect()
+        already_active = getattr(self._thread_local, 'suppress_commit', False)
+        self._thread_local.suppress_commit = True
+        try:
+            yield
+        except Exception:
+            if not already_active:
+                conn.rollback()
+            raise
+        else:
+            if not already_active:
+                conn.commit()
+        finally:
+            self._thread_local.suppress_commit = already_active
 
     def _initialize_schema(self):
         """
@@ -298,6 +339,9 @@ class DatabaseService:
         Returns:
             Generated account ID
         """
+        account_data = account_data.copy()
+        positions = account_data.pop('positions', None)
+
         # Use provided ID if available, otherwise generate new one
         account_id = account_data.get('id', str(uuid.uuid4()))
         now = int(datetime.now().timestamp())
@@ -327,7 +371,13 @@ class DatabaseService:
         ''', (account_id, public_data['name'], public_data['institution'],
               public_data['type'], encrypted_data, now, now, self.SCHEMA_VERSION, is_demo))
 
-        self.connection.commit()
+        self._commit()
+        if positions is not None:
+            try:
+                self.replace_stock_positions(account_id, positions)
+            except Exception:
+                self.delete_account(account_id)
+                raise
         return account_id
 
     def get_account(self, account_id: str) -> Optional[Dict[str, Any]]:
@@ -483,7 +533,7 @@ class DatabaseService:
             cursor.execute('DELETE FROM accounts WHERE is_demo = 1')
             deleted_count = cursor.rowcount
 
-            self.connection.commit()
+            self._commit()
 
             logger.info(f"Successfully deleted {deleted_count} demo accounts and their related data")
             return deleted_count
@@ -516,6 +566,8 @@ class DatabaseService:
         Returns:
             True if account was updated, False if not found
         """
+        account_data = account_data.copy()
+        positions = account_data.pop('positions', None)
         cursor = self.connect().cursor()
 
         # Check if account exists and get current demo status
@@ -554,7 +606,9 @@ class DatabaseService:
         ''', (public_data['name'], public_data['institution'], public_data['type'],
               encrypted_data, now, is_demo, account_id))
 
-        self.connection.commit()
+        self._commit()
+        if positions is not None:
+            self.replace_stock_positions(account_id, positions)
         return True
 
     def save_account(self, account, is_demo: bool = False) -> str:
@@ -616,12 +670,14 @@ class DatabaseService:
 
         # Delete account (cascading deletes will handle related data)
         cursor.execute('DELETE FROM accounts WHERE id = ?', (account_id,))
-        self.connection.commit()
+        self._commit()
         return True
 
     # Historical snapshots operations
     def create_historical_snapshot(self, account_id: str, value: float,
-                                 change_type: str, metadata: Optional[Dict[str, Any]] = None) -> str:
+                                 change_type: str, metadata: Optional[Dict[str, Any]] = None,
+                                 timestamp: Optional[Union[datetime, int]] = None,
+                                 snapshot_id: Optional[str] = None) -> str:
         """
         Create historical snapshot for account value.
 
@@ -630,12 +686,24 @@ class DatabaseService:
             value: Account value at snapshot time
             change_type: Type of change that triggered snapshot
             metadata: Optional metadata dictionary
+            timestamp: Optional snapshot time. Accepts a datetime or a Unix
+                epoch int. Defaults to now. Provide the original value when
+                restoring a backup to preserve historical chronology.
+            snapshot_id: Optional snapshot ID. Defaults to a new UUID. Provide
+                the original ID when restoring a backup to preserve identity.
 
         Returns:
-            Generated snapshot ID
+            The snapshot ID (the provided one, or a newly generated UUID).
         """
-        snapshot_id = str(uuid.uuid4())
-        now = int(datetime.now().timestamp())
+        if snapshot_id is None:
+            snapshot_id = str(uuid.uuid4())
+
+        if timestamp is None:
+            ts = int(datetime.now().timestamp())
+        elif isinstance(timestamp, datetime):
+            ts = int(timestamp.timestamp())
+        else:
+            ts = int(timestamp)
 
         encrypted_metadata = None
         if metadata:
@@ -646,9 +714,9 @@ class DatabaseService:
             INSERT INTO historical_snapshots (id, account_id, timestamp, value,
                                             change_type, encrypted_metadata)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (snapshot_id, account_id, now, value, change_type, encrypted_metadata))
+        ''', (snapshot_id, account_id, ts, value, change_type, encrypted_metadata))
 
-        self.connection.commit()
+        self._commit()
         return snapshot_id
 
     def get_historical_snapshots(self, account_id: str,
@@ -726,7 +794,7 @@ class DatabaseService:
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (position_id, trading_account_id, symbol, shares, purchase_price, purchase_date))
 
-        self.connection.commit()
+        self._commit()
         return position_id
 
     def get_stock_positions(self, trading_account_id: str) -> List[Dict[str, Any]]:
@@ -783,7 +851,7 @@ class DatabaseService:
         ''', (current_price, now, position_id))
 
         if cursor.rowcount > 0:
-            self.connection.commit()
+            self._commit()
             return True
         return False
 
@@ -823,9 +891,154 @@ class DatabaseService:
             return False
 
         if cursor.rowcount > 0:
-            self.connection.commit()
+            self._commit()
             return True
         return False
+
+    def replace_stock_positions(
+        self,
+        trading_account_id: str,
+        positions: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Replace an account's holdings in the canonical stock_positions table.
+
+        Existing IDs are retained when supplied. Positions without IDs are
+        matched by symbol before a new ID is generated.
+        """
+        connection = self.connect()
+        cursor = connection.cursor()
+        cursor.execute(
+            'SELECT id, symbol FROM stock_positions WHERE trading_account_id = ?',
+            (trading_account_id,)
+        )
+        existing_rows = cursor.fetchall()
+        existing_ids = {row['id'] for row in existing_rows}
+        existing_by_symbol = {row['symbol'].upper(): row['id'] for row in existing_rows}
+
+        prepared_positions = []
+        seen_symbols = set()
+        for position in positions:
+            symbol = str(position.get('symbol', '')).upper().strip()
+            shares = float(position.get('shares', 0))
+            purchase_price = float(position.get('purchase_price', 0))
+            current_price = position.get('current_price')
+            if current_price in ('', None):
+                current_price = None
+            else:
+                current_price = float(current_price)
+
+            if not symbol:
+                raise ValueError("Stock symbol cannot be empty")
+            if symbol in seen_symbols:
+                raise ValueError(f"Duplicate stock position: {symbol}")
+            if shares <= 0:
+                raise ValueError("Number of shares must be positive")
+            if purchase_price <= 0:
+                raise ValueError("Purchase price must be positive")
+            if current_price is not None and current_price <= 0:
+                raise ValueError("Current price must be positive")
+
+            purchase_date = position.get('purchase_date')
+            if isinstance(purchase_date, datetime):
+                purchase_timestamp = int(purchase_date.timestamp())
+            elif isinstance(purchase_date, date):
+                purchase_timestamp = int(
+                    datetime.combine(purchase_date, datetime.min.time()).timestamp()
+                )
+            elif isinstance(purchase_date, str):
+                purchase_timestamp = int(
+                    datetime.fromisoformat(
+                        purchase_date.replace('Z', '+00:00')
+                    ).timestamp()
+                )
+            else:
+                purchase_timestamp = int(purchase_date)
+
+            last_price_update = (
+                position.get('last_price_update') or position.get('last_updated')
+            )
+            if isinstance(last_price_update, datetime):
+                last_price_timestamp = int(last_price_update.timestamp())
+            elif isinstance(last_price_update, str):
+                last_price_timestamp = int(
+                    datetime.fromisoformat(
+                        last_price_update.replace('Z', '+00:00')
+                    ).timestamp()
+                )
+            elif last_price_update is not None:
+                last_price_timestamp = int(last_price_update)
+            else:
+                last_price_timestamp = None
+
+            requested_id = position.get('id')
+            if requested_id not in existing_ids:
+                requested_id = existing_by_symbol.get(symbol)
+            position_id = requested_id or str(uuid.uuid4())
+
+            prepared_positions.append({
+                'id': position_id,
+                'symbol': symbol,
+                'shares': shares,
+                'purchase_price': purchase_price,
+                'purchase_date': purchase_timestamp,
+                'current_price': current_price,
+                'last_price_update': last_price_timestamp,
+            })
+            seen_symbols.add(symbol)
+
+        retained_ids = {position['id'] for position in prepared_positions}
+
+        try:
+            for position in prepared_positions:
+                if position['id'] in existing_ids:
+                    cursor.execute('''
+                        UPDATE stock_positions
+                        SET symbol = ?, shares = ?, purchase_price = ?,
+                            purchase_date = ?, current_price = ?,
+                            last_price_update = ?
+                        WHERE id = ? AND trading_account_id = ?
+                    ''', (
+                        position['symbol'],
+                        position['shares'],
+                        position['purchase_price'],
+                        position['purchase_date'],
+                        position['current_price'],
+                        position['last_price_update'],
+                        position['id'],
+                        trading_account_id,
+                    ))
+                else:
+                    cursor.execute('''
+                        INSERT INTO stock_positions (
+                            id, trading_account_id, symbol, shares,
+                            purchase_price, purchase_date, current_price,
+                            last_price_update
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        position['id'],
+                        trading_account_id,
+                        position['symbol'],
+                        position['shares'],
+                        position['purchase_price'],
+                        position['purchase_date'],
+                        position['current_price'],
+                        position['last_price_update'],
+                    ))
+
+            for position_id in existing_ids - retained_ids:
+                cursor.execute(
+                    'DELETE FROM stock_positions WHERE id = ? AND trading_account_id = ?',
+                    (position_id, trading_account_id)
+                )
+
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+
+        return self.get_stock_positions(trading_account_id)
 
     def delete_stock_position(self, position_id: str) -> bool:
         """
@@ -841,7 +1054,7 @@ class DatabaseService:
         cursor.execute('DELETE FROM stock_positions WHERE id = ?', (position_id,))
 
         if cursor.rowcount > 0:
-            self.connection.commit()
+            self._commit()
             return True
         return False
 
@@ -862,7 +1075,7 @@ class DatabaseService:
             VALUES (?, ?)
         ''', (key, encrypted_value))
 
-        self.connection.commit()
+        self._commit()
 
     def get_setting(self, key: str) -> str:
         """
@@ -926,7 +1139,7 @@ class DatabaseService:
             # Update all existing accounts to have is_demo = FALSE (explicit)
             cursor.execute('UPDATE accounts SET is_demo = FALSE WHERE is_demo IS NULL')
 
-            self.connection.commit()
+            self._commit()
 
             logger.info("Successfully added is_demo column to accounts table")
             return True
@@ -985,7 +1198,7 @@ class DatabaseService:
                 VALUES (?, ?, ?, ?, ?)
             ''', (item_id, symbol, encrypted_data, added_date, is_demo))
 
-            self.connection.commit()
+            self._commit()
             logger.info(f"Created watchlist item for symbol {symbol}")
             return item_id
 
@@ -1201,7 +1414,7 @@ class DatabaseService:
                     WHERE symbol = ?
                 ''', (encrypted_data, is_demo, symbol.upper()))
 
-            self.connection.commit()
+            self._commit()
             logger.info(f"Updated watchlist item for symbol {symbol}")
             return True
 
@@ -1236,7 +1449,7 @@ class DatabaseService:
 
             # Delete the item
             cursor.execute('DELETE FROM watchlist WHERE symbol = ?', (symbol.upper(),))
-            self.connection.commit()
+            self._commit()
 
             logger.info(f"Deleted watchlist item for symbol {symbol}")
             return True
@@ -1266,7 +1479,7 @@ class DatabaseService:
             cursor.execute('DELETE FROM watchlist WHERE is_demo = 1')
             deleted_count = cursor.rowcount
 
-            self.connection.commit()
+            self._commit()
 
             logger.info(f"Successfully deleted {deleted_count} demo watchlist items")
             return deleted_count

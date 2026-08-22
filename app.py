@@ -11,8 +11,18 @@ from functools import wraps
 from config import ConfigManager, get_environment
 
 from services.auth import AuthenticationManager
+from services.contribution_limits import (
+    CONTRIBUTION_LIMITS_VERSION,
+    get_contribution_limits,
+)
 from services.historical import HistoricalDataService
-from models.accounts import AccountFactory, AccountType, BaseAccount, ChangeType
+from models.accounts import (
+    AccountFactory,
+    AccountType,
+    BaseAccount,
+    ChangeType,
+    StockPosition,
+)
 from datetime import date, datetime, timedelta
 from typing import Dict, Any, Optional
 import json
@@ -47,6 +57,16 @@ app.logger = app_logger
 auth_manager = AuthenticationManager(config.DATABASE_PATH)
 app.auth_manager = auth_manager  # Make available to error handlers
 
+
+@app.before_request
+def _sync_auth_manager():
+    """Keep ``app.auth_manager`` (used by the API error-handling decorators)
+    in sync with the module-level ``auth_manager`` (used by the route
+    functions). In normal operation these are the same object, so this is a
+    no-op; it only matters when the singleton is reassigned (e.g. in tests),
+    where it prevents the two references from diverging within a request."""
+    if app.auth_manager is not auth_manager:
+        app.auth_manager = auth_manager
 
 
 # Register comprehensive error handlers
@@ -214,6 +234,54 @@ def health_check():
 
 # Account Management API Endpoints
 
+
+def _serialize_stock_positions(positions):
+    """Return stock positions in the account API's JSON-friendly format."""
+    serialized = []
+    for position in positions:
+        position_data = position.copy()
+        purchase_date = position_data.get('purchase_date')
+        if isinstance(purchase_date, datetime):
+            position_data['purchase_date'] = purchase_date.date().isoformat()
+        elif isinstance(purchase_date, date):
+            position_data['purchase_date'] = purchase_date.isoformat()
+
+        last_price_update = position_data.get('last_price_update')
+        if isinstance(last_price_update, datetime):
+            position_data['last_price_update'] = last_price_update.isoformat()
+        serialized.append(position_data)
+    return serialized
+
+
+def _positions_for_account_model(positions):
+    """Strip database-only fields before constructing StockPosition models."""
+    model_positions = []
+    for position in positions or []:
+        position_data = {
+            'symbol': position.get('symbol'),
+            'shares': position.get('shares'),
+            'purchase_price': position.get('purchase_price'),
+            'purchase_date': position.get('purchase_date'),
+            'current_price': position.get('current_price'),
+        }
+        last_updated = (
+            position.get('last_updated') or position.get('last_price_update')
+        )
+        if last_updated:
+            position_data['last_updated'] = last_updated
+
+        purchase_date = position_data['purchase_date']
+        if isinstance(purchase_date, datetime):
+            position_data['purchase_date'] = purchase_date.date().isoformat()
+        elif isinstance(purchase_date, date):
+            position_data['purchase_date'] = purchase_date.isoformat()
+
+        if isinstance(last_updated, datetime):
+            position_data['last_updated'] = last_updated.isoformat()
+        model_positions.append(position_data)
+    return model_positions
+
+
 @app.route('/api/accounts', methods=['GET'])
 @api_endpoint
 @log_data_operation('READ', 'accounts')
@@ -272,10 +340,23 @@ def get_accounts():
                 if field in account_data_clean and isinstance(account_data_clean[field], date):
                     account_data_clean[field] = account_data_clean[field].isoformat()
 
+            canonical_positions = []
+            if account_data.get('type') == AccountType.TRADING.value:
+                canonical_positions = db_service.get_stock_positions(
+                    account_data['id']
+                )
+                account_data_clean['positions'] = _positions_for_account_model(
+                    canonical_positions
+                )
+
             # Create account object to get current value
             account = AccountFactory.create_account_from_dict(account_data_clean)
             account_response = account.to_dict()
             account_response['current_value'] = account.get_current_value()
+            if account.account_type == AccountType.TRADING:
+                account_response['positions'] = _serialize_stock_positions(
+                    canonical_positions
+                )
             # Ensure 'type' field is available for API compatibility
             account_response['type'] = account_response['account_type']
             # Add is_demo field back to response if it exists in original data
@@ -361,6 +442,11 @@ def create_account():
         try:
             # Remove fields that shouldn't be passed to account constructor
             account_data = data.copy()
+            submitted_positions = (
+                data.get('positions', [])
+                if account_type == AccountType.TRADING
+                else None
+            )
 
             # Remove form-specific fields that aren't part of account models
             form_only_fields = ['type', 'account_id', 'account_number']
@@ -400,6 +486,14 @@ def create_account():
                             'code': 'INVALID_NUMERIC_FORMAT'
                         }), 400
 
+            if account_type == AccountType.TRADING:
+                account_data['positions'] = [
+                    StockPosition.from_dict(position)
+                    for position in _positions_for_account_model(
+                        submitted_positions
+                    )
+                ]
+
             # Create account for validation (don't use the generated ID)
             account = AccountFactory.create_account(account_type, **account_data)
         except ValueError as e:
@@ -413,12 +507,22 @@ def create_account():
         account_dict = account.to_dict()
         # Map account_type to type for database storage
         account_dict['type'] = account_dict['account_type']
+        account_dict.pop('positions', None)
         # Remove the generated ID so database service can create its own
         if 'id' in account_dict:
             del account_dict['id']
 
         # Store in database
         account_id = db_service.create_account(account_dict)
+        if account_type == AccountType.TRADING:
+            try:
+                db_service.replace_stock_positions(
+                    account_id,
+                    submitted_positions
+                )
+            except Exception:
+                db_service.delete_account(account_id)
+                raise
 
         # Create initial historical snapshot
         db_service.create_historical_snapshot(
@@ -430,6 +534,10 @@ def create_account():
         # Return created account
         account_dict['id'] = account_id
         account_dict['current_value'] = account.get_current_value()
+        if account_type == AccountType.TRADING:
+            account_dict['positions'] = _serialize_stock_positions(
+                db_service.get_stock_positions(account_id)
+            )
         # Ensure 'type' field is available for API compatibility
         account_dict['type'] = account_dict['account_type']
 
@@ -498,6 +606,13 @@ def get_account(account_id):
                 if field in account_data_clean and isinstance(account_data_clean[field], date):
                     account_data_clean[field] = account_data_clean[field].isoformat()
 
+            canonical_positions = []
+            if account_data.get('type') == AccountType.TRADING.value:
+                canonical_positions = db_service.get_stock_positions(account_id)
+                account_data_clean['positions'] = _positions_for_account_model(
+                    canonical_positions
+                )
+
             account = AccountFactory.create_account_from_dict(account_data_clean)
             account_response = account.to_dict()
             account_response['current_value'] = account.get_current_value()
@@ -506,8 +621,9 @@ def get_account(account_id):
 
             # Add stock positions for trading accounts
             if account.account_type == AccountType.TRADING:
-                positions = db_service.get_stock_positions(account_id)
-                account_response['positions'] = positions
+                account_response['positions'] = _serialize_stock_positions(
+                    canonical_positions
+                )
 
             return jsonify({
                 'success': True,
@@ -583,6 +699,13 @@ def update_account(account_id):
                 if field in existing_data_copy:
                     del existing_data_copy[field]
 
+            existing_positions = []
+            if existing_account_data.get('type') == AccountType.TRADING.value:
+                existing_positions = db_service.get_stock_positions(account_id)
+                existing_data_copy['positions'] = _positions_for_account_model(
+                    existing_positions
+                )
+
             existing_account = AccountFactory.create_account_from_dict(existing_data_copy)
             old_value = existing_account.get_current_value()
         except Exception as e:
@@ -597,6 +720,21 @@ def update_account(account_id):
         updated_data = existing_account_data.copy()
         updated_data.update(data)
         updated_data['id'] = account_id  # Ensure ID is preserved
+        submitted_positions = (
+            data.get('positions')
+            if existing_account_data.get('type') == AccountType.TRADING.value
+            and 'positions' in data
+            else None
+        )
+        if existing_account_data.get('type') == AccountType.TRADING.value:
+            positions_for_validation = (
+                submitted_positions
+                if submitted_positions is not None
+                else existing_positions
+            )
+            updated_data['positions'] = _positions_for_account_model(
+                positions_for_validation
+            )
         # Note: last_updated will be handled by the database service
 
         # Validate account type if provided
@@ -666,7 +804,11 @@ def update_account(account_id):
 
             updated_account = AccountFactory.create_account_from_dict(updated_data_copy)
             new_value = updated_account.get_current_value()
-        except ValueError as e:
+        except (ValueError, AppError) as e:
+            # Account construction/validation failures surface as ValueError
+            # (CD/Savings/etc.) or as AppError subclasses (e.g. HSA balance
+            # mismatch, which extends HSAError -> AppError, not ValueError).
+            # Both are client-side validation errors and must return 400.
             return jsonify({
                 'error': True,
                 'message': f'Account validation failed: {str(e)}',
@@ -678,13 +820,18 @@ def update_account(account_id):
         if 'account_type' in updated_data:
             updated_data['type'] = updated_data['account_type'].value if hasattr(updated_data['account_type'], 'value') else updated_data['account_type']
 
-        success = db_service.update_account(account_id, updated_data)
+        account_storage_data = updated_data.copy()
+        account_storage_data.pop('positions', None)
+        success = db_service.update_account(account_id, account_storage_data)
         if not success:
             return jsonify({
                 'error': True,
                 'message': 'Failed to update account in database',
                 'code': 'DATABASE_UPDATE_ERROR'
             }), 500
+
+        if submitted_positions is not None:
+            db_service.replace_stock_positions(account_id, submitted_positions)
 
         # Create historical snapshot if value changed using HistoricalDataService
         if abs(new_value - old_value) > 0.01:  # Avoid floating point precision issues
@@ -697,6 +844,10 @@ def update_account(account_id):
         # Return updated account
         account_response = updated_account.to_dict()
         account_response['current_value'] = new_value
+        if updated_account.account_type == AccountType.TRADING:
+            account_response['positions'] = _serialize_stock_positions(
+                db_service.get_stock_positions(account_id)
+            )
         # Ensure 'type' field is available for API compatibility
         account_response['type'] = account_response['account_type']
 
@@ -1300,9 +1451,24 @@ def get_account_performance(account_id):
         # Parse query parameters
         start_date_str = request.args.get('start_date')
         end_date_str = request.args.get('end_date')
+        period_days_str = request.args.get('period_days')
 
         start_date = None
         end_date = None
+        period_days = None
+
+        # Parse period_days (a convenience window when explicit dates are omitted)
+        if period_days_str:
+            try:
+                period_days = int(period_days_str)
+                if period_days <= 0:
+                    raise ValueError
+            except ValueError:
+                return jsonify({
+                    'error': True,
+                    'message': 'Invalid period_days. Use a positive integer',
+                    'code': 'INVALID_PERIOD_DAYS'
+                }), 400
 
         # Parse start_date
         if start_date_str:
@@ -1325,6 +1491,11 @@ def get_account_performance(account_id):
                     'message': 'Invalid end_date format. Use YYYY-MM-DD',
                     'code': 'INVALID_END_DATE'
                 }), 400
+
+        # Derive the date window from period_days when explicit dates are not given
+        if start_date is None and end_date is None and period_days:
+            end_date = date.today()
+            start_date = end_date - timedelta(days=period_days)
 
         # Calculate performance metrics
         performance = historical_service.calculate_performance_metrics(
@@ -1352,10 +1523,29 @@ def get_account_performance(account_id):
             'total_snapshots': performance.total_snapshots
         }
 
+        # Gains/losses over the requested window (defaults to 30 days) — the
+        # details modal surfaces this as the headline change figure.
+        gains_losses = historical_service.calculate_gains_losses(
+            account_id, period_days if period_days else 30
+        )
+
+        # Trend analysis via linear regression (may be None with < 3 snapshots).
+        trend_analysis = historical_service.analyze_trend(account_id, start_date, end_date)
+        trend_data = None
+        if trend_analysis:
+            trend_data = {
+                'direction': trend_analysis.direction.value,
+                'slope': trend_analysis.slope,
+                'r_squared': trend_analysis.r_squared,
+                'confidence': trend_analysis.confidence
+            }
+
         return jsonify({
             'success': True,
             'account_id': account_id,
             'performance': performance_data,
+            'gains_losses': gains_losses,
+            'trend': trend_data,
             'period': {
                 'start_date': start_date_str,
                 'end_date': end_date_str
@@ -1618,14 +1808,9 @@ def get_stock_positions(account_id):
             }), 400
 
         # Get stock positions
-        positions = db_service.get_stock_positions(account_id)
-
-        # Convert datetime objects to ISO strings for JSON serialization
-        for position in positions:
-            if isinstance(position.get('purchase_date'), datetime):
-                position['purchase_date'] = position['purchase_date'].isoformat()
-            if isinstance(position.get('last_price_update'), datetime):
-                position['last_price_update'] = position['last_price_update'].isoformat()
+        positions = _serialize_stock_positions(
+            db_service.get_stock_positions(account_id)
+        )
 
         return jsonify({
             'success': True,
@@ -1757,11 +1942,9 @@ def add_stock_position(account_id):
         created_position = next((p for p in positions if p['id'] == position_id), None)
 
         if created_position:
-            # Convert datetime objects to ISO strings for JSON serialization
-            if isinstance(created_position.get('purchase_date'), datetime):
-                created_position['purchase_date'] = created_position['purchase_date'].isoformat()
-            if isinstance(created_position.get('last_price_update'), datetime):
-                created_position['last_price_update'] = created_position['last_price_update'].isoformat()
+            created_position = _serialize_stock_positions(
+                [created_position]
+            )[0]
 
         return jsonify({
             'success': True,
@@ -1947,11 +2130,9 @@ def update_stock_position(account_id, position_id):
         updated_position = next((p for p in positions if p['id'] == new_position_id), None)
 
         if updated_position:
-            # Convert datetime objects to ISO strings for JSON serialization
-            if isinstance(updated_position.get('purchase_date'), datetime):
-                updated_position['purchase_date'] = updated_position['purchase_date'].isoformat()
-            if isinstance(updated_position.get('last_price_update'), datetime):
-                updated_position['last_price_update'] = updated_position['last_price_update'].isoformat()
+            updated_position = _serialize_stock_positions(
+                [updated_position]
+            )[0]
 
         return jsonify({
             'success': True,
@@ -2159,6 +2340,9 @@ def update_stock_prices(account_id):
                 if field in account_data_clean and isinstance(account_data_clean[field], datetime):
                     account_data_clean[field] = account_data_clean[field].isoformat()
 
+            account_data_clean['positions'] = _positions_for_account_model(
+                db_service.get_stock_positions(account_id)
+            )
             account = AccountFactory.create_account_from_dict(account_data_clean)
             historical_service.create_snapshot(account, ChangeType.STOCK_PRICE_UPDATE)
 
@@ -2181,6 +2365,39 @@ def update_stock_prices(account_id):
 
 
 # Global Stock Price Management API Endpoints
+
+
+@app.route('/api/stocks/<symbol>/price', methods=['GET'])
+@api_endpoint
+def get_stock_price(symbol):
+    """Fetch a real market price for an unsaved or existing holding."""
+    from services.stock_prices import StockPriceService, StockPriceServiceError
+
+    normalized_symbol = symbol.upper().strip()
+    try:
+        result = StockPriceService().get_price_with_metadata(normalized_symbol)
+    except StockPriceServiceError as error:
+        return jsonify({
+            'error': True,
+            'message': str(error),
+            'code': 'PRICE_FETCH_ERROR'
+        }), 400
+
+    if not result['success']:
+        return jsonify({
+            'error': True,
+            'message': result['error'],
+            'code': 'PRICE_FETCH_ERROR'
+        }), 502
+
+    return jsonify({
+        'success': True,
+        'symbol': result['symbol'],
+        'price': result['price'],
+        'timestamp': result['timestamp'].isoformat(),
+        'market_open': result['market_open']
+    })
+
 
 @app.route('/api/stocks/prices', methods=['POST'])
 @api_endpoint
@@ -2244,16 +2461,9 @@ def update_all_stock_prices():
                     price_result = price_results.get(symbol.upper())
 
                     if price_result and price_result.success:
-                        # Update position in database
-                        update_data = {
-                            'current_price': price_result.price,
-                            'last_updated': price_result.timestamp
-                        }
-
-                        success = db_service.update_stock_position(
-                            account_id,
+                        success = db_service.update_stock_price(
                             position['id'],
-                            update_data
+                            price_result.price
                         )
 
                         if success:
@@ -2264,7 +2474,10 @@ def update_all_stock_prices():
                                 'symbol': symbol,
                                 'success': True,
                                 'price': price_result.price,
-                                'timestamp': price_result.timestamp.isoformat()
+                                'timestamp': (
+                                    price_result.timestamp.isoformat()
+                                    if price_result.timestamp else None
+                                )
                             })
                         else:
                             total_failed += 1
@@ -2439,7 +2652,8 @@ def get_portfolio_summary():
             'SAVINGS': {'count': 0, 'value': 0.0, 'accounts': []},
             '401K': {'count': 0, 'value': 0.0, 'accounts': []},
             'TRADING': {'count': 0, 'value': 0.0, 'accounts': []},
-            'I_BONDS': {'count': 0, 'value': 0.0, 'accounts': []}
+            'I_BONDS': {'count': 0, 'value': 0.0, 'accounts': []},
+            'HSA': {'count': 0, 'value': 0.0, 'accounts': []}
         }
 
         total_networth = 0.0
@@ -2472,6 +2686,11 @@ def get_portfolio_summary():
                     if field in account_data_clean and isinstance(account_data_clean[field], date):
                         account_data_clean[field] = account_data_clean[field].isoformat()
 
+                if account_data.get('type') == AccountType.TRADING.value:
+                    account_data_clean['positions'] = _positions_for_account_model(
+                        db_service.get_stock_positions(account_data['id'])
+                    )
+
                 account = AccountFactory.create_account_from_dict(account_data_clean)
                 current_value = account.get_current_value()
                 account_type = account.account_type.value
@@ -2502,23 +2721,33 @@ def get_portfolio_summary():
                 continue
 
         # Calculate portfolio-level performance
-        # Get historical snapshots for all accounts to calculate overall performance
+        # Sum each account's value as of the start of the 30-day and 365-day
+        # windows to derive real monthly and yearly changes.
         end_date = date.today()
-        start_date = end_date - timedelta(days=30)
+        monthly_start_date = end_date - timedelta(days=30)
+        yearly_start_date = end_date - timedelta(days=365)
 
-        portfolio_start_value = 0.0
         portfolio_end_value = total_networth
+        monthly_start_value = 0.0
+        yearly_start_value = 0.0
 
         for account_data in accounts_data:
             account_id = account_data.get('id')
             if account_id:
-                start_value = historical_service.get_value_at_date(account_id, start_date)
-                if start_value:
-                    portfolio_start_value += start_value
+                monthly_value = historical_service.get_value_at_date(account_id, monthly_start_date)
+                if monthly_value:
+                    monthly_start_value += monthly_value
 
-        # Calculate portfolio performance
-        portfolio_change = portfolio_end_value - portfolio_start_value
-        portfolio_change_percent = (portfolio_change / portfolio_start_value * 100) if portfolio_start_value > 0 else 0.0
+                yearly_value = historical_service.get_value_at_date(account_id, yearly_start_date)
+                if yearly_value:
+                    yearly_start_value += yearly_value
+
+        # Calculate portfolio performance over each window
+        monthly_change = portfolio_end_value - monthly_start_value
+        monthly_change_percent = (monthly_change / monthly_start_value * 100) if monthly_start_value > 0 else 0.0
+
+        yearly_change = portfolio_end_value - yearly_start_value
+        yearly_change_percent = (yearly_change / yearly_start_value * 100) if yearly_start_value > 0 else 0.0
 
         return jsonify({
             'success': True,
@@ -2528,9 +2757,11 @@ def get_portfolio_summary():
             'total_accounts': len(accounts_data),
             'total_institutions': len(institutions),
             'performance': {
-                'monthly_change': portfolio_change,
-                'monthly_change_percent': portfolio_change_percent,
-                'start_value': portfolio_start_value,
+                'monthly_change': monthly_change,
+                'monthly_change_percent': monthly_change_percent,
+                'yearly_change': yearly_change,
+                'yearly_change_percent': yearly_change_percent,
+                'start_value': monthly_start_value,
                 'end_value': portfolio_end_value
             }
         })
@@ -2554,50 +2785,45 @@ def get_watchlist():
     from services.watchlist import WatchlistService
     from services.stock_prices import StockPriceService
 
-    try:
-        db_service = auth_manager.get_database_service()
-        if not db_service:
-            app.logger.error("Database service not available for watchlist request")
-            raise DatabaseError(
-                message="Database service not available",
-                code="DB_001",
-                user_action="Please try logging in again"
-            )
+    # NOTE: Do not wrap this body in a broad try/except. Errors are raised as
+    # AppError subclasses and standardized by @api_endpoint into the shared
+    # {'error': True, 'message': ..., 'code': ...} envelope, matching every
+    # other watchlist endpoint. A local handler here previously produced a
+    # divergent {'success': False, 'error': ...} shape and masked error codes.
+    db_service = auth_manager.get_database_service()
+    if not db_service:
+        app.logger.error("Database service not available for watchlist request")
+        raise DatabaseError(
+            message="Database service not available",
+            code="DB_001",
+            user_action="Please try logging in again"
+        )
 
-        # Initialize services
-        stock_service = StockPriceService()
-        watchlist_service = WatchlistService(db_service, stock_service)
+    # Initialize services
+    stock_service = StockPriceService()
+    watchlist_service = WatchlistService(db_service, stock_service)
 
-        # Retrieve watchlist items
-        app.logger.info("Fetching watchlist items...")
-        watchlist_items = watchlist_service.get_watchlist()
-        app.logger.info(f"Found {len(watchlist_items)} watchlist items")
+    # Retrieve watchlist items
+    app.logger.info("Fetching watchlist items...")
+    watchlist_items = watchlist_service.get_watchlist()
+    app.logger.info(f"Found {len(watchlist_items)} watchlist items")
 
-        # Convert to API response format
-        items = []
-        for item in watchlist_items:
-            try:
-                item_dict = item.to_dict()
-                items.append(item_dict)
-            except Exception as e:
-                app.logger.error(f"Error converting watchlist item to dict: {e}")
-                continue
+    # Convert to API response format, skipping any item that fails to serialize
+    items = []
+    for item in watchlist_items:
+        try:
+            item_dict = item.to_dict()
+            items.append(item_dict)
+        except Exception as e:
+            app.logger.error(f"Error converting watchlist item to dict: {e}")
+            continue
 
-        app.logger.info(f"Returning {len(items)} watchlist items")
-        return jsonify({
-            'success': True,
-            'watchlist': items,
-            'count': len(items)
-        })
-
-    except Exception as e:
-        app.logger.error(f"Error in get_watchlist: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'watchlist': [],
-            'count': 0
-        }), 500
+    app.logger.info(f"Returning {len(items)} watchlist items")
+    return jsonify({
+        'success': True,
+        'watchlist': items,
+        'count': len(items)
+    })
 
 
 @app.route('/api/watchlist', methods=['POST'])
@@ -3182,6 +3408,16 @@ def validate_backup():
         }), 500
 
 
+def _get_contribution_limit_context() -> Dict[str, Any]:
+    """Build the current contribution-limit context for account forms."""
+    current_year = date.today().year
+    return {
+        'contribution_limit_year': current_year,
+        'contribution_limits': get_contribution_limits(current_year),
+        'contribution_limits_version': CONTRIBUTION_LIMITS_VERSION,
+    }
+
+
 @app.route('/templates/accounts/<account_type>_form.html')
 @public_view_endpoint
 def get_account_form_template(account_type):
@@ -3194,7 +3430,7 @@ def get_account_form_template(account_type):
     template_name = f'accounts/{account_type}_form.html'
 
     try:
-        return render_template(template_name)
+        return render_template(template_name, **_get_contribution_limit_context())
     except Exception as e:
         app.logger.error(f"Error loading form template {template_name}: {str(e)}")
         return "Error loading form template", 500
@@ -3211,13 +3447,17 @@ def serve_account_template(template_name):
             'savings_form.html',
             '401k_form.html',
             'trading_form.html',
-            'ibonds_form.html'
+            'ibonds_form.html',
+            'hsa_form.html'
         ]
 
         if template_name not in allowed_templates:
             return "Template not found", 404
 
-        return render_template(f'accounts/{template_name}')
+        return render_template(
+            f'accounts/{template_name}',
+            **_get_contribution_limit_context()
+        )
     except Exception as e:
         app_logger.error(f"Error serving template {template_name}: {str(e)}")
         return "Template not found", 404

@@ -371,8 +371,9 @@ class TestStockPositionAPI:
         assert data['error'] is True
         assert data['code'] == 'POSITION_NOT_FOUND'
 
+    @patch('services.stock_prices.StockPriceService._try_alternative_price_fetch', return_value=None)
     @patch('services.stock_prices.yf.Ticker')
-    def test_update_stock_prices_success(self, mock_ticker):
+    def test_update_stock_prices_success(self, mock_ticker, mock_alt_fetch):
         """Test successfully updating stock prices for all positions"""
         # Mock yfinance responses
         mock_ticker_instance = Mock()
@@ -443,8 +444,9 @@ class TestStockPositionAPI:
         assert data['updated_positions'] == []
         assert data['update_results'] == []
 
+    @patch('services.stock_prices.StockPriceService._try_alternative_price_fetch', return_value=None)
     @patch('services.stock_prices.yf.Ticker')
-    def test_get_portfolio_summary(self, mock_ticker):
+    def test_get_portfolio_summary(self, mock_ticker, mock_alt_fetch):
         """Test getting portfolio summary with calculations"""
         # Add test positions
         positions_data = [

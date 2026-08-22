@@ -39,6 +39,7 @@ class TestExportImportRoutes:
         with patch('app.auth_manager') as mock_auth:
             mock_auth.require_authentication.return_value = True
             mock_auth.is_authenticated.return_value = True
+            mock_auth.is_setup_required.return_value = False
 
             # Mock database service
             mock_db = Mock()
@@ -102,13 +103,25 @@ class TestExportImportRoutes:
 
     def test_export_data_unauthenticated(self, client):
         """Test export data without authentication."""
-        response = client.get('/api/export')
-        assert response.status_code == 302  # Redirect to login
+        # /api/export uses the @api_endpoint decorator, which returns a JSON
+        # 401 (not an HTML redirect) when the user is not authenticated.
+        with patch('app.auth_manager') as mock_auth:
+            mock_auth.is_setup_required.return_value = False
+            mock_auth.is_authenticated.return_value = False
+            mock_auth.require_authentication.return_value = False
+
+            response = client.get('/api/export')
+
+        assert response.status_code == 401
+        data = json.loads(response.data)
+        assert data['error'] is True
 
     def test_export_data_service_unavailable(self, client, authenticated_session):
         """Test export data when services are unavailable."""
         with patch('app.auth_manager') as mock_auth:
             mock_auth.require_authentication.return_value = True
+            mock_auth.is_authenticated.return_value = True
+            mock_auth.is_setup_required.return_value = False
             mock_auth.get_database_service.return_value = None
             mock_auth.get_encryption_service.return_value = None
 
@@ -341,9 +354,19 @@ class TestExportImportRoutes:
 
     def test_import_data_unauthenticated(self, client):
         """Test import data without authentication."""
-        data = {'backup_file': (io.BytesIO(b'data'), 'test.nwb')}
-        response = client.post('/api/import', data=data)
-        assert response.status_code == 302  # Redirect to login
+        # /api/import uses the @api_endpoint decorator, which returns a JSON
+        # 401 (not an HTML redirect) when the user is not authenticated.
+        with patch('app.auth_manager') as mock_auth:
+            mock_auth.is_setup_required.return_value = False
+            mock_auth.is_authenticated.return_value = False
+            mock_auth.require_authentication.return_value = False
+
+            data = {'backup_file': (io.BytesIO(b'data'), 'test.nwb')}
+            response = client.post('/api/import', data=data)
+
+        assert response.status_code == 401
+        response_data = json.loads(response.data)
+        assert response_data['error'] is True
 
     def test_validate_backup_success(self, client, authenticated_session, mock_auth_manager):
         """Test successful backup validation."""
@@ -433,20 +456,26 @@ class TestExportImportRoutes:
 
     def test_import_data_file_read_error(self, client, authenticated_session, mock_auth_manager):
         """Test import data with file read error."""
-        # Create a mock file that raises exception on read
-        mock_file = Mock()
-        mock_file.filename = 'test.nwb'
-        mock_file.read.side_effect = Exception("File read error")
+        # Simulate the uploaded file's read() raising on the server side. The
+        # route calls backup_file.read() with no arguments, while the test
+        # client's multipart encoder reads the source stream in sized chunks
+        # (read(16384)). Delegate sized reads so the request still encodes, and
+        # raise only on the argument-less read the route performs.
+        from werkzeug.datastructures import FileStorage
 
-        with patch('flask.request') as mock_request:
-            mock_request.files = {'backup_file': mock_file}
-            mock_request.form = {'overwrite_existing': 'false'}
-            mock_request.is_json = False
+        def failing_read(self, *args, **kwargs):
+            if args or kwargs:
+                return self.stream.read(*args, **kwargs)
+            raise Exception("File read error")
 
-            response = client.post('/api/import')
+        with patch.object(FileStorage, 'read', failing_read, create=True):
+            data = {'backup_file': (io.BytesIO(b'data'), 'test.nwb')}
+            response = client.post('/api/import', data=data)
 
-            # This test is complex due to Flask's file handling
-            # In a real scenario, we'd test this with actual file upload
+        assert response.status_code == 400
+        response_data = json.loads(response.data)
+        assert response_data['error'] is True
+        assert response_data['code'] == 'FILE_READ_ERROR'
 
     def test_large_backup_file_handling(self, client, authenticated_session, mock_auth_manager):
         """Test handling of large backup files."""
@@ -488,8 +517,13 @@ class TestExportImportRoutes:
         results = []
 
         def make_export_request():
-            response = client.get('/api/export')
-            results.append(response.status_code)
+            # Each thread uses its own test client. Flask's test client manages
+            # a per-instance context stack that is not safe to share across
+            # threads; the patched auth_manager is a module-level global, so it
+            # still applies to clients created inside worker threads.
+            with app.test_client() as thread_client:
+                response = thread_client.get('/api/export')
+                results.append(response.status_code)
 
         # Create multiple threads for concurrent requests
         threads = []
@@ -512,10 +546,15 @@ class TestExportImportRoutes:
     def test_export_import_error_logging(self, client, authenticated_session, mock_auth_manager):
         """Test that errors are properly logged."""
         with patch('app.app.logger') as mock_logger:
-            # Force an error in export
-            mock_auth_manager.get_database_service.return_value = None
+            # Force an error during export so the route's exception handler runs
+            # and logs the failure (the services-unavailable branch returns 500
+            # without logging).
+            with patch('services.export_import.ExportImportService') as mock_service_class:
+                mock_service = Mock()
+                mock_service.export_data.side_effect = Exception("Export failed")
+                mock_service_class.return_value = mock_service
 
-            response = client.get('/api/export')
+                response = client.get('/api/export')
 
             # Verify error was logged
             assert response.status_code == 500

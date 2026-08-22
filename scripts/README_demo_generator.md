@@ -1,79 +1,75 @@
 # Demo Database Generator
 
-This script creates a standalone demo database with comprehensive synthetic financial data for the networth tracker application.
+`generate_demo_database.py` creates a standalone SQLite source database with
+synthetic financial data. The source database is not directly importable by
+the web application. Convert it to an encrypted backup with
+`create_demo_backup.py` before using **Import Data**.
+
+See [Demo Environment Guide](../docs/demo-data.md) for the complete isolated
+setup workflow.
 
 ## Usage
 
+Use the repository virtual environment and pass an explicit destination:
+
 ```bash
-# Create demo database with default settings
-python scripts/generate_demo_database.py
+DEMO_HOME="$HOME/.local/share/networth-tracker-demo"
+mkdir -p "$DEMO_HOME"
 
-# Create demo database with custom path
-python scripts/generate_demo_database.py custom_demo.db
-
-# Create demo database with custom path and password
-python scripts/generate_demo_database.py custom_demo.db mypassword
+./venv/bin/python scripts/generate_demo_database.py \
+  "$DEMO_HOME/source.db" \
+  demo123
 ```
+
+Arguments are positional:
+
+```text
+generate_demo_database.py [database_path] [encryption_password]
+```
+
+The defaults are `networth_demo.db` and `demo123`. The generator removes an
+existing destination before creating the new database, so using the default
+path from the repository root would overwrite the tracked
+`networth_demo.db`. Use a separate explicit path.
 
 ## Generated Data
 
-The script creates a complete demo database with:
+The current generator creates:
 
-### Accounts (10 total)
-- **3 CD Accounts**: Various terms (6-60 months) with realistic interest rates (1.5-4.5%)
-- **2 Savings Accounts**: High-yield savings with competitive rates (0.1-2.5%)
-- **1 401k Account**: Retirement account with employer matching and contribution limits
-- **2 Trading Accounts**: Brokerage accounts with diverse stock positions (3-8 stocks each)
-- **2 I-Bonds Accounts**: Treasury I-bonds with fixed and inflation rates
+- 12 accounts: 3 CDs, 2 savings, 1 401(k), 2 trading, 2 I Bonds, and 2 HSAs
+- 24 monthly value snapshots per account (288 total)
+- Stock positions for the trading accounts
+- 12 synthetic watchlist entries
+- `is_demo` markers on generated accounts and watchlist entries
 
-### Historical Data (240 snapshots)
-- **24 months** of historical performance data for each account
-- **Account-type specific volatility patterns**:
-  - CDs: Minimal volatility (-0.5% to +1.5% monthly)
-  - Savings: Low volatility (-1% to +2% monthly)
-  - 401k: Market-like volatility (-6% to +10% monthly)
-  - Trading: High volatility (-12% to +15% monthly)
-  - I-Bonds: Steady growth (-0.5% to +2.5% monthly)
+Values and institutions are selected from synthetic generation rules and vary
+between runs.
 
-### Stock Positions
-- **13+ stock positions** across trading accounts
-- **Realistic symbols**: AAPL, GOOGL, MSFT, AMZN, TSLA, etc.
-- **Historical purchase data** with realistic price variations
+## Encryption
 
-## Database Schema
+The generator encrypts selected database payloads using the supplied password
+and a fixed demo salt. The default `demo123` value is a backup-conversion
+password, not an application master password.
 
-The generated database includes the new `is_demo` column in the accounts table:
+The generated database does not contain the authentication hash and salt
+required for normal application login. Do not point `DATABASE_PATH` directly
+at this source database.
 
-```sql
-CREATE TABLE accounts (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    institution TEXT NOT NULL,
-    type TEXT NOT NULL,
-    encrypted_data BLOB NOT NULL,
-    created_date INTEGER NOT NULL,
-    last_updated INTEGER NOT NULL,
-    schema_version INTEGER DEFAULT 1,
-    is_demo BOOLEAN DEFAULT FALSE  -- New column for demo identification
-);
+## Convert for Import
+
+Convert the source database into the format consumed by `/api/import`:
+
+```bash
+./venv/bin/python scripts/create_demo_backup.py \
+  "$DEMO_HOME/source.db" \
+  "$DEMO_HOME/demo_backup.enc" \
+  demo123
+
+chmod 600 "$DEMO_HOME/source.db" "$DEMO_HOME/demo_backup.enc"
 ```
 
-## Security
+In the application, select `demo_backup.enc` and enter `demo123` as the backup
+password.
 
-- All sensitive data is encrypted using the same encryption service as the main application
-- Uses a fixed demo salt for consistency across demo database generations
-- Default demo password: `demo123` (can be customized)
-
-## Import Instructions
-
-1. Run the generator script to create `networth_demo.db`
-2. Use the application's import functionality to import the demo database
-3. Enter the demo password when prompted (`demo123` by default)
-4. All demo accounts will be clearly marked in the UI
-5. Use the bulk delete functionality to remove demo data when ready
-
-## Files Created
-
-- `networth_demo.db`: The demo database file
-- Contains encrypted financial data, historical snapshots, and stock positions
-- Ready for import into the main application
+The current converter includes accounts, stock positions, historical
+snapshots, and demo settings. It does not include the generated watchlist.

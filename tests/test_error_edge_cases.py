@@ -248,6 +248,9 @@ class TestNetworkErrorScenarios:
     def test_stock_price_network_timeout_recovery(self, mock_ticker):
         """Test stock price service recovery from network timeouts."""
         stock_service = StockPriceService(max_retries=3)
+        # Neutralize the live-network alternative price sources so the mocked
+        # yfinance path is exercised deterministically.
+        stock_service._try_alternative_price_fetch = Mock(return_value=None)
 
         # Mock network timeout on first two attempts, success on third
         mock_ticker_instance = Mock()
@@ -272,6 +275,9 @@ class TestNetworkErrorScenarios:
     def test_stock_price_persistent_network_failure(self, mock_ticker):
         """Test stock price service with persistent network failure."""
         stock_service = StockPriceService(max_retries=2)
+        # Neutralize the live-network alternative price sources so the mocked
+        # yfinance path is exercised deterministically.
+        stock_service._try_alternative_price_fetch = Mock(return_value=None)
 
         # Mock persistent network failure
         mock_ticker.side_effect = Exception("Network unreachable")
@@ -356,6 +362,9 @@ class TestBoundaryConditions:
     def test_stock_symbol_length_boundaries(self):
         """Test stock symbol validation at length boundaries."""
         stock_service = StockPriceService()
+        # Neutralize the live-network alternative price sources so the mocked
+        # yfinance path is exercised deterministically.
+        stock_service._try_alternative_price_fetch = Mock(return_value=None)
 
         # Test minimum length (1 character) - should be valid format
         with patch('yfinance.Ticker') as mock_ticker:
@@ -366,7 +375,7 @@ class TestBoundaryConditions:
             with pytest.raises(StockPriceServiceError) as exc_info:
                 stock_service.get_current_price("A")
             # Should fail due to no data, not format
-            assert "No data available" in str(exc_info.value)
+            assert "No valid price data available" in str(exc_info.value)
 
         # Test maximum length (10 characters) - should be valid format
         with patch('yfinance.Ticker') as mock_ticker:
@@ -377,7 +386,7 @@ class TestBoundaryConditions:
             with pytest.raises(StockPriceServiceError) as exc_info:
                 stock_service.get_current_price("ABCDEFGHIJ")
             # Should fail due to no data, not format
-            assert "No data available" in str(exc_info.value)
+            assert "No valid price data available" in str(exc_info.value)
 
         # Test over maximum length (11 characters) - should fail format validation
         with pytest.raises(StockPriceServiceError) as exc_info:

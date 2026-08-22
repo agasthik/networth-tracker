@@ -1,205 +1,183 @@
-# Demo Database Guide
+# Demo Environment Guide
 
-This guide explains how to use the demo database to explore the Networth Tracker application with realistic sample data.
+This guide explains how to run Networth Tracker with synthetic data in an
+isolated local database.
 
 ## Overview
 
-The demo database is a pre-generated SQLite database containing synthetic financial data that demonstrates all features of the Networth Tracker application. It includes various account types with realistic values and 24 months of historical data.
+The demo tooling has two stages:
 
-## What's Included
+1. `scripts/generate_demo_database.py` creates a standalone SQLite source
+   database containing synthetic data.
+2. `scripts/create_demo_backup.py` converts that source database into an
+   encrypted backup that the application's Import Data workflow can read.
 
-The demo database contains:
+The application does not import a raw `.db` file. Import the generated
+`demo_backup.enc` file instead.
 
-### Account Types
-- **3 Certificate of Deposit (CD) accounts** with varying terms and interest rates
-- **2 Savings accounts** from different institutions with realistic balances
-- **1 401k retirement account** with employer matching and contribution history
-- **2 Trading accounts** with diverse stock positions and real-time price tracking
-- **2 I-bonds accounts** with different purchase dates and inflation adjustments
-- **1 HSA account** with contribution tracking and investment balance
+For isolation, keep both the generated files and the demo application's
+database outside the repository. This prevents the demo workflow from changing
+the tracked `networth.db` and `networth_demo.db` files.
 
-### Historical Data
-- **24 months** of historical performance data
-- **Monthly snapshots** showing account growth over time
-- **Account-specific volatility patterns** that reflect realistic market behavior
-- **Growth trajectories** appropriate for each account type
+## Generated Data
 
-### Sample Data Characteristics
-- **Realistic institutions**: Chase Bank, Ally Bank, Fidelity, Vanguard, etc.
-- **Diverse stock positions**: Mix of large-cap, mid-cap, and sector ETFs
-- **Appropriate values**: Account balances ranging from $5,000 to $75,000
-- **Current market data**: Stock positions with realistic symbols and quantities
+A fresh generation currently includes:
 
-## Getting the Demo Database
+- 3 certificates of deposit
+- 2 savings accounts
+- 1 401(k) account
+- 2 trading accounts with stock positions
+- 2 I Bond accounts
+- 2 health savings accounts
+- 24 monthly value snapshots per account (288 total)
 
-### Option 1: Generate Demo Database
-If you have the application installed, you can generate a fresh demo database:
+All generated accounts have the `is_demo` marker used by the dashboard's demo
+filter and bulk-delete workflow. Values are synthetic and vary between runs.
+
+The source database also contains a synthetic watchlist. The current
+`create_demo_backup.py` converter does not include that watchlist in the
+encrypted backup, so it will not appear after import.
+
+## Prerequisites
+
+- Python 3.10 or newer
+- A repository virtual environment with dependencies installed
+
+Create the virtual environment only if it does not already exist:
 
 ```bash
-# Navigate to your networth-tracker directory
-cd networth-tracker
-
-# Activate virtual environment
-source venv/bin/activate  # macOS/Linux
-# or
-venv\Scripts\activate     # Windows
-
-# Generate demo database
-python scripts/generate_demo_database.py
+python3 -m venv venv
+./venv/bin/python -m pip install -r requirements.txt
 ```
 
-This creates a file called `demo_networth.db` in your project directory.
+## Create Demo Files
 
-### Option 2: Download Pre-generated Database
-If available, you can download a pre-generated demo database file and place it in your networth-tracker directory.
+From the repository root:
 
-## Importing Demo Data
-
-### Step 1: Start the Application
 ```bash
-# Start the networth tracker
-./scripts/start.sh  # macOS/Linux
-# or
-scripts\start.bat   # Windows
+DEMO_HOME="$HOME/.local/share/networth-tracker-demo"
+mkdir -p "$DEMO_HOME"
+chmod 700 "$DEMO_HOME"
 
-# Or manually
-python scripts/start.py
+./venv/bin/python scripts/generate_demo_database.py \
+  "$DEMO_HOME/source.db" \
+  demo123
+
+./venv/bin/python scripts/create_demo_backup.py \
+  "$DEMO_HOME/source.db" \
+  "$DEMO_HOME/demo_backup.enc" \
+  demo123
+
+chmod 600 "$DEMO_HOME/source.db" "$DEMO_HOME/demo_backup.enc"
 ```
 
-### Step 2: Access Import Functionality
-1. Open your browser to `http://127.0.0.1:5000`
-2. Log in with your master password
-3. Navigate to **Settings** → **Import/Export**
-4. Click **Import Data**
+`demo123` is the demo backup password. It is separate from the master password
+you create for the isolated application.
 
-### Step 3: Import Demo Database
-1. Click **Choose File** and select `demo_networth.db`
-2. Choose import options:
-   - **Merge with existing data**: Adds demo accounts to your current data
-   - **Replace all data**: Replaces your data with demo data (use with caution)
-3. Click **Import Database**
-4. Wait for the import to complete
+The generator deletes and recreates its destination file. Always pass an
+explicit path as shown above. Running it without a path would overwrite the
+tracked `networth_demo.db` file in the repository.
 
-### Step 4: Verify Import
-After import, you should see:
-- Demo accounts marked with a **"DEMO"** badge in the account list
-- Historical data spanning 24 months
-- Realistic account balances and stock positions
-- All account types represented
+## Start an Isolated Application
 
-## Using Demo Data
+Use an explicit `DATABASE_PATH` so the demo application cannot modify the
+normal `networth.db` database:
 
-### Exploring Features
-With demo data imported, you can:
+```bash
+DEMO_HOME="$HOME/.local/share/networth-tracker-demo"
 
-1. **View Dashboard**: See portfolio overview with realistic data
-2. **Account Management**: Edit, update, and manage demo accounts
-3. **Historical Analysis**: Review 24 months of performance data
-4. **Stock Tracking**: See real-time prices for demo stock positions
-5. **Export/Import**: Practice backup and restore procedures
+FLASK_ENV=production \
+DATABASE_PATH="$DEMO_HOME/app.db" \
+./venv/bin/python scripts/start.py \
+  --env production \
+  --host 127.0.0.1 \
+  --port 5001
+```
 
-### Demo Account Identification
-Demo accounts are clearly marked:
-- **Dashboard**: Demo accounts show a "DEMO" badge
-- **Account Lists**: Demo indicator appears next to account names
-- **Account Details**: Demo status is displayed in account information
+The `production` setting here disables Flask's debug server behavior; the
+application remains local because it is bound to `127.0.0.1`. The explicit
+database path, rather than the environment name, provides the data isolation.
 
-### Safe Experimentation
-Demo data allows you to:
-- Test all application features without risk
-- Learn the interface with realistic data
-- Practice account management workflows
-- Understand reporting and analysis features
+Open `http://127.0.0.1:5001`. On first use, create a master password with at
+least 12 characters containing uppercase, lowercase, numeric, and special
+characters.
 
-## Managing Demo Data
+## Import Demo Data
 
-### Filtering Demo Accounts
-You can filter your account views to:
-- **Show only real accounts**: Hide demo data from main views
-- **Show only demo accounts**: Focus on demo data for testing
-- **Show all accounts**: View real and demo data together
+After initial setup:
 
-### Removing Demo Data
-When you're ready to remove demo data:
+1. Open **Import Data** from the application navigation.
+2. Select
+   `$HOME/.local/share/networth-tracker-demo/demo_backup.enc`.
+3. Enter `demo123` in **Backup password**.
+4. Leave **Overwrite existing accounts** clear for a fresh demo database.
+5. Start the import and refresh the dashboard when it completes.
 
-1. Navigate to **Settings** → **Account Management**
-2. Click **Manage Demo Data**
-3. Select **Delete All Demo Accounts**
-4. Confirm the deletion
+The imported accounts, positions, and historical value snapshots are
+re-encrypted with the isolated application's master-password-derived key.
 
-This removes all demo accounts while preserving your real financial data.
+## Start the Demo Again
 
-### Refreshing Demo Data
-To get fresh demo data:
-1. Delete existing demo accounts (see above)
-2. Generate a new demo database
-3. Import the new demo database
+Always provide the same database path on later starts:
 
-## Best Practices
+```bash
+DATABASE_PATH="$HOME/.local/share/networth-tracker-demo/app.db" \
+./venv/bin/python scripts/start.py --env production --port 5001
+```
 
-### Learning Workflow
-1. **Start with demo data**: Import demo database before adding real accounts
-2. **Explore thoroughly**: Test all features with demo data first
-3. **Practice workflows**: Use demo data to learn account management
-4. **Clean up**: Remove demo data before adding real financial information
+Omitting `DATABASE_PATH` in production mode selects the repository's default
+`networth.db` file instead.
 
-### Data Safety
-- **Backup first**: Always backup your real data before importing demo data
-- **Use merge option**: Choose "merge" instead of "replace" to preserve real data
-- **Verify import**: Check that demo accounts are properly marked
-- **Regular cleanup**: Remove demo data periodically to avoid confusion
+## Remove or Reset Demo Data
 
-### Testing Scenarios
-Use demo data to test:
-- **Account creation and editing**
-- **Historical data analysis**
-- **Export and import procedures**
-- **Stock price updates**
-- **Portfolio performance calculations**
+To remove imported demo accounts while the application is running, use the
+dashboard's **Delete Demo Accounts** action. This removes accounts marked as
+demo and their related account data.
+
+To reset the entire isolated environment:
+
+1. Stop the demo application.
+2. Delete `$HOME/.local/share/networth-tracker-demo/app.db`.
+3. Start the application with the isolated `DATABASE_PATH`.
+4. Create a new master password and import `demo_backup.enc` again.
+
+Regenerate `source.db` and `demo_backup.enc` only when you want a new randomized
+demo dataset.
+
+## Security Notes
+
+- Demo records are synthetic, but the files use the same local encryption and
+  database mechanisms as normal records.
+- The raw SQLite source and encrypted backup should both remain owner-readable
+  only.
+- Do not reuse `demo123` as the application's master password. It does not meet
+  the master-password strength requirements.
+- Stock quote refreshes can contact configured market-price providers. Initial
+  demo generation itself does not require those network calls.
 
 ## Troubleshooting
 
-### Import Issues
-If demo database import fails:
-1. **Check file format**: Ensure you're importing a valid SQLite database
-2. **Verify file size**: Demo database should be 2-5 MB
-3. **Check permissions**: Ensure the application can read the demo database file
-4. **Review logs**: Check `logs/networth_tracker.log` for error details
+### The import cannot decrypt the file
 
-### Demo Account Issues
-If demo accounts don't appear correctly:
-1. **Refresh the page**: Sometimes a browser refresh is needed
-2. **Check account filters**: Ensure demo accounts aren't filtered out
-3. **Verify import**: Confirm the import completed successfully
-4. **Check database**: Verify demo accounts exist in the database
+Confirm that `demo123` was entered as the backup password. The application's
+master password cannot decrypt the generated demo backup.
 
-### Performance Considerations
-- **Large datasets**: Demo data includes 24 months of history, which may slow some operations
-- **Stock updates**: Demo stock positions will fetch real-time prices
-- **Database size**: Demo data increases your database size by 2-3 MB
+### The file picker does not show the SQLite file
 
-## Technical Details
+This is expected. Convert `source.db` with `create_demo_backup.py` and select
+`demo_backup.enc`.
 
-### Database Structure
-Demo accounts include:
-- **is_demo flag**: Boolean field marking accounts as demo data
-- **Realistic IDs**: Account numbers and institution codes
-- **Historical snapshots**: Monthly performance data
-- **Stock positions**: Realistic ticker symbols and quantities
+### The application opens the wrong data
 
-### Data Generation
-Demo data is generated using:
-- **Algorithmic patterns**: Realistic growth and volatility patterns
-- **Market data**: Current stock symbols and realistic prices
-- **Institution data**: Real bank and brokerage names
-- **Compliance**: No real account numbers or personal information
+Stop it and restart with the explicit demo path:
 
-### Security
-Demo data maintains the same security as real data:
-- **Encryption**: Demo accounts are encrypted with your master password
-- **Access control**: Same authentication required
-- **Local storage**: Demo data stays on your local machine
+```bash
+DATABASE_PATH="$HOME/.local/share/networth-tracker-demo/app.db" \
+./venv/bin/python scripts/start.py --env production --port 5001
+```
 
----
+### Demo accounts are missing
 
-**Note**: Demo data is for exploration and testing purposes only. It contains no real financial information and should not be used for actual financial planning or decision-making.
+Check `logs/networth_tracker.log` for import errors, confirm that the dashboard
+is not filtering out demo records, and rerun the import against a fresh
+isolated application database if necessary.
