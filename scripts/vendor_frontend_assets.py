@@ -6,6 +6,7 @@ Download and vendor third-party frontend assets for offline/local-only runtime.
 from __future__ import annotations
 
 import re
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -40,16 +41,30 @@ FONT_DESTINATIONS = {
 
 
 def download(url: str, destination: Path, headers: dict[str, str] | None = None) -> None:
+    """Download URL contents after validating only http/https schemes are used (B310 mitigation)."""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(
+            f"Unsupported URL scheme '{parsed.scheme}'. "
+            "Only http and https schemes are permitted."
+        )
     destination.parent.mkdir(parents=True, exist_ok=True)
     request = urllib.request.Request(url, headers=headers or {})
-    with urllib.request.urlopen(request) as response:
+    with urllib.request.urlopen(request) as response:  # nosec B310 - scheme validated above
         destination.write_bytes(response.read())
 
 
 def vendor_google_fonts() -> None:
     headers = {"User-Agent": "Mozilla/5.0"}
+    # Validate scheme for direct urlopen (B310 mitigation)
+    parsed = urllib.parse.urlparse(GOOGLE_FONTS_URL)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(
+            f"Unsupported URL scheme '{parsed.scheme}'. "
+            "Only http and https schemes are permitted."
+        )
     request = urllib.request.Request(GOOGLE_FONTS_URL, headers=headers)
-    with urllib.request.urlopen(request) as response:
+    with urllib.request.urlopen(request) as response:  # nosec B310 - scheme validated above
         css = response.read().decode("utf-8")
 
     font_face_blocks: list[str] = []

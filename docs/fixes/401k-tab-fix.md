@@ -1,5 +1,8 @@
 # 401K Tab Selector Fix
 
+> Historical note: this document records a completed fix. Current behavior is
+> defined by `templates/dashboard.html` and `static/js/app.js`.
+
 ## Problem
 The 401K tab was causing a JavaScript error: `Uncaught SyntaxError: Failed to execute 'querySelector' on 'Document': '#401k' is not a valid selector.`
 
@@ -44,7 +47,8 @@ Changed all 401K-related IDs to use valid CSS selector names:
        'SAVINGS': 'savings-tab',
        '401K': 'retirement401k-tab',  // Changed from '401k-tab'
        'TRADING': 'trading-tab',
-       'I_BONDS': 'ibonds-tab'
+       'I_BONDS': 'ibonds-tab',
+       'HSA': 'hsa-tab'
    };
    ```
 
@@ -63,7 +67,7 @@ Changed all 401K-related IDs to use valid CSS selector names:
 - All tab switching functionality works properly
 - Account type cards correctly navigate to the 401K tab
 - Summary table "View Details" buttons work for 401K accounts
-- No impact on other account types or functionality
+- Current tab mapping also includes HSA through `hsa-tab`
 
 ## CSS Selector Naming Best Practices
 - Never start IDs or class names with numbers

@@ -22,6 +22,18 @@ from services.auth import AuthenticationManager
 from services.database import DatabaseService
 
 
+class FakeSession(dict):
+    """Dict-based stand-in for Flask's session.
+
+    ``services.auth`` binds ``session`` at import time via
+    ``from flask import session``, so tests patch ``services.auth.session``.
+    Flask's session supports both item access and a ``permanent`` attribute,
+    which a plain ``dict`` cannot; subclassing ``dict`` provides both.
+    """
+
+    permanent = False
+
+
 class TestEncryptionSecurity(unittest.TestCase):
     """Security tests for encryption implementation."""
 
@@ -166,10 +178,10 @@ class TestPasswordSecurity(unittest.TestCase):
         conn.close()
 
         self.assertIsNotNone(row)
-        stored_hash = row[1]  # encrypted_value column
+        stored_hash = row[1]  # value column (SHA-256 hex digest)
 
         # Hash should not contain plaintext password
-        self.assertNotIn(password.encode(), stored_hash)
+        self.assertNotIn(password, stored_hash)
 
     def test_password_timing_attack_resistance(self):
         """Test resistance to timing attacks."""
@@ -181,7 +193,7 @@ class TestPasswordSecurity(unittest.TestCase):
         # Measure time for correct password verification
         import time
 
-        with patch('flask.session', {}):
+        with patch('services.auth.session', FakeSession()):
             start_time = time.time()
             result1 = self.auth_manager.verify_password(correct_password)
             correct_time = time.time() - start_time
@@ -207,7 +219,7 @@ class TestPasswordSecurity(unittest.TestCase):
         failed_attempts = 0
         max_attempts = 5
 
-        with patch('flask.session', {}):
+        with patch('services.auth.session', FakeSession()):
             for i in range(max_attempts + 1):
                 try:
                     result = self.auth_manager.verify_password("WrongPassword123!")
@@ -240,19 +252,19 @@ class TestSessionSecurity(unittest.TestCase):
 
     def test_session_isolation(self):
         """Test that sessions are properly isolated."""
-        with patch('flask.session', {}) as session1:
+        with patch('services.auth.session', FakeSession()) as session1:
             # Login in first session
             result1 = self.auth_manager.verify_password(self.test_password)
             self.assertTrue(result1)
             self.assertTrue(self.auth_manager.is_authenticated())
 
-        with patch('flask.session', {}) as session2:
+        with patch('services.auth.session', FakeSession()) as session2:
             # Second session should not be authenticated
             self.assertFalse(self.auth_manager.is_authenticated())
 
     def test_session_timeout(self):
         """Test session timeout functionality."""
-        with patch('flask.session', {}) as mock_session:
+        with patch('services.auth.session', FakeSession()) as mock_session:
             # Login
             self.auth_manager.verify_password(self.test_password)
             self.assertTrue(self.auth_manager.is_authenticated())
@@ -265,7 +277,7 @@ class TestSessionSecurity(unittest.TestCase):
 
     def test_session_token_security(self):
         """Test session token security."""
-        with patch('flask.session', {}) as mock_session:
+        with patch('services.auth.session', FakeSession()) as mock_session:
             # Login
             self.auth_manager.verify_password(self.test_password)
 
@@ -389,7 +401,6 @@ class TestDatabaseSecurity(unittest.TestCase):
         wrong_encryption_service.derive_key("wrong_password")
 
         wrong_db_service = DatabaseService(self.db_path, wrong_encryption_service)
-        wrong_db_service.connect()
 
         # Create account with correct service
         account_data = {
@@ -400,8 +411,11 @@ class TestDatabaseSecurity(unittest.TestCase):
         }
         account_id = self.db_service.create_account(account_data)
 
-        # Try to retrieve with wrong encryption key
+        # Try to connect/retrieve with wrong encryption key. Connecting with an
+        # incorrect key fails during schema/migration checks that decrypt
+        # existing data, which itself proves the database is inaccessible.
         try:
+            wrong_db_service.connect()
             retrieved_account = wrong_db_service.get_account(account_id)
             # If retrieval succeeds, data should be garbled/invalid
             if retrieved_account:
@@ -410,8 +424,8 @@ class TestDatabaseSecurity(unittest.TestCase):
         except Exception:
             # Exception is expected with wrong encryption key
             pass
-
-        wrong_db_service.close()
+        finally:
+            wrong_db_service.close()
 
 
 class TestDataLeakagePrevention(unittest.TestCase):
@@ -515,6 +529,10 @@ class TestAuthenticationBypassPrevention(unittest.TestCase):
         self.auth_manager = AuthenticationManager(self.db_path)
         self.test_password = "TestPassword123!"
         self.auth_manager.set_master_password(self.test_password)
+        # set_master_password derives the encryption key on the auth manager's
+        # encryption service; reuse it so DatabaseService can read/write data
+        # created against this database.
+        self.encryption_service = self.auth_manager.encryption_service
 
     def tearDown(self):
         """Clean up test database."""
@@ -523,7 +541,7 @@ class TestAuthenticationBypassPrevention(unittest.TestCase):
 
     def test_direct_session_manipulation(self):
         """Test that direct session manipulation doesn't bypass authentication."""
-        with patch('flask.session', {}) as mock_session:
+        with patch('services.auth.session', FakeSession()) as mock_session:
             # Try to bypass authentication by directly setting session
             mock_session['authenticated'] = True
             mock_session['user_id'] = 'fake_user'
@@ -555,7 +573,7 @@ class TestAuthenticationBypassPrevention(unittest.TestCase):
         conn.close()
 
         # Authentication should still require proper password
-        with patch('flask.session', {}):
+        with patch('services.auth.session', FakeSession()):
             result = self.auth_manager.verify_password(self.test_password)
             self.assertTrue(result)
 
@@ -583,10 +601,12 @@ class TestAuthenticationBypassPrevention(unittest.TestCase):
         wrong_encryption.derive_key("wrong_key")
 
         wrong_db_service = DatabaseService(self.db_path, wrong_encryption)
-        wrong_db_service.connect()
 
-        # Should not be able to decrypt data properly
+        # Should not be able to decrypt data properly. Connecting with a wrong
+        # key can fail during schema/migration decryption, which is itself an
+        # acceptable outcome for this test.
         try:
+            wrong_db_service.connect()
             retrieved_account = wrong_db_service.get_account(account_id)
             if retrieved_account:
                 # Data should be corrupted/invalid

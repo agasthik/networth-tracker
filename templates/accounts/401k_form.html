@@ -53,9 +53,21 @@
                 <div class="input-group">
                     <span class="input-group-text">$</span>
                     <input type="number" class="form-control" id="401kContributionLimit" name="contribution_limit"
-                        required min="0" step="1" placeholder="23000">
+                        required min="0" step="1"
+                        value="{{ contribution_limits.retirement_401k_employee if contribution_limits else '' }}"
+                        placeholder="{{ contribution_limits.retirement_401k_employee if contribution_limits else 'Enter current limit' }}"
+                        data-limit-year="{{ contribution_limit_year }}"
+                        data-limit-version="{{ contribution_limits_version }}">
                 </div>
-                <div class="form-text">IRS annual contribution limit for current year</div>
+                <div class="form-text">
+                    {% if contribution_limits %}
+                    Defaults to the {{ contribution_limit_year }} employee elective-deferral limit. Adjust this value
+                    if a catch-up contribution applies.
+                    {% else %}
+                    No IRS limit is configured for {{ contribution_limit_year }}. Enter the published employee
+                    elective-deferral limit.
+                    {% endif %}
+                </div>
             </div>
         </div>
         <div class="col-md-6">
@@ -158,11 +170,5 @@
         document.getElementById('totalMaxAnnual').textContent = '$' + totalMaxAnnual.toLocaleString();
     }
 
-    // Set default contribution limit for current year
-    document.addEventListener('DOMContentLoaded', function () {
-        if (!document.getElementById('401kContributionLimit').value) {
-            document.getElementById('401kContributionLimit').value = '23000'; // 2024 limit
-            calculate401kAnalysis();
-        }
-    });
+    calculate401kAnalysis();
 </script>

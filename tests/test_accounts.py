@@ -28,6 +28,11 @@ from models.accounts import (
     HistoricalSnapshot,
     AccountFactory
 )
+from services.error_handler import (
+    HSABalanceValidationError,
+    HSABalanceMismatchError,
+    HSAContributionValidationError,
+)
 
 
 class TestAccountType:
@@ -1146,7 +1151,7 @@ class TestHSAAccount:
         """Test HSAAccount validation for negative current balance."""
         now = datetime.now()
 
-        with pytest.raises(ValueError, match="Current balance cannot be negative"):
+        with pytest.raises(HSABalanceValidationError, match="Invalid current_balance"):
             HSAAccount(
                 id="hsa-1",
                 name="Test HSA",
@@ -1166,7 +1171,7 @@ class TestHSAAccount:
         """Test HSAAccount validation for negative annual contribution limit."""
         now = datetime.now()
 
-        with pytest.raises(ValueError, match="Annual contribution limit cannot be negative"):
+        with pytest.raises(HSABalanceValidationError, match="Invalid annual_contribution_limit"):
             HSAAccount(
                 id="hsa-1",
                 name="Test HSA",
@@ -1186,7 +1191,7 @@ class TestHSAAccount:
         """Test HSAAccount validation for negative current year contributions."""
         now = datetime.now()
 
-        with pytest.raises(ValueError, match="Current year contributions cannot be negative"):
+        with pytest.raises(HSABalanceValidationError, match="Invalid current_year_contributions"):
             HSAAccount(
                 id="hsa-1",
                 name="Test HSA",
@@ -1206,7 +1211,7 @@ class TestHSAAccount:
         """Test HSAAccount validation for negative employer contributions."""
         now = datetime.now()
 
-        with pytest.raises(ValueError, match="Employer contributions cannot be negative"):
+        with pytest.raises(HSABalanceValidationError, match="Invalid employer_contributions"):
             HSAAccount(
                 id="hsa-1",
                 name="Test HSA",
@@ -1226,7 +1231,7 @@ class TestHSAAccount:
         """Test HSAAccount validation for negative investment balance."""
         now = datetime.now()
 
-        with pytest.raises(ValueError, match="Investment balance cannot be negative"):
+        with pytest.raises(HSABalanceValidationError, match="Invalid investment_balance"):
             HSAAccount(
                 id="hsa-1",
                 name="Test HSA",
@@ -1246,7 +1251,7 @@ class TestHSAAccount:
         """Test HSAAccount validation for negative cash balance."""
         now = datetime.now()
 
-        with pytest.raises(ValueError, match="Cash balance cannot be negative"):
+        with pytest.raises(HSABalanceValidationError, match="Invalid cash_balance"):
             HSAAccount(
                 id="hsa-1",
                 name="Test HSA",
@@ -1266,7 +1271,7 @@ class TestHSAAccount:
         """Test HSAAccount validation for investment + cash balance not equaling current balance."""
         now = datetime.now()
 
-        with pytest.raises(ValueError, match="Investment balance plus cash balance must equal current balance"):
+        with pytest.raises(HSABalanceMismatchError, match="Balance mismatch"):
             HSAAccount(
                 id="hsa-1",
                 name="Test HSA",
@@ -1286,7 +1291,7 @@ class TestHSAAccount:
         """Test HSAAccount validation for contributions exceeding annual limit."""
         now = datetime.now()
 
-        with pytest.raises(ValueError, match="Current year contributions cannot exceed annual contribution limit"):
+        with pytest.raises(HSAContributionValidationError, match="exceed annual limit"):
             HSAAccount(
                 id="hsa-1",
                 name="Test HSA",

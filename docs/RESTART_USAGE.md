@@ -1,107 +1,72 @@
-# Restart Functionality for Net Worth Tracker
+# Restart and Process Control
 
-The start scripts have been updated to include restart functionality for easier application management.
+`scripts/start.py`, `scripts/start.sh`, and `scripts/start.bat` support start,
+status, stop, and restart operations through a PID file.
 
-## New Options
+## Commands
 
-### Python Script (`scripts/start.py`)
+Python:
+
 ```bash
-python scripts/start.py --restart    # Restart the application
-python scripts/start.py --stop       # Stop the application
-python scripts/start.py --status     # Check if running
+./venv/bin/python scripts/start.py --status
+./venv/bin/python scripts/start.py --stop
+./venv/bin/python scripts/start.py --restart --env production
 ```
 
-### Shell Script (`scripts/start.sh`) - Unix/Linux/macOS
+Unix-like wrapper:
+
 ```bash
-./scripts/start.sh --restart    # Restart the application
-./scripts/start.sh --stop       # Stop the application
-./scripts/start.sh --status     # Check if running
-```
-
-### Batch Script (`scripts/start.bat`) - Windows
-```cmd
-scripts\start.bat --restart     # Restart the application
-scripts\start.bat --stop        # Stop the application
-scripts\start.bat --status      # Check if running
-```
-
-## Usage Examples
-
-### Restart the application
-```bash
-# Using Python script directly
-python scripts/start.py --restart
-
-# Using shell script (Unix/Linux/macOS)
-./scripts/start.sh --restart
-
-# Using batch script (Windows)
-scripts\start.bat --restart
-```
-
-### Stop the application
-```bash
-# Using Python script directly
-python scripts/start.py --stop
-
-# Using shell script (Unix/Linux/macOS)
-./scripts/start.sh --stop
-
-# Using batch script (Windows)
-scripts\start.bat --stop
-```
-
-### Check application status
-```bash
-# Using Python script directly
-python scripts/start.py --status
-
-# Using shell script (Unix/Linux/macOS)
 ./scripts/start.sh --status
+./scripts/start.sh --stop
+./scripts/start.sh --restart -e production
+```
 
-# Using batch script (Windows)
+Windows:
+
+```cmd
 scripts\start.bat --status
+scripts\start.bat --stop
+scripts\start.bat --restart -e production
 ```
 
-## How Restart Works
+## Configuration on Restart
 
-1. **Check if running**: The script checks if the application is currently running using the PID file
-2. **Graceful shutdown**: If running, it sends a SIGTERM signal for graceful shutdown
-3. **Wait for shutdown**: Waits up to 30 seconds for the application to shut down gracefully
-4. **Force termination**: If graceful shutdown fails, forces termination with SIGKILL
-5. **Clean start**: Starts the application fresh with the same configuration
+Restart stops the PID recorded in the selected PID file and then performs a new
+startup. It does not remember the previous host, port, environment, database
+path, secret, or other command-line options.
 
-## Benefits
+Supply the desired settings again:
 
-- **Easy updates**: Restart after code changes without manual stop/start
-- **Maintenance**: Quick restart for maintenance operations
-- **Troubleshooting**: Easy way to restart if the application becomes unresponsive
-- **Deployment**: Simplified deployment process with automatic restart
-
-## Error Handling
-
-- If the application is not running and you try to stop it, you'll get a "not running" message
-- If the application is already running and you try to start it (without restart), you'll get an error
-- The restart command handles both cases gracefully
-- PID file management ensures clean state tracking
-
-## Cross-Platform Support
-
-All three scripts (Python, Shell, Batch) support the same restart functionality:
-- **Python script**: Works on all platforms, requires Python environment
-- **Shell script**: Optimized for Unix/Linux/macOS with better process management
-- **Batch script**: Windows-specific with appropriate Windows process handling
-
-## Integration with Existing Workflows
-
-The restart functionality integrates seamlessly with existing options:
 ```bash
-# Restart in development mode
-./scripts/start.sh --restart -e development
-
-# Restart with debug enabled
-./scripts/start.sh --restart --debug
-
-# Restart on different port
-./scripts/start.sh --restart -p 5001
+DATABASE_PATH=/absolute/private/path/networth.db \
+./scripts/start.sh --restart -e production -p 5001
 ```
+
+Use the same PID-file path and working directory as the original startup. The
+wrappers use the repository-root `networth_tracker.pid`; direct `start.py`
+invocations use the path supplied with `--pid-file`.
+
+## Stop Behavior
+
+On Unix-like systems, the Python control path sends `SIGTERM`, waits up to 30
+seconds, and can then send `SIGKILL`. The shell wrapper intends to follow the
+same sequence; use the Python command when predictable stop handling is
+required.
+
+The Windows batch script uses `taskkill /T /F` immediately. It does not perform
+a graceful shutdown.
+
+Always stop the application before copying or replacing its SQLite database.
+
+## Known Limitations
+
+- Development/debug mode can conflict with PID tracking when Flask's reloader
+  creates a child process.
+- Daemon mode writes the PID before forking and changes to `/`; its PID and
+  relative-path behavior is unreliable.
+- A stale PID file could refer to a reused PID. Verify the target process before
+  manually killing it.
+- Restart is process control, not a database integrity or health check.
+
+For long-running local operation, prefer foreground mode supervised by a
+user-level service manager.

@@ -264,52 +264,70 @@ class TestDatabaseMigration:
         # Set current version to 1
         migration_service.db_service.set_setting('schema_version', '1')
 
-        # Mock backup creation and migrations
-        with patch.object(migration_service, '_create_backup', return_value='/tmp/backup.db'):
-            with patch.object(migration_service, '_apply_migration'):
-                with patch.object(migration_service, '_verify_data_integrity'):
-                    result = migration_service.migrate_to_latest()
+        # Use secure temp file for backup mock (fixes B108)
+        fd, backup_path = tempfile.mkstemp(suffix='.db.bak')
+        os.close(fd)
+        try:
+            with patch.object(migration_service, '_create_backup', return_value=backup_path):
+                with patch.object(migration_service, '_apply_migration'):
+                    with patch.object(migration_service, '_verify_data_integrity'):
+                        result = migration_service.migrate_to_latest()
 
-        assert result is True
+            assert result is True
+        finally:
+            if os.path.exists(backup_path):
+                os.unlink(backup_path)
 
     def test_migrate_to_latest_failure_with_restore(self, migration_service):
         """Test migration failure with successful backup restore."""
         # Set current version to 1
         migration_service.db_service.set_setting('schema_version', '1')
 
-        backup_path = '/tmp/backup.db'
+        # Use secure temp file for backup mock (fixes B108)
+        fd, backup_path = tempfile.mkstemp(suffix='.db.bak')
+        os.close(fd)
+        try:
+            with patch.object(migration_service, '_create_backup', return_value=backup_path):
+                with patch.object(migration_service, '_apply_migration', side_effect=Exception("Migration failed")):
+                    with patch.object(migration_service, '_restore_from_backup') as mock_restore:
+                        with pytest.raises(DatabaseMigrationError):
+                            migration_service.migrate_to_latest()
 
-        with patch.object(migration_service, '_create_backup', return_value=backup_path):
-            with patch.object(migration_service, '_apply_migration', side_effect=Exception("Migration failed")):
-                with patch.object(migration_service, '_restore_from_backup') as mock_restore:
-                    with pytest.raises(DatabaseMigrationError):
-                        migration_service.migrate_to_latest()
-
-                    mock_restore.assert_called_once_with(backup_path)
+                        mock_restore.assert_called_once_with(backup_path)
+        finally:
+            if os.path.exists(backup_path):
+                os.unlink(backup_path)
 
     def test_migrate_to_latest_failure_with_restore_failure(self, migration_service):
         """Test migration failure with backup restore failure."""
         # Set current version to 1
         migration_service.db_service.set_setting('schema_version', '1')
 
-        backup_path = '/tmp/backup.db'
+        # Use secure temp file for backup mock (fixes B108)
+        fd, backup_path = tempfile.mkstemp(suffix='.db.bak')
+        os.close(fd)
+        try:
+            with patch.object(migration_service, '_create_backup', return_value=backup_path):
+                with patch.object(migration_service, '_apply_migration', side_effect=Exception("Migration failed")):
+                    with patch.object(migration_service, '_restore_from_backup', side_effect=Exception("Restore failed")):
+                        with pytest.raises(DatabaseMigrationError) as exc_info:
+                            migration_service.migrate_to_latest()
 
-        with patch.object(migration_service, '_create_backup', return_value=backup_path):
-            with patch.object(migration_service, '_apply_migration', side_effect=Exception("Migration failed")):
-                with patch.object(migration_service, '_restore_from_backup', side_effect=Exception("Restore failed")):
-                    with pytest.raises(DatabaseMigrationError) as exc_info:
-                        migration_service.migrate_to_latest()
-
-                    assert "Migration failed and backup restoration failed" in str(exc_info.value)
+                        assert "Migration failed and backup restoration failed" in str(exc_info.value)
+        finally:
+            if os.path.exists(backup_path):
+                os.unlink(backup_path)
 
     def test_migration_v2_i_bonds_support(self, migration_service):
         """Test migration to version 2 (I-bonds support)."""
         # Should not raise any exceptions
         migration_service._migrate_to_v2_add_i_bonds_support()
 
-        # Verify index was created
+        # I-bonds use the existing flexible schema, so no dedicated index is
+        # created (a json_extract index over encrypted data is not possible).
+        # The migration simply verifies the accounts table is intact.
         cursor = migration_service.db_service.connect().cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_accounts_maturity_date'")
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='accounts'")
         result = cursor.fetchone()
         assert result is not None
 
@@ -346,13 +364,10 @@ class TestDatabaseMigration:
         # Should not raise any exceptions
         migration_service._migrate_to_v4_add_broker_support()
 
-        # Verify broker index was created
+        # The broker index (json_extract over encrypted broker_name) is not
+        # created because it cannot index encrypted data. Only the
+        # institution/type composite index is added by this migration.
         cursor = migration_service.db_service.connect().cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_accounts_broker'")
-        result = cursor.fetchone()
-        assert result is not None
-
-        # Verify institution-type index was created
         cursor.execute("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_accounts_institution_type'")
         result = cursor.fetchone()
         assert result is not None

@@ -1,7 +1,7 @@
 # Net Worth Tracker - Technical Stack
 
 ## Core Technologies
-- **Backend**: Python 3.8+ with Flask web framework
+- **Backend**: Python 3.10+ with Flask web framework
 - **Database**: SQLite with AES-256 encryption
 - **Frontend**: HTML templates (Jinja2), CSS, JavaScript
 - **Security**: cryptography library for encryption, PBKDF2 key derivation

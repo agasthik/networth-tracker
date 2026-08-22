@@ -1,5 +1,8 @@
 # I-Bonds Tab Selector Fix
 
+> Historical note: this document records a completed fix. Current behavior is
+> defined by `templates/dashboard.html` and `static/js/app.js`.
+
 ## Problem
 Clicking on the I-Bonds account type card was causing a JavaScript error:
 ```
@@ -48,7 +51,8 @@ function showAccountTab(accountType) {
         'SAVINGS': 'savings-tab',
         '401K': 'retirement401k-tab',
         'TRADING': 'trading-tab',
-        'I_BONDS': 'ibonds-tab'  // Correctly maps to 'ibonds-tab'
+        'I_BONDS': 'ibonds-tab',
+        'HSA': 'hsa-tab'
     };
 
     const tabId = tabMap[accountType];
@@ -72,6 +76,7 @@ The correct mapping for all account types:
 - `401K` → `retirement401k-tab` (special case due to invalid CSS selector)
 - `TRADING` → `trading-tab`
 - `I_BONDS` → `ibonds-tab` (special case due to underscore in data-type)
+- `HSA` → `hsa-tab`
 
 ## Error Handling Improvements
 - Added null checks before calling `.click()`
@@ -79,11 +84,9 @@ The correct mapping for all account types:
 - Proper error handling for missing tab elements
 
 ## Result
-- ✅ I-Bonds account type card now works correctly
-- ✅ Clicking I-Bonds card navigates to the correct tab
-- ✅ "View Details" buttons work for I-Bonds accounts in summary table
-- ✅ Better error handling and debugging information
-- ✅ All other account types continue to work properly
+- I-Bonds account type card navigates to the correct tab
+- "View Details" buttons use the explicit mapping
+- Missing tab elements are checked before `.click()` is called
 
 ## Lessons Learned
 - Account type data attributes should match tab IDs when possible

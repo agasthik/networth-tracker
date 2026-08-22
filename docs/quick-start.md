@@ -1,84 +1,52 @@
-# Quick Start Guide
+# Quick Start
 
-Get up and running with Networth Tracker in under 5 minutes.
+Requirements: Python 3.10 or newer and internet access only when refreshing
+market prices.
 
-## Prerequisites
+## macOS or Linux
 
-- Python 3.8 or higher
-- 100 MB free disk space
-- Internet connection (for stock price updates)
-
-## Installation
-
-### 1. Download and Extract
-Download the Networth Tracker application and extract it to your desired location.
-
-### 2. Set Up Environment
 ```bash
-# Navigate to the application directory
-cd networth-tracker
-
-# Create virtual environment
 python3 -m venv venv
+./venv/bin/python -m pip install -r requirements.txt
 
-# Activate virtual environment
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
+mkdir -p "$HOME/.local/share/networth-tracker"
+chmod 700 "$HOME/.local/share/networth-tracker"
 
-# Install dependencies
-pip install -r requirements.txt
+DATABASE_PATH="$HOME/.local/share/networth-tracker/networth.db" \
+./venv/bin/python scripts/start.py --env production
 ```
 
-### 3. Start the Application
-```bash
-# On Windows:
-scripts\start.bat
+## Windows
 
-# On macOS/Linux:
-./scripts/start.sh
-
-# Or directly with Python:
-python scripts/start.py
+```cmd
+python -m venv venv
+venv\Scripts\python.exe -m pip install -r requirements.txt
+mkdir "%LOCALAPPDATA%\NetworthTracker"
+set "DATABASE_PATH=%LOCALAPPDATA%\NetworthTracker\networth.db"
+venv\Scripts\python.exe scripts\start.py --env production
 ```
 
-### 4. Access the Application
-Open your web browser and go to: `http://127.0.0.1:5000`
+Open `http://127.0.0.1:5000`.
 
-## First Time Setup
+On first use, create a password with at least 12 characters, uppercase,
+lowercase, numeric, and special characters. The application creates the
+database schema automatically.
 
-1. **Set Master Password**: Choose a strong password (minimum 12 characters)
-2. **Login**: Use your master password to access the application
-3. **Explore with Demo Data**: Import the demo database to explore with sample data (see [Demo Database Guide](demo-data.md))
-
-## Add Your First Account
-
-1. From the dashboard, click **"Add Account"**
-2. Choose an account type (CD, Savings, 401k, Trading, I-bonds, HSA)
-3. Fill in the required information
-4. Click **"Save"**
-
-## Quick Tips
-
-- **Demo Database**: Perfect for exploring features without real data (see [Demo Database Guide](demo-data.md))
-- **Backup**: Use the export feature to create regular backups
-- **Security**: All data is stored locally and encrypted
-- **Stock Updates**: Trading account stock prices update automatically
+The SQLite file uses field-level encryption, not whole-file encryption. Keep
+the file private and use operating-system full-disk encryption where needed.
+See [Security Guide](security.md).
 
 ## Next Steps
 
-- Read the [User Guide](user-guide.md) for detailed feature explanations
-- Check the [Installation Guide](installation.md) for advanced setup options
-- Review the [Security Guide](security.md) for best practices
+1. Add an account from the dashboard.
+2. Open Watchlist to track symbols without adding positions.
+3. Follow the [Demo Environment Guide](demo-data.md) for isolated synthetic
+   data.
+4. Read the [Backup and Recovery](security.md#backups-and-recovery) limitations
+   before relying on exported files.
 
-## Need Help?
+Stop the application with:
 
-- Check the [FAQ](faq.md) for common questions
-- Review the [Troubleshooting](troubleshooting.md) guide
-- Look at the log files in the `logs/` directory for error details
-
----
-
-**Estimated Setup Time**: 5 minutes
-**Difficulty Level**: Beginner
+```bash
+./venv/bin/python scripts/start.py --stop
+```

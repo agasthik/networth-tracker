@@ -1,893 +1,255 @@
-# Troubleshooting Guide
+# Troubleshooting
 
-Comprehensive troubleshooting guide for common issues with the Networth Tracker application.
+Run commands from the repository root and use the repository virtual
+environment.
 
-## Table of Contents
+## Installation Problems
 
-- [Quick Diagnostics](#quick-diagnostics)
-- [Installation Issues](#installation-issues)
-- [Startup Problems](#startup-problems)
-- [Authentication Issues](#authentication-issues)
-- [Database Problems](#database-problems)
-- [Network and API Issues](#network-and-api-issues)
-- [Performance Issues](#performance-issues)
-- [Data Issues](#data-issues)
-- [Platform-Specific Issues](#platform-specific-issues)
-- [Advanced Troubleshooting](#advanced-troubleshooting)
-
-## Quick Diagnostics
-
-### Health Check Commands
-
-Run these commands to quickly diagnose common issues:
+Check Python and recreate the environment if needed:
 
 ```bash
-# Check application status
-./scripts/start.sh --status  # macOS/Linux
-scripts\start.bat --status   # Windows
-
-# Validate configuration
-python scripts/start.py --validate-only
-
-# Verify database
-python scripts/init_db.py --verify
-
-# Or using startup scripts
-./scripts/start.sh --validate  # macOS/Linux
-scripts\start.bat --validate   # Windows
-
-# Verify database integrity
-python scripts/init_db.py --verify
-
-# Check recent logs
-tail -20 logs/networth_tracker.log  # macOS/Linux
-type logs\networth_tracker.log | more  # Windows
-tail -10 logs/networth_tracker_errors.log  # macOS/Linux
-type logs\networth_tracker_errors.log | more  # Windows
-```
-
-### System Requirements Check
-
-```bash
-# Check Python version (should be 3.8+)
-python3 --version  # macOS/Linux
-python --version   # Windows
-
-# Check available disk space
-df -h .  # macOS/Linux
-dir      # Windows
-
-# Check memory usage
-free -h    # Linux
-vm_stat    # macOS
-tasklist   # Windows
-
-# Check if port is available
-netstat -an | grep :5000      # macOS/Linux
-netstat -an | findstr :5000   # Windows
-```
-
-## Installation Issues
-
-### Python Not Found
-
-**Symptoms:**
-- `'python' is not recognized as an internal or external command`
-- `python3: command not found`
-
-**Solutions:**
-
-**Windows:**
-```cmd
-# Check if Python is installed
-where python
-where python3
-
-# If not found, download from python.org
-# During installation, check "Add Python to PATH"
-
-# Verify installation
-python --version
-```
-
-**macOS:**
-```bash
-# Install using Homebrew
-brew install python@3.9
-
-# Or use system Python
 python3 --version
-
-# Add to PATH if needed
-echo 'export PATH="/usr/local/opt/python@3.9/bin:$PATH"' >> ~/.zshrc
+./venv/bin/python --version
+./venv/bin/python -m pip install -r requirements.txt
 ```
 
-**Linux:**
-```bash
-# Ubuntu/Debian
-sudo apt update
-sudo apt install python3 python3-pip python3-venv
+Python 3.10 or newer is required. On Windows, use
+`venv\Scripts\python.exe`.
 
-# CentOS/RHEL
-sudo yum install python3 python3-pip
+If `venv` was copied from another machine or moved with the project, recreate
+it. Python virtual environments are not generally portable.
 
-# Verify installation
-python3 --version
-```
+## Application Does Not Start
 
-### Virtual Environment Issues
-
-**Symptoms:**
-- `No module named 'flask'`
-- Import errors for required packages
-
-**Solutions:**
+Validate the limited configuration checks:
 
 ```bash
-# Remove existing virtual environment
-rm -rf venv
-
-# Create new virtual environment
-python3 -m venv venv
-
-# Activate virtual environment
-source venv/bin/activate  # macOS/Linux
-venv\Scripts\activate     # Windows
-
-# Upgrade pip
-pip install --upgrade pip
-
-# Install requirements
-pip install -r requirements.txt
-
-# Verify installation
-pip list
+./venv/bin/python scripts/start.py --validate-only
 ```
 
-### Permission Denied Errors
-
-**Symptoms:**
-- `Permission denied` when running scripts
-- Cannot create files or directories
-
-**Solutions:**
-
-**macOS/Linux:**
-```bash
-# Make scripts executable
-chmod +x scripts/*.sh scripts/*.py
-
-# Check directory permissions
-ls -la
-
-# Fix ownership if needed
-sudo chown -R $USER:$USER .
-
-# Set proper permissions
-chmod 755 .
-chmod 600 *.db
-chmod 644 logs/*.log
-```
-
-**Windows:**
-```cmd
-# Run as Administrator
-# Right-click Command Prompt -> "Run as administrator"
-
-# Check file permissions
-icacls networth-tracker
-
-# Fix permissions if needed
-icacls networth-tracker /grant %USERNAME%:F /T
-```
-
-## Startup Problems
-
-### Port Already in Use
-
-**Symptoms:**
-- `Address already in use`
-- `Port 5000 is already in use`
-
-**Solutions:**
+Then start in non-debug mode:
 
 ```bash
-# Check what's using the port
-lsof -i :5000  # macOS/Linux
-netstat -ano | findstr :5000  # Windows
-
-# Kill the process if it's a zombie
-kill <PID>  # macOS/Linux
-taskkill /PID <PID> /F  # Windows
-
-# Use a different port
-python scripts/start.py --port 5001
-./scripts/start.sh --port 5001  # macOS/Linux
-scripts\start.bat --port 5001   # Windows
+./venv/bin/python scripts/start.py --env production
 ```
 
-### Application Won't Start
+Development/debug mode can fail because Flask's reloader starts another process
+that collides with PID-file detection.
 
-**Symptoms:**
-- Script exits immediately
-- No error messages
-- Browser can't connect
+### Stale PID file
 
-**Diagnostic Steps:**
+Check status:
 
 ```bash
-# Check for Python errors
-python scripts/start.py --env development --debug
-
-# Check configuration
-python scripts/start.py --validate-only
-
-# Check logs
-cat logs/networth_tracker_errors.log
-
-# Try the configured development entrypoint
-python scripts/start.py --env development --debug
+./venv/bin/python scripts/start.py --status
 ```
 
-### Import Errors
+If no process with the recorded PID exists, the status command removes the
+stale file. Verify the process before manually removing
+`networth_tracker.pid`; never terminate an unrelated process based only on a
+stale PID file.
 
-**Symptoms:**
-- `ModuleNotFoundError`
-- `ImportError`
+### Port already in use
 
-**Solutions:**
+Use another local port:
 
 ```bash
-# Ensure virtual environment is activated
-which python  # Should point to .venv/bin/python
-
-# Check if modules are installed
-pip list | grep flask
-pip list | grep cryptography
-
-# Reinstall requirements
-pip install -r requirements.txt --force-reinstall
-
-# Check Python path
-python -c "import sys; print(sys.path)"
+./venv/bin/python scripts/start.py --env production --port 5001
 ```
 
-## Authentication Issues
-
-### Forgot Master Password
-
-**Symptoms:**
-- Cannot log into the application
-- "Invalid password" error
-
-**Solutions:**
-
-Unfortunately, there is **no password recovery mechanism** by design for security. Your options are:
-
-1. **Try variations**: Common typos, caps lock, different keyboards
-2. **Restore from backup**: If you have an exported backup file
-3. **Start fresh**: Create new database (loses all data)
+Or identify the listener:
 
 ```bash
-# Create new database (WARNING: Deletes all data)
-./scripts/start.sh --stop  # macOS/Linux
-scripts\start.bat --stop   # Windows
-
-# Backup existing database
-mv networth.db networth.db.backup  # macOS/Linux
-move networth.db networth.db.backup  # Windows
-
-# Create new database
-python scripts/init_db.py --create --force
+lsof -nP -iTCP:5000 -sTCP:LISTEN
 ```
 
-### Session Timeout Issues
-
-**Symptoms:**
-- Frequent logouts
-- Session expires quickly
-
-**Solutions:**
-
-The session timeout is configured in the application code, not through environment files. To extend session timeout:
-
-```bash
-# Check current configuration
-python scripts/start.py --validate-only
-
-# Session timeout is controlled by PERMANENT_SESSION_LIFETIME in config.py
-# Default is 2 hours for production, 8 hours for development
-
-# Use development mode for longer sessions
-export FLASK_ENV=development  # macOS/Linux
-set FLASK_ENV=development     # Windows
-
-# Restart application
-./scripts/start.sh --stop  # macOS/Linux
-scripts\start.bat --stop   # Windows
-./scripts/start.sh  # macOS/Linux
-scripts\start.bat   # Windows
-```
-
-### Authentication Loops
-
-**Symptoms:**
-- Redirected to login repeatedly
-- Cannot stay logged in
-
-**Solutions:**
-
-```bash
-# Clear browser cache and cookies
-# Try incognito/private browsing mode
-
-# Restart application with fresh session
-./scripts/start.sh --stop  # macOS/Linux
-scripts\start.bat --stop   # Windows
-./scripts/start.sh  # macOS/Linux
-scripts\start.bat   # Windows
-
-# If problem persists, check logs for authentication errors
-tail -20 logs/networth_tracker_errors.log  # macOS/Linux
-type logs\networth_tracker_errors.log | more  # Windows
-```
-
-## Database Problems
-
-### Database Locked
-
-**Symptoms:**
-- `database is locked`
-- Cannot save changes
-- Application hangs on database operations
-
-**Solutions:**
-
-```bash
-# Stop all application instances
-./scripts/start.sh --stop  # macOS/Linux
-scripts\start.bat --stop   # Windows
-
-# Kill any remaining processes
-pkill -f "python.*start.py"  # macOS/Linux
-taskkill /F /IM python.exe   # Windows
-
-# Check for database connections (macOS/Linux only)
-lsof networth.db  # macOS/Linux
-
-# Wait and restart
-sleep 5  # macOS/Linux
-timeout 5  # Windows
-./scripts/start.sh  # macOS/Linux
-scripts\start.bat   # Windows
-
-# If still locked, check file permissions
-ls -la networth.db  # macOS/Linux
-dir networth.db     # Windows
-chmod 600 networth.db  # macOS/Linux only
-```
-
-### Database Corruption
-
-**Symptoms:**
-- `database disk image is malformed`
-- SQLite errors in logs
-- Data appears corrupted
-
-**Solutions:**
-
-```bash
-# Stop application
-./scripts/start.sh --stop  # macOS/Linux
-scripts\start.bat --stop   # Windows
-
-# Backup current database
-cp networth.db networth.db.corrupt  # macOS/Linux
-copy networth.db networth.db.corrupt  # Windows
-
-# Try SQLite recovery (if sqlite3 is available)
-sqlite3 networth.db ".recover" | sqlite3 networth_recovered.db
-
-# Verify recovered database
-python scripts/init_db.py --verify
-
-# If recovery successful, replace original
-mv networth_recovered.db networth.db  # macOS/Linux
-move networth_recovered.db networth.db  # Windows
-
-# If recovery fails, restore from backup using the application's import feature
-# 1. Start the application
-# 2. Use Import Data feature to restore from backup file
-```
-
-### Migration Failures
-
-**Symptoms:**
-- Database version errors
-- Schema mismatch errors
-- Migration script failures
-
-**Solutions:**
-
-```bash
-# Check current database version
-python scripts/init_db.py --verify
-
-# Backup before migration
-python scripts/init_db.py --backup
-
-# Run migration manually
-python scripts/init_db.py --migrate
-
-# If migration fails, restore backup
-cp backups/latest_backup.db networth.db
-
-# Check logs for specific errors
-grep -i migration logs/networth_tracker_errors.log
-```
-
-## Network and API Issues
-
-### Stock Prices Not Updating
-
-**Symptoms:**
-- Stock prices show as "N/A"
-- Old prices displayed
-- API timeout errors
-
-**Solutions:**
-
-```bash
-# Check internet connection
-ping google.com
-
-# Test API manually (if curl is available)
-curl "https://query1.finance.yahoo.com/v8/finance/chart/AAPL"
-
-# Check API rate limiting in logs
-grep -i "rate limit" logs/networth_tracker.log  # macOS/Linux
-findstr /i "rate limit" logs\networth_tracker.log  # Windows
-
-# Stock API settings are configured in config.py
-# Default timeout is 30 seconds, rate limit is 1 second between requests
-# To modify, set environment variables:
-export STOCK_API_TIMEOUT=60  # macOS/Linux
-set STOCK_API_TIMEOUT=60     # Windows
-
-# Restart application
-./scripts/start.sh --stop  # macOS/Linux
-scripts\start.bat --stop   # Windows
-./scripts/start.sh  # macOS/Linux
-scripts\start.bat   # Windows
-```
-
-### Cannot Access Application in Browser
-
-**Symptoms:**
-- "This site can't be reached"
-- Connection refused errors
-- Page won't load
-
-**Solutions:**
-
-```bash
-# Verify application is running
-./scripts/start.sh --status  # macOS/Linux
-scripts\start.bat --status   # Windows
-
-# Check correct URL
-echo "Try: http://127.0.0.1:5000"
-echo "NOT: https://127.0.0.1:5000"
-
-# Check firewall settings
-# Ensure localhost traffic is allowed
-
-# Try different browser
-# Try incognito/private mode
-
-# Check for proxy settings
-# Disable proxy for localhost
-
-# Check if application is bound to correct interface
-netstat -an | grep :5000      # macOS/Linux
-netstat -an | findstr :5000   # Windows
-```
-
-### SSL/TLS Errors
-
-**Symptoms:**
-- Certificate errors
-- SSL handshake failures
-
-**Solutions:**
-
-The application runs on HTTP (not HTTPS) for localhost:
-
-```bash
-# Use HTTP, not HTTPS
-http://127.0.0.1:5000  # Correct
-# https://127.0.0.1:5000  # Wrong
-
-# If browser forces HTTPS, clear HSTS settings
-# Chrome: chrome://net-internals/#hsts
-# Firefox: about:config -> security.tls.insecure_fallback_hosts
-```
-
-## Performance Issues
-
-### Slow Application Response
-
-**Symptoms:**
-- Pages load slowly
-- Database operations timeout
-- High CPU usage
-
-**Solutions:**
-
-```bash
-# Check system resources
-top     # Linux/macOS
-taskmgr # Windows (or Task Manager GUI)
-
-# Check database size
-ls -lh *.db  # macOS/Linux
-dir *.db     # Windows
-
-# Optimize database (if sqlite3 is available)
-sqlite3 networth.db "VACUUM;"
-sqlite3 networth.db "ANALYZE;"
-
-# Check for large log files
-ls -lh logs/  # macOS/Linux
-dir logs\     # Windows
-
-# Log rotation is handled automatically by the application
-# Check log configuration in config.py:
-# MAX_LOG_SIZE = 10MB (default)
-# LOG_BACKUP_COUNT = 5 (default)
-```
-
-### Memory Issues
-
-**Symptoms:**
-- Out of memory errors
-- Application crashes
-- System becomes unresponsive
-
-**Solutions:**
-
-```bash
-# Check memory usage
-ps aux | grep python  # Linux/macOS
-tasklist | findstr python  # Windows
-
-# The application is designed to be lightweight
-# Memory usage is typically under 100MB for normal operation
-
-# If experiencing memory issues:
-# 1. Check for memory leaks in logs
-# 2. Restart the application periodically
-# 3. Ensure adequate system RAM (minimum 512MB)
-
-# Restart application
-./scripts/start.sh --stop  # macOS/Linux
-scripts\start.bat --stop   # Windows
-./scripts/start.sh  # macOS/Linux
-scripts\start.bat   # Windows
-```
-
-### Disk Space Issues
-
-**Symptoms:**
-- "No space left on device"
-- Cannot save data
-- Backup failures
-
-**Solutions:**
-
-```bash
-# Check disk space
-df -h .  # Linux/macOS
-dir  # Windows
-
-# Clean up log files
-find logs/ -name "*.log.*" -mtime +30 -delete
-
-# Clean up old backups
-find backups/ -name "*.db" -mtime +90 -delete
-
-# Compress old logs
-gzip logs/*.log.old
-```
-
-## Data Issues
-
-### Missing or Incorrect Data
-
-**Symptoms:**
-- Accounts not displaying
-- Incorrect balances
-- Missing historical data
-
-**Solutions:**
-
-```bash
-# Check database integrity
-python scripts/init_db.py --verify
-
-# Check for data corruption (if sqlite3 is available)
-sqlite3 networth.db "PRAGMA integrity_check;"
-
-# Restore from backup using the application's import feature:
-# 1. Start the application
-# 2. Go to Import Data
-# 3. Select your backup file
-# 4. Enter master password
-# 5. Confirm import
-
-# Check logs for data errors
-grep -i "data" logs/networth_tracker_errors.log  # macOS/Linux
-findstr /i "data" logs\networth_tracker_errors.log  # Windows
-```
-
-### Export/Import Issues
-
-**Symptoms:**
-- Export fails
-- Import errors
-- Corrupted backup files
-
-**Solutions:**
-
-```bash
-# Check file permissions
-ls -la backups/  # macOS/Linux
-dir backups\     # Windows
-
-# Export/Import should be done through the web interface:
-# 1. Log into the application
-# 2. Use Export Data feature to create backups
-# 3. Use Import Data feature to restore backups
-
-# Check backup files (they are encrypted)
-ls -la backups/  # macOS/Linux
-dir backups\     # Windows
-
-# Backup files have .enc extension and are encrypted
-# They cannot be read directly without the application
-```
-
-## Platform-Specific Issues
-
-### Windows Issues
-
-**Common Problems:**
-- Path separator issues
-- Permission problems
-- Antivirus interference
-
-**Solutions:**
+On Windows:
 
 ```cmd
-# Use Windows-style paths
-set DATABASE_PATH=data\networth.db
-
-# Disable antivirus scanning for app directory
-# Add exclusion in Windows Defender
-
-# Use Windows batch files
-scripts\start.bat instead of scripts/start.sh
-
-# Check Windows event logs
-eventvwr.msc
+netstat -ano | findstr :5000
 ```
 
-### macOS Issues
+## Browser Cannot Connect
 
-**Common Problems:**
-- Gatekeeper blocking execution
-- Permission issues with newer macOS versions
+Confirm the process is running and open the exact HTTP URL:
 
-**Solutions:**
+```text
+http://127.0.0.1:5000
+```
+
+Test the health route:
 
 ```bash
-# Allow execution of unsigned binaries
-sudo spctl --master-disable
-
-# Fix permission issues
-sudo xattr -rd com.apple.quarantine networth-tracker/
-
-# Use Homebrew Python
-brew install python@3.9
-export PATH="/opt/homebrew/bin:$PATH"
+curl --fail http://127.0.0.1:5000/health
 ```
 
-### Linux Issues
+Do not switch to `https://`, `0.0.0.0`, or a LAN address.
 
-**Common Problems:**
-- Missing system dependencies
-- SELinux restrictions
-- Distribution-specific issues
+## Wrong or Empty Database
 
-**Solutions:**
+The application uses the `DATABASE_PATH` present when Python starts. Confirm
+the value in the same shell:
 
 ```bash
-# Install system dependencies
-# Ubuntu/Debian
-sudo apt install python3-dev libffi-dev libssl-dev
-
-# CentOS/RHEL
-sudo yum install python3-devel libffi-devel openssl-devel
-
-# Check SELinux (if applicable)
-getenforce
-# If enforcing, may need to set permissive mode or create policy
-
-# Check distribution-specific Python
-which python3
-python3 --version
+printf '%s\n' "$DATABASE_PATH"
 ```
 
-## Advanced Troubleshooting
+If unset, production mode uses `networth.db` in the current working directory.
+Always use the same absolute path on later starts.
 
-### Debug Mode
+The application does not load `.env` files. Export the variable in the shell or
+configure it in the service manager.
 
-Enable debug mode for detailed error information:
+## Cannot Log In
+
+Check keyboard layout, Caps Lock, and the selected database path. Passwords
+belong to a particular database because its random salt is used for password
+verification and key derivation.
+
+There is no password reset or recovery. A normal exported `.enc` file cannot
+recover a forgotten password. Restore a complete database backup and use its
+original password, or start with a new database.
+
+## Session Expires
+
+The authentication manager enforces two hours of inactivity. Development
+configuration declares eight hours, but the current authentication manager
+still initializes its own two-hour timeout, so do not rely on the longer
+configuration value.
+
+Frequent immediate redirects usually indicate the process restarted with a new
+random `SECRET_KEY`. Set a stable value of at least 32 random characters before
+startup.
+
+## Account Validation Errors
+
+Common constraints include:
+
+- CD principal must be positive and maturity must be in the future.
+- Savings, retirement, trading, and HSA balances cannot be negative.
+- Trading positions require a symbol, positive shares and purchase price, and a
+  purchase date that is not in the future.
+- HSA cash plus investment balance must equal current balance within one cent.
+- HSA current-year contributions cannot exceed the annual limit.
+
+Dates sent through forms and APIs use `YYYY-MM-DD`.
+
+## Stock Prices Do Not Refresh
+
+Quote refresh requires network access and a responsive market-data provider.
+The effective `StockPriceService` defaults are:
+
+- Three seconds between requests
+- Two retries
+
+`STOCK_API_RATE_LIMIT` and `STOCK_API_TIMEOUT` in `config.py` are not currently
+passed to service instances. Changing those environment variables does not
+change the effective service defaults.
+
+Provider failure can leave a prior price displayed. Check the last-update time
+and application logs rather than assuming a successful refresh.
+
+## Export or Import Fails
+
+The browser export is encrypted with the current session key. Reimport a normal
+export into the same database while authenticated and leave Backup password
+empty.
+
+The Backup password field is for generated demo backups. Use `demo123` for the
+file produced by `scripts/create_demo_backup.py`.
+
+The UI downloads `.enc`; the API response uses `.nwb`. The file contents use
+the same format, but the browser file picker currently advertises `.enc`.
+
+Normal exports omit the database salt and are not portable disaster-recovery
+backups. See [Security Guide](security.md#backups-and-recovery).
+
+## Database Errors
+
+First stop the application:
 
 ```bash
-# Start in debug mode
-export FLASK_ENV=development  # macOS/Linux
-set FLASK_ENV=development     # Windows
-
-python scripts/start.py --env development --debug
-
-# Or use startup scripts
-./scripts/start.sh --env development --debug  # macOS/Linux
-scripts\start.bat --env development --debug   # Windows
-
-# Check debug logs
-tail -f logs/networth_tracker.log  # macOS/Linux
-# On Windows, use a text editor to view logs or:
-type logs\networth_tracker.log
+./venv/bin/python scripts/start.py --stop
 ```
 
-### Database Debugging
+Preserve the file before attempting repair:
 
 ```bash
-# Connect to database directly
-sqlite3 networth.db
-
-# Check tables
-.tables
-
-# Check schema
-.schema accounts
-
-# Check data
-SELECT COUNT(*) FROM accounts;
-SELECT * FROM accounts LIMIT 5;
-
-# Check for locks
-.timeout 1000
+install -m 600 "$DATABASE_PATH" "$DATABASE_PATH.before-repair"
 ```
 
-### Network Debugging
+If SQLite is installed, inspect a stopped copy:
 
 ```bash
-# Check network connectivity
-netstat -an | grep :5000
-
-# Test local connection (if curl is available)
-curl -v http://127.0.0.1:5000
-
-# Check DNS resolution
-nslookup 127.0.0.1
-
-# Test with different tools (if available)
-wget http://127.0.0.1:5000  # Linux/macOS
-telnet 127.0.0.1 5000       # All platforms
-
-# Simple browser test
-# Open http://127.0.0.1:5000 in your browser
+sqlite3 "$DATABASE_PATH.before-repair" "PRAGMA integrity_check;"
 ```
 
-### Log Analysis
+Do not run tests, `VACUUM`, recovery tools, or ad hoc writes against repository
+database files or the only copy of user data.
+
+`scripts/init_db.py --create`, `--migrate`, `--verify`, `--reset`, and `--demo`
+are incompatible with the current database service. There is no `--restore`
+option. Schema setup and migrations normally run when an authenticated
+database service connects.
+
+## Demo Data Problems
+
+Import `demo_backup.enc`, not the raw generated `.db` file. Enter `demo123` as
+the backup password and ensure the application uses the isolated
+`DATABASE_PATH` described in [Demo Environment Guide](demo-data.md).
+
+The current converter omits generated watchlist entries, so an empty watchlist
+after demo import is expected.
+
+## Logs
+
+Default files:
+
+```text
+logs/networth_tracker.log
+logs/networth_tracker_errors.log
+```
+
+Search without posting sensitive contents:
 
 ```bash
-# Search for specific errors
-grep -i "error" logs/networth_tracker_errors.log  # macOS/Linux
-findstr /i "error" logs\networth_tracker_errors.log  # Windows
-
-# Check for patterns
-grep -i "database" logs/networth_tracker.log | tail -20  # macOS/Linux
-findstr /i "database" logs\networth_tracker.log  # Windows
-
-# Monitor logs in real-time
-tail -f logs/networth_tracker.log  # macOS/Linux
-# On Windows, use a text editor or PowerShell:
-Get-Content logs\networth_tracker.log -Wait  # PowerShell
-
-# Analyze log timestamps (macOS/Linux only)
-awk '{print $1, $2}' logs/networth_tracker.log | sort | uniq -c
+rg -n "ERROR|CRITICAL|migration|traceback" logs/
 ```
 
-### System Information Collection
+Logs are not universally scrubbed. Remove passwords, keys, account data, paths,
+and backup contents before sharing excerpts.
 
-For complex issues, collect system information:
+## Platform Notes
 
-**macOS/Linux:**
+### Windows
+
+Use Windows paths and `venv\Scripts\python.exe`. The Windows stop command uses
+`taskkill /F`, so stop the application before copying data.
+
+### macOS
+
+Do not globally disable Gatekeeper. If a downloaded checkout has quarantine
+metadata, inspect it and remove quarantine only from files you trust:
+
 ```bash
-# Create diagnostic report
-cat > diagnostic_report.txt << EOF
-System Information:
-$(uname -a)
-
-Python Version:
-$(python3 --version)
-
-Disk Space:
-$(df -h .)
-
-Memory:
-$(free -h 2>/dev/null || vm_stat)
-
-Process List:
-$(ps aux | grep python)
-
-Network:
-$(netstat -an | grep :5000)
-
-Recent Errors:
-$(tail -20 logs/networth_tracker_errors.log)
-EOF
+xattr -l /path/to/networth-tracker
 ```
 
-**Windows:**
-```cmd
-# Create diagnostic report
-echo System Information: > diagnostic_report.txt
-systeminfo | findstr /C:"OS Name" /C:"OS Version" >> diagnostic_report.txt
-echo. >> diagnostic_report.txt
-echo Python Version: >> diagnostic_report.txt
-python --version >> diagnostic_report.txt
-echo. >> diagnostic_report.txt
-echo Disk Space: >> diagnostic_report.txt
-dir >> diagnostic_report.txt
-echo. >> diagnostic_report.txt
-echo Process List: >> diagnostic_report.txt
-tasklist | findstr python >> diagnostic_report.txt
-echo. >> diagnostic_report.txt
-echo Network: >> diagnostic_report.txt
-netstat -an | findstr :5000 >> diagnostic_report.txt
+### Linux
+
+Keep data under a user-owned private directory. If a service manager is used,
+confirm that its user, working directory, environment, and file permissions
+match the interactive setup.
+
+## Collecting Diagnostics
+
+Useful non-sensitive details include:
+
+```bash
+./venv/bin/python --version
+./venv/bin/python -m pip show Flask cryptography yfinance
+./venv/bin/python scripts/start.py --validate-only
 ```
 
-## Getting Help
-
-If you're still experiencing issues after trying these solutions:
-
-1. **Collect Information:**
-   - Error messages from logs
-   - System information
-   - Steps to reproduce the issue
-   - Screenshots if applicable
-
-2. **Check Documentation:**
-   - [Installation Guide](installation.md)
-   - [User Guide](user-guide.md)
-   - [Configuration Reference](configuration.md)
-   - [FAQ](faq.md)
-
-3. **Try Workarounds:**
-   - Import demo database to test functionality (see [Demo Database Guide](demo-data.md))
-   - Try different browsers
-   - Test on a different user account
-   - Use portable installation
-
-4. **Last Resort Options:**
-   - Fresh installation
-   - Restore from backup
-   - Start with new database
-
----
-
-**Remember:** Always backup your data before attempting major troubleshooting steps!
+Do not attach database files, encrypted exports, secrets, or unredacted logs to
+an issue.

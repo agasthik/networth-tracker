@@ -23,8 +23,16 @@ from services.auth import AuthenticationManager
 from services.stock_prices import StockPriceService
 from services.historical import HistoricalDataService
 from services.export_import import ExportImportService
-# Demo service has been removed - demo functionality now uses standalone database
-from models.accounts import AccountFactory, AccountType, StockPosition
+# The demo data generator now lives in the standalone demo database script.
+from scripts.generate_demo_database import DemoDataGenerator
+from models.accounts import AccountFactory, AccountType, StockPosition, ChangeType
+
+
+class _FakeSession(dict):
+    """Dict-based stand-in for the Flask session that also supports attribute
+    access (e.g. ``session.permanent``), used to patch ``services.auth.session``
+    outside of a real Flask request context."""
+    pass
 
 
 class TestEndToEndUserWorkflows(unittest.TestCase):
@@ -36,20 +44,25 @@ class TestEndToEndUserWorkflows(unittest.TestCase):
         self.db_fd, self.db_path = tempfile.mkstemp(suffix='.db')
 
         # Initialize services
-        self.encryption_service = EncryptionService()
         self.auth_manager = AuthenticationManager(self.db_path)
         self.test_password = "TestPassword123!"
 
         # Set up authentication
         self.auth_manager.set_master_password(self.test_password)
-        self.encryption_service.derive_key(self.test_password)
 
-        # Initialize database service
-        self.db_service = DatabaseService(self.db_path, self.encryption_service)
+        # Reuse the auth manager's encryption and database services so the
+        # encryption key (derived with the salt persisted in the DB) matches.
+        # Creating a standalone EncryptionService would derive a key with a
+        # different random salt, causing InvalidToken decryption failures.
+        self.encryption_service = self.auth_manager.encryption_service
+        self.db_service = self.auth_manager.db_service
         self.db_service.connect()
 
         # Initialize other services
         self.stock_service = StockPriceService(rate_limit_delay=0.01)
+        # Force deterministic behavior: disable the live HTTP "alternative" price
+        # fetch so tests exercise the mocked yfinance path instead of the network.
+        self.stock_service._try_alternative_price_fetch = lambda symbol: None
         self.historical_service = HistoricalDataService(self.db_service)
         self.export_service = ExportImportService(self.db_service, self.encryption_service)
 
@@ -65,7 +78,7 @@ class TestEndToEndUserWorkflows(unittest.TestCase):
         self.assertFalse(self.auth_manager.is_setup_required())
 
         # Step 2: User logs in
-        with patch('flask.session', {}):
+        with patch('services.auth.session', _FakeSession()):
             login_success = self.auth_manager.verify_password(self.test_password)
             self.assertTrue(login_success)
 
@@ -94,14 +107,20 @@ class TestEndToEndUserWorkflows(unittest.TestCase):
         self.assertEqual(len(retrieved_accounts), 1)
         self.assertEqual(retrieved_accounts[0]['name'], "My First CD")
 
-        # Step 5: User updates account value (creates historical snapshot)
+        # Step 5: User updates account value (creates historical snapshot).
+        # create_snapshot_if_value_changed compares the account's *current* value
+        # against the supplied previous value, so the new value must be applied
+        # before the check for a snapshot to be recorded.
+        previous_value = cd_account.current_value
         updated_value = 10125.0
-        snapshot_id = self.historical_service.create_snapshot_if_value_changed(
-            cd_account, cd_account.current_value, 'MANUAL_UPDATE'
-        )
-
-        # Update account value
         cd_account.current_value = updated_value
+
+        snapshot_id = self.historical_service.create_snapshot_if_value_changed(
+            cd_account, previous_value, ChangeType.MANUAL_UPDATE
+        )
+        self.assertIsNotNone(snapshot_id)
+
+        # Persist the updated account value
         account_dict = cd_account.to_dict()
         account_dict['type'] = account_dict['account_type']
         self.db_service.update_account(account_id, account_dict)
@@ -188,7 +207,7 @@ class TestEndToEndUserWorkflows(unittest.TestCase):
 
         # Step 5: Create historical snapshot for portfolio
         snapshot_id = self.historical_service.create_snapshot(
-            trading_account, 'STOCK_PRICE_UPDATE',
+            trading_account, ChangeType.STOCK_PRICE_UPDATE,
             {'total_portfolio_value': total_portfolio_value}
         )
 
@@ -236,16 +255,16 @@ class TestEndToEndUserWorkflows(unittest.TestCase):
         for account in created_accounts:
             for i in range(3):
                 self.historical_service.create_snapshot(
-                    account, 'MANUAL_UPDATE',
+                    account, ChangeType.MANUAL_UPDATE,
                     {'iteration': i}
                 )
 
         # Step 3: Export all data
-        export_data = self.export_service.export_all_data()
+        export_data = self.export_service.export_data()
 
         self.assertIn('accounts', export_data)
         self.assertIn('historical_snapshots', export_data)
-        self.assertIn('metadata', export_data)
+        self.assertIn('backup_metadata', export_data)
         self.assertEqual(len(export_data['accounts']), 2)
 
         # Step 4: Clear database (simulate data loss)
@@ -257,11 +276,11 @@ class TestEndToEndUserWorkflows(unittest.TestCase):
         self.assertEqual(len(remaining_accounts), 0)
 
         # Step 5: Import data back
-        import_result = self.export_service.import_all_data(export_data)
+        import_result = self.export_service.import_data(export_data)
 
-        self.assertTrue(import_result['success'])
+        self.assertEqual(len(import_result['errors']), 0)
         self.assertEqual(import_result['accounts_imported'], 2)
-        self.assertGreater(import_result['snapshots_imported'], 0)
+        self.assertGreater(import_result['historical_snapshots_imported'], 0)
 
         # Step 6: Verify data was restored
         restored_accounts = self.db_service.get_accounts()
@@ -285,7 +304,7 @@ class TestEndToEndUserWorkflows(unittest.TestCase):
         # Verify we have different account types
         account_types = {account.account_type for account in demo_accounts}
         expected_types = {AccountType.CD, AccountType.SAVINGS, AccountType.ACCOUNT_401K,
-                         AccountType.TRADING, AccountType.I_BONDS}
+                         AccountType.TRADING, AccountType.I_BONDS, AccountType.HSA}
         self.assertTrue(account_types.issubset(expected_types))
 
         # Step 3: Store demo accounts in database
@@ -363,13 +382,22 @@ class TestEndToEndUserWorkflows(unittest.TestCase):
         account_id = self.db_service.create_account(account_dict)
         account.id = account_id
 
-        # Step 2: Create historical snapshots with growth pattern
-        base_date = datetime.now() - timedelta(days=365)
-        values = [10000, 10200, 10500, 10300, 10800, 11000, 11200, 11500]
+        # Step 2: Create historical snapshots with a growth pattern.
+        # Use monthly snapshots spanning a full year and ending "today" so that
+        # short (30 day) and long (365 day) look-back windows both resolve to a
+        # snapshot near their boundaries. get_value_at_date only considers
+        # snapshots within +/-7 days of a target, so sparse/older-only data would
+        # leave the recent boundary empty and every period would collapse to 0%.
+        values = [10000, 10125, 10250, 10300, 10500, 10650, 10800,
+                  10900, 11050, 11150, 11300, 11400, 11500]
+        num_points = len(values)
+        # Spread evenly across the last 360 days, with the final point at "today".
+        base_date = datetime.now() - timedelta(days=360)
+        spacing_days = 360 // (num_points - 1)
 
         with patch('services.database.datetime') as mock_datetime:
             for i, value in enumerate(values):
-                snapshot_date = base_date + timedelta(days=i * 45)  # Every 45 days
+                snapshot_date = base_date + timedelta(days=i * spacing_days)
                 mock_datetime.now.return_value.timestamp.return_value = snapshot_date.timestamp()
 
                 self.db_service.create_historical_snapshot(
@@ -380,10 +408,13 @@ class TestEndToEndUserWorkflows(unittest.TestCase):
         performance = self.historical_service.calculate_performance_metrics(account_id)
 
         self.assertIsNotNone(performance)
-        self.assertEqual(performance.start_value, 10000.0)
-        self.assertEqual(performance.end_value, 11500.0)
-        self.assertEqual(performance.absolute_change, 1500.0)
-        self.assertEqual(performance.percentage_change, 15.0)
+        self.assertEqual(performance.start_value, float(values[0]))
+        self.assertEqual(performance.end_value, float(values[-1]))
+        self.assertEqual(performance.absolute_change, float(values[-1] - values[0]))
+        self.assertAlmostEqual(
+            performance.percentage_change,
+            (values[-1] - values[0]) / values[0] * 100
+        )
         self.assertEqual(performance.total_snapshots, len(values))
 
         # Step 4: Analyze trend
@@ -439,7 +470,7 @@ class TestEndToEndUserWorkflows(unittest.TestCase):
         self.assertEqual(decrypted_data, sensitive_data)
 
         # Step 4: Test session management
-        with patch('flask.session', {}) as mock_session:
+        with patch('services.auth.session', _FakeSession()) as mock_session:
             # Login
             login_success = self.auth_manager.verify_password(self.test_password)
             self.assertTrue(login_success)
@@ -493,15 +524,17 @@ class TestEndToEndUserWorkflows(unittest.TestCase):
 
         account_id = self.db_service.create_account(account_data)
 
-        # Step 2: Test handling of invalid data
+        # Step 2: Test handling of invalid data.
+        # The database layer persists raw dicts without validation, so an invalid
+        # account type only raises when constructed through the AccountFactory.
         with self.assertRaises(Exception):
             invalid_data = {
                 'name': '',  # Invalid empty name
                 'institution': 'Test Bank',
-                'type': 'INVALID_TYPE',  # Invalid account type
+                'account_type': 'INVALID_TYPE',  # Invalid account type
                 'current_balance': -1000.0  # Invalid negative balance
             }
-            self.db_service.create_account(invalid_data)
+            AccountFactory.create_account_from_dict(invalid_data)
 
         # Step 3: Test stock price API failure handling
         with patch('services.stock_prices.yf.Ticker') as mock_ticker:
@@ -512,7 +545,7 @@ class TestEndToEndUserWorkflows(unittest.TestCase):
 
         # Step 4: Test data backup and recovery
         # Create backup
-        export_data = self.export_service.export_all_data()
+        export_data = self.export_service.export_data()
 
         # Simulate data corruption by deleting account
         self.db_service.delete_account(account_id)
@@ -522,8 +555,8 @@ class TestEndToEndUserWorkflows(unittest.TestCase):
         self.assertIsNone(retrieved_account)
 
         # Restore from backup
-        import_result = self.export_service.import_all_data(export_data)
-        self.assertTrue(import_result['success'])
+        import_result = self.export_service.import_data(export_data)
+        self.assertEqual(len(import_result['errors']), 0)
 
         # Verify data is restored
         all_accounts = self.db_service.get_accounts()

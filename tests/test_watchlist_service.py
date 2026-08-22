@@ -20,7 +20,7 @@ from services.watchlist import WatchlistService, WatchlistServiceError
 from services.database import DatabaseService
 from services.stock_prices import StockPriceService, PriceUpdateResult, StockPriceServiceError
 from services.encryption import EncryptionService
-from services.error_handler import ValidationError
+from services.error_handler import ValidationError, WatchlistDuplicateError, StockValidationError
 
 
 class TestWatchlistService:
@@ -95,7 +95,7 @@ class TestWatchlistService:
         existing_item = WatchlistItem.create_new("AAPL", "Existing Apple")
         watchlist_service.get_watchlist = Mock(return_value=[existing_item])
 
-        with pytest.raises(WatchlistServiceError, match="Stock AAPL is already in the watchlist"):
+        with pytest.raises(WatchlistDuplicateError, match="already in your watchlist"):
             watchlist_service.add_stock("aapl", "New Apple")  # Test case insensitive
 
     def test_add_stock_invalid_symbol(self, watchlist_service, mock_stock_service):
@@ -103,7 +103,7 @@ class TestWatchlistService:
         watchlist_service.get_watchlist = Mock(return_value=[])
         mock_stock_service.get_current_price.side_effect = StockPriceServiceError("Invalid symbol")
 
-        with pytest.raises(ValidationError, match="Invalid stock symbol 'INVALID'"):
+        with pytest.raises(StockValidationError, match="Invalid stock symbol 'INVALID'"):
             watchlist_service.add_stock("INVALID")
 
     def test_remove_stock_success(self, watchlist_service, mock_db_service):
@@ -215,7 +215,11 @@ class TestWatchlistService:
 
         result = watchlist_service.update_prices()
 
-        assert result == {'AAPL': True, 'GOOGL': True}
+        assert result['success'] is True
+        assert result['summary']['successful_updates'] == 2
+        assert result['summary']['failed_updates'] == 0
+        assert result['results']['AAPL']['success'] is True
+        assert result['results']['GOOGL']['success'] is True
         mock_stock_service.get_batch_prices.assert_called_once_with(['AAPL', 'GOOGL'])
         assert watchlist_service._store_watchlist_item.call_count == 2
 
@@ -236,7 +240,12 @@ class TestWatchlistService:
 
         result = watchlist_service.update_prices()
 
-        assert result == {'AAPL': True, 'INVALID': False}
+        assert result['success'] is True
+        assert result['summary']['successful_updates'] == 1
+        assert result['summary']['failed_updates'] == 1
+        assert result['results']['AAPL']['success'] is True
+        assert result['results']['INVALID']['success'] is False
+        assert 'INVALID' in result['summary']['failed_symbols']
         # Only successful update should be stored
         watchlist_service._store_watchlist_item.assert_called_once()
 
@@ -246,7 +255,9 @@ class TestWatchlistService:
 
         result = watchlist_service.update_prices()
 
-        assert result == {}
+        assert result['success'] is True
+        assert result['results'] == {}
+        assert result['summary']['total_items'] == 0
 
     def test_validate_symbol_valid(self, watchlist_service, mock_stock_service):
         """Test validating a valid stock symbol."""

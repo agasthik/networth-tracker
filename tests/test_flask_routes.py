@@ -61,10 +61,12 @@ class TestFlaskAuthRoutes(unittest.TestCase):
 
     def test_setup_password_mismatch(self):
         """Test password setup with mismatched passwords."""
+        # On validation failure the view flashes the error and redirects; follow
+        # the redirect so the flashed message is rendered on the resulting page.
         response = self.client.post('/setup', data={
             'password': self.test_password,
             'confirm_password': 'DifferentPassword123!'
-        })
+        }, follow_redirects=True)
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Passwords do not match', response.data)
@@ -106,10 +108,11 @@ class TestFlaskAuthRoutes(unittest.TestCase):
             'confirm_password': self.test_password
         })
 
-        # Then try to login with wrong password
+        # Then try to login with wrong password. The view flashes the error and
+        # redirects back to login; follow the redirect to render the message.
         response = self.client.post('/login', data={
             'password': 'WrongPassword123!'
-        })
+        }, follow_redirects=True)
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Invalid password', response.data)

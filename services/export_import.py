@@ -191,141 +191,149 @@ class ExportImportService:
                 'errors': []
             }
 
-            # Import accounts
-            accounts_data = backup_data.get('accounts', [])
-            for account_data in accounts_data:
-                try:
-                    account_id = account_data.get('id')
+            # Run the entire restore inside a single transaction so a hard
+            # failure part-way through rolls back cleanly instead of leaving
+            # the database in a partially-imported (corrupt) state.
+            with self.db_service.transaction():
+                # Import accounts
+                accounts_data = backup_data.get('accounts', [])
+                for account_data in accounts_data:
+                    try:
+                        account_id = account_data.get('id')
 
-                    # Check if account already exists
-                    existing_account = self.db_service.get_account(account_id) if account_id else None
+                        # Check if account already exists
+                        existing_account = self.db_service.get_account(account_id) if account_id else None
 
-                    if existing_account and not overwrite_existing:
-                        import_results['accounts_skipped'] += 1
-                        continue
+                        if existing_account and not overwrite_existing:
+                            import_results['accounts_skipped'] += 1
+                            continue
 
-                    # Prepare account data for database
-                    db_account_data = self._prepare_account_for_import(account_data)
+                        # Prepare account data for database
+                        db_account_data = self._prepare_account_for_import(account_data)
 
-                    if existing_account and overwrite_existing:
-                        # Update existing account
-                        success = self.db_service.update_account(account_id, db_account_data)
-                        if success:
-                            import_results['accounts_imported'] += 1
-                    else:
-                        # Create new account
-                        if account_id:
-                            # Remove ID to let database service generate new one
-                            db_account_data_copy = db_account_data.copy()
-                            if 'id' in db_account_data_copy:
-                                del db_account_data_copy['id']
-                            new_account_id = self.db_service.create_account(db_account_data_copy)
-                            import_results['accounts_imported'] += 1
-
-                            # Update mapping for stock positions and historical data
-                            if new_account_id != account_id:
-                                self._update_account_id_mapping(backup_data, account_id, new_account_id)
+                        if existing_account and overwrite_existing:
+                            # Update existing account
+                            success = self.db_service.update_account(account_id, db_account_data)
+                            if success:
+                                import_results['accounts_imported'] += 1
                         else:
-                            new_account_id = self.db_service.create_account(db_account_data)
-                            import_results['accounts_imported'] += 1
+                            # Create new account
+                            if account_id:
+                                # Remove ID to let database service generate new one
+                                db_account_data_copy = db_account_data.copy()
+                                if 'id' in db_account_data_copy:
+                                    del db_account_data_copy['id']
+                                new_account_id = self.db_service.create_account(db_account_data_copy)
+                                import_results['accounts_imported'] += 1
 
-                except Exception as e:
-                    import_results['errors'].append(f"Failed to import account {account_data.get('id', 'unknown')}: {str(e)}")
-
-            # Import stock positions
-            stock_positions_data = backup_data.get('stock_positions', {})
-            for account_id, positions in stock_positions_data.items():
-                for position_data in positions:
-                    try:
-                        # Prepare position data
-                        db_position_data = self._prepare_stock_position_for_import(position_data)
-
-                        # Create stock position
-                        self.db_service.create_stock_position(
-                            account_id,
-                            db_position_data['symbol'],
-                            db_position_data['shares'],
-                            db_position_data['purchase_price'],
-                            db_position_data['purchase_date']
-                        )
-
-                        # Update current price if available
-                        if db_position_data.get('current_price'):
-                            # Get the position ID to update price
-                            positions_list = self.db_service.get_stock_positions(account_id)
-                            for pos in positions_list:
-                                if (pos['symbol'] == db_position_data['symbol'] and
-                                    pos['shares'] == db_position_data['shares'] and
-                                    pos['purchase_price'] == db_position_data['purchase_price']):
-                                    self.db_service.update_stock_price(pos['id'], db_position_data['current_price'])
-                                    break
-
-                        import_results['stock_positions_imported'] += 1
+                                # Update mapping for stock positions and historical data
+                                if new_account_id != account_id:
+                                    self._update_account_id_mapping(backup_data, account_id, new_account_id)
+                            else:
+                                new_account_id = self.db_service.create_account(db_account_data)
+                                import_results['accounts_imported'] += 1
 
                     except Exception as e:
-                        import_results['errors'].append(f"Failed to import stock position for account {account_id}: {str(e)}")
+                        import_results['errors'].append(f"Failed to import account {account_data.get('id', 'unknown')}: {str(e)}")
 
-            # Import watchlist data
-            watchlist_data = backup_data.get('watchlist', [])
-            for watchlist_item in watchlist_data:
-                try:
-                    symbol = watchlist_item.get('symbol')
-                    if not symbol:
-                        import_results['errors'].append("Watchlist item missing symbol")
-                        continue
+                # Import stock positions
+                stock_positions_data = backup_data.get('stock_positions', {})
+                for account_id, positions in stock_positions_data.items():
+                    for position_data in positions:
+                        try:
+                            # Prepare position data
+                            db_position_data = self._prepare_stock_position_for_import(position_data)
 
-                    # Check if watchlist item already exists
-                    existing_item = self.db_service.get_watchlist_item(symbol)
+                            # Create stock position
+                            self.db_service.create_stock_position(
+                                account_id,
+                                db_position_data['symbol'],
+                                db_position_data['shares'],
+                                db_position_data['purchase_price'],
+                                db_position_data['purchase_date']
+                            )
 
-                    if existing_item and not overwrite_existing:
-                        import_results['watchlist_skipped'] += 1
-                        continue
+                            # Update current price if available
+                            if db_position_data.get('current_price'):
+                                # Get the position ID to update price
+                                positions_list = self.db_service.get_stock_positions(account_id)
+                                for pos in positions_list:
+                                    if (pos['symbol'] == db_position_data['symbol'] and
+                                        pos['shares'] == db_position_data['shares'] and
+                                        pos['purchase_price'] == db_position_data['purchase_price']):
+                                        self.db_service.update_stock_price(pos['id'], db_position_data['current_price'])
+                                        break
 
-                    # Prepare watchlist data for database
-                    db_watchlist_data = self._prepare_watchlist_for_import(watchlist_item)
+                            import_results['stock_positions_imported'] += 1
 
-                    if existing_item and overwrite_existing:
-                        # Update existing watchlist item
-                        success = self.db_service.update_watchlist_item(symbol, db_watchlist_data)
-                        if success:
+                        except Exception as e:
+                            import_results['errors'].append(f"Failed to import stock position for account {account_id}: {str(e)}")
+
+                # Import watchlist data
+                watchlist_data = backup_data.get('watchlist', [])
+                for watchlist_item in watchlist_data:
+                    try:
+                        symbol = watchlist_item.get('symbol')
+                        if not symbol:
+                            import_results['errors'].append("Watchlist item missing symbol")
+                            continue
+
+                        # Check if watchlist item already exists
+                        existing_item = self.db_service.get_watchlist_item(symbol)
+
+                        if existing_item and not overwrite_existing:
+                            import_results['watchlist_skipped'] += 1
+                            continue
+
+                        # Prepare watchlist data for database
+                        db_watchlist_data = self._prepare_watchlist_for_import(watchlist_item)
+
+                        if existing_item and overwrite_existing:
+                            # Update existing watchlist item
+                            success = self.db_service.update_watchlist_item(symbol, db_watchlist_data)
+                            if success:
+                                import_results['watchlist_imported'] += 1
+                        else:
+                            # Create new watchlist item
+                            self.db_service.create_watchlist_item(db_watchlist_data)
                             import_results['watchlist_imported'] += 1
-                    else:
-                        # Create new watchlist item
-                        self.db_service.create_watchlist_item(db_watchlist_data)
-                        import_results['watchlist_imported'] += 1
-
-                except Exception as e:
-                    import_results['errors'].append(f"Failed to import watchlist item {watchlist_item.get('symbol', 'unknown')}: {str(e)}")
-
-            # Import historical snapshots
-            historical_data = backup_data.get('historical_snapshots', {})
-            for account_id, snapshots in historical_data.items():
-                for snapshot_data in snapshots:
-                    try:
-                        # Prepare snapshot data
-                        db_snapshot_data = self._prepare_historical_snapshot_for_import(snapshot_data)
-
-                        # Create historical snapshot
-                        self.db_service.create_historical_snapshot(
-                            account_id,
-                            db_snapshot_data['value'],
-                            db_snapshot_data['change_type'],
-                            db_snapshot_data.get('metadata')
-                        )
-
-                        import_results['historical_snapshots_imported'] += 1
 
                     except Exception as e:
-                        import_results['errors'].append(f"Failed to import historical snapshot for account {account_id}: {str(e)}")
+                        import_results['errors'].append(f"Failed to import watchlist item {watchlist_item.get('symbol', 'unknown')}: {str(e)}")
 
-            # Import application settings
-            app_settings = backup_data.get('app_settings', {})
-            for key, value in app_settings.items():
-                try:
-                    self.db_service.set_setting(key, str(value))
-                    import_results['settings_imported'] += 1
-                except Exception as e:
-                    import_results['errors'].append(f"Failed to import setting {key}: {str(e)}")
+                # Import historical snapshots
+                historical_data = backup_data.get('historical_snapshots', {})
+                for account_id, snapshots in historical_data.items():
+                    for snapshot_data in snapshots:
+                        try:
+                            # Prepare snapshot data
+                            db_snapshot_data = self._prepare_historical_snapshot_for_import(snapshot_data)
+
+                            # Create historical snapshot, preserving the original
+                            # timestamp and ID so the restored history keeps its
+                            # true chronology instead of collapsing to import time.
+                            self.db_service.create_historical_snapshot(
+                                account_id,
+                                db_snapshot_data['value'],
+                                db_snapshot_data['change_type'],
+                                db_snapshot_data.get('metadata'),
+                                timestamp=db_snapshot_data.get('timestamp'),
+                                snapshot_id=db_snapshot_data.get('id')
+                            )
+
+                            import_results['historical_snapshots_imported'] += 1
+
+                        except Exception as e:
+                            import_results['errors'].append(f"Failed to import historical snapshot for account {account_id}: {str(e)}")
+
+                # Import application settings
+                app_settings = backup_data.get('app_settings', {})
+                for key, value in app_settings.items():
+                    try:
+                        self.db_service.set_setting(key, str(value))
+                        import_results['settings_imported'] += 1
+                    except Exception as e:
+                        import_results['errors'].append(f"Failed to import setting {key}: {str(e)}")
 
             return import_results
 

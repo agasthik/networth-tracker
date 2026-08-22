@@ -72,6 +72,14 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM Check Python version (3.10+)
+for /f "delims=" %%v in ('python -c "import sys; print(1 if sys.version_info >= (3, 10) else 0)"') do set "PY_OK=%%v"
+if not "%PY_OK%"=="1" (
+    for /f "delims=" %%w in ('python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"') do set "PY_VER=%%w"
+    call :print_error "Python 3.10 or higher is required (found: %PY_VER%)"
+    exit /b 1
+)
+
 set "VENV_PYTHON=%PROJECT_DIR%\venv\Scripts\python.exe"
 
 REM Check if virtual environment exists

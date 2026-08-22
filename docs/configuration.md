@@ -1,397 +1,134 @@
 # Configuration Reference
 
-Complete reference for configuring the Networth Tracker application.
+Configuration is defined in `config.py`. Values backed by environment
+variables are read when that module is imported.
 
-## Table of Contents
+The application does not load `.env`, `.env.development`, or
+`.env.production` files. Set variables in the shell, service manager, or
+operating-system environment before starting Python.
 
-- [Overview](#overview)
-- [Environment Configuration](#environment-configuration)
-- [Environment Variables](#environment-variables)
-- [Configuration Classes](#configuration-classes)
-- [Startup Options](#startup-options)
-- [Security Settings](#security-settings)
-- [File Permissions](#file-permissions)
-- [Configuration Validation](#configuration-validation)
+## Environments
 
-## Overview
+Choose an environment with `--env`:
 
-The Networth Tracker uses a class-based configuration system with support for different environments. Configuration is managed through environment variables and Python configuration classes defined in `config.py`.
+| Environment | Debug | Default database | Configured cookie lifetime |
+| --- | --- | --- | --- |
+| `production` | off | `networth.db` | 2 hours |
+| `development` | on | `networth_dev.db` | 8 hours |
+| `testing` | on | `:memory:` or `TEST_DATABASE_PATH` | 30 minutes |
 
-### Key Features
-- **Environment-based configuration**: Development, Production, and Testing environments
-- **Environment variable support**: Override defaults with environment variables
-- **Automatic directory creation**: Required directories created on startup
-- **File permission management**: Secure file permissions set automatically
-- **Configuration validation**: Built-in validation with detailed reporting
+`production` means the non-debug local configuration. It does not turn Flask's
+built-in server into a production WSGI server.
 
-## Environment Configuration
+Development mode currently conflicts with startup PID handling when Flask's
+reloader starts a child process. Use production mode for normal local use.
 
-The application supports three environments, controlled by the `FLASK_ENV` environment variable:
+`AuthenticationManager` separately enforces a hard-coded two-hour inactivity
+timeout in every environment. The eight-hour development and 30-minute testing
+cookie lifetimes therefore do not describe the effective authentication
+timeout.
 
-### Development Environment
+## Supported Environment Variables
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `FLASK_ENV` | `production` | Environment selected when `--env` is omitted |
+| `DATABASE_PATH` | Environment-specific | Production or development SQLite path |
+| `TEST_DATABASE_PATH` | `:memory:` | Testing SQLite path |
+| `SECRET_KEY` | Random per process | Flask session-signing secret |
+| `APP_MODE` | `production` | Stored in configuration; currently has no separate runtime workflow |
+| `LOG_LEVEL` | `INFO` or `DEBUG` | Loaded into config but not passed to the application logger |
+| `LOG_DIR` | `logs` | Created and permissioned, but not passed to the application logger |
+| `LOG_FILE` | `networth_tracker.log` | Loaded but not used by the application logger |
+| `ERROR_LOG_FILE` | `networth_tracker_errors.log` | Loaded but not used by the application logger |
+| `MAX_LOG_SIZE` | `10485760` | Loaded but not passed to the application logger |
+| `LOG_BACKUP_COUNT` | `5` | Loaded but not passed to the application logger |
+| `BACKUP_DIR` | `backups` | Directory whose files receive backup permissions |
+| `MAX_BACKUP_FILES` | `10` | Defined but not currently used for cleanup |
+
+`STOCK_API_RATE_LIMIT` and `STOCK_API_TIMEOUT` are present in `config.py`, but
+current `StockPriceService` construction does not consume them. The effective
+service defaults are a three-second delay and two retries; network-library
+timeouts are set inside the service.
+
+The effective application logger uses `DEBUG` only when application debug mode
+is active; otherwise it uses `INFO`. It writes
+`logs/networth_tracker.log` and `logs/networth_tracker_errors.log`, rotates at
+10 MiB, and retains five backups. These values are currently fixed by
+`setup_app_logging()`.
+
+`DEBUG`, `SESSION_TIMEOUT`, and `SESSION_COOKIE_*` are not environment-backed
+settings in the current configuration classes.
+
+## Examples
+
+Use a data file outside the repository:
+
 ```bash
-export FLASK_ENV=development
-python scripts/start.py
+mkdir -p "$HOME/.local/share/networth-tracker"
+chmod 700 "$HOME/.local/share/networth-tracker"
+
+DATABASE_PATH="$HOME/.local/share/networth-tracker/networth.db" \
+./venv/bin/python scripts/start.py --env production
 ```
 
-**Features:**
-- Debug mode enabled
-- Verbose logging (DEBUG level)
-- Extended session timeout (8 hours)
-- Separate development database (`networth_dev.db`)
+Set a stable session secret when a process will be restarted:
 
-### Production Environment (Default)
 ```bash
-export FLASK_ENV=production  # or omit (default)
-python scripts/start.py
+export SECRET_KEY='replace-with-at-least-32-random-characters'
+./venv/bin/python scripts/start.py --env production
 ```
 
-**Features:**
-- Debug mode disabled
-- Standard logging (INFO level)
-- Standard session timeout (2 hours)
-- Production database (`networth.db`)
-- Enhanced security measures
-
-### Testing Environment
-```bash
-export FLASK_ENV=testing
-python scripts/start.py
-```
-
-**Features:**
-- Debug mode enabled
-- In-memory database (`:memory:`)
-- Short session timeout (30 minutes)
-- Test-specific logging directory
-
-## Environment Variables
-
-### Core Application Settings
-
-| Variable | Description | Default | Development | Production | Testing |
-|----------|-------------|---------|-------------|------------|---------|
-| `FLASK_ENV` | Environment name | `production` | `development` | `production` | `testing` |
-| `SECRET_KEY` | Flask secret key | Auto-generated | Auto-generated | Auto-generated | Auto-generated |
-| `APP_MODE` | Application mode | `production` | `development` | `production` | `testing` |
-
-### Database Settings
-
-| Variable | Description | Default | Development | Production | Testing |
-|----------|-------------|---------|-------------|------------|---------|
-| `DATABASE_PATH` | Database file path | `networth.db` | `networth_dev.db` | `networth.db` | `:memory:` |
-
-### Logging Settings
-
-| Variable | Description | Default | Development | Production | Testing |
-|----------|-------------|---------|-------------|------------|---------|
-| `LOG_LEVEL` | Logging level | `INFO` | `DEBUG` | `INFO` | `DEBUG` |
-| `LOG_DIR` | Log directory | `logs` | `logs` | `logs` | `test_logs` |
-| `LOG_FILE` | Main log file | `networth_tracker.log` | Same | Same | Same |
-| `ERROR_LOG_FILE` | Error log file | `networth_tracker_errors.log` | Same | Same | Same |
-| `MAX_LOG_SIZE` | Max log file size (bytes) | `10485760` (10MB) | Same | Same | Same |
-| `LOG_BACKUP_COUNT` | Number of log backups | `5` | Same | Same | Same |
-
-### Stock API Settings
-
-| Variable | Description | Default | Notes |
-|----------|-------------|---------|-------|
-| `STOCK_API_RATE_LIMIT` | Rate limit (seconds) | `1.0` | Minimum time between API calls |
-| `STOCK_API_TIMEOUT` | Request timeout (seconds) | `30` | HTTP request timeout |
-
-### Backup Settings
-
-| Variable | Description | Default | Notes |
-|----------|-------------|---------|-------|
-| `BACKUP_DIR` | Backup directory | `backups` | Directory for data backups |
-| `MAX_BACKUP_FILES` | Max backup files | `10` | Automatic cleanup threshold |
-
-## Configuration Classes
-
-### BaseConfig
-The base configuration class with common settings:
-
-```python
-from config import BaseConfig
-
-class BaseConfig:
-    # Application settings
-    APP_NAME = "Networth Tracker"
-    VERSION = "1.0.0"
-
-    # Security settings
-    SECRET_KEY = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
-    SESSION_COOKIE_SECURE = False  # HTTP for localhost
-    SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Lax'
-    PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
-
-    # File permissions
-    DATABASE_FILE_MODE = 0o600  # Owner read/write only
-    LOG_FILE_MODE = 0o644       # Owner read/write, others read
-```
-
-### DevelopmentConfig
-Extends BaseConfig with development-specific settings:
-
-```python
-class DevelopmentConfig(BaseConfig):
-    DEBUG = True
-    LOG_LEVEL = 'DEBUG'
-    DATABASE_PATH = 'networth_dev.db'
-    PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
-```
-
-### ProductionConfig
-Extends BaseConfig with production-specific settings:
-
-```python
-class ProductionConfig(BaseConfig):
-    DEBUG = False
-    LOG_LEVEL = 'INFO'
-    DATABASE_PATH = 'networth.db'
-    PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
-```
-
-### TestingConfig
-Extends BaseConfig with testing-specific settings:
-
-```python
-class TestingConfig(BaseConfig):
-    DEBUG = True
-    TESTING = True
-    DATABASE_PATH = ':memory:'
-    PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
-    LOG_DIR = 'test_logs'
-```
-
-### Using Configuration
-
-```python
-from config import ConfigManager
-
-# Get configuration for current environment
-config = ConfigManager.get_config()
-
-# Get specific environment configuration
-dev_config = ConfigManager.get_config('development')
-prod_config = ConfigManager.get_config('production')
-test_config = ConfigManager.get_config('testing')
-```
+The secret signs browser sessions; it is separate from the master password and
+database encryption key.
 
 ## Startup Options
 
-The `scripts/start.py` script provides several configuration options:
+Supported options can be listed with:
 
-### Basic Usage
 ```bash
-# Start with default settings
-python scripts/start.py
-
-# Start in development mode
-python scripts/start.py --env development
-
-# Start with debug mode
-python scripts/start.py --debug
-
-# Start on different port
-python scripts/start.py --port 5001
+./venv/bin/python scripts/start.py --help
 ```
 
-### Configuration Management
+Common working commands:
+
 ```bash
-# Validate configuration only
-python scripts/start.py --validate-only
-
-# Create necessary directories
-python scripts/start.py --create-dirs
-
-# Start in daemon mode (Unix/Linux/macOS only)
-python scripts/start.py --daemon --pid-file networth.pid
+./venv/bin/python scripts/start.py --env production
+./venv/bin/python scripts/start.py --env production --port 5001
+./venv/bin/python scripts/start.py --validate-only
+./venv/bin/python scripts/start.py --create-dirs
+./venv/bin/python scripts/start.py --status
+./venv/bin/python scripts/start.py --stop
 ```
 
-### Full Options
-```bash
-python scripts/start.py \
-    --env production \
-    --host 127.0.0.1 \
-    --port 5000 \
-    --debug \
-    --daemon \
-    --pid-file /var/run/networth.pid
-```
+Keep `--host 127.0.0.1`. Do not use `--daemon` for managed operation: its
+current PID and working-directory handling is unreliable. Use a local service
+manager and foreground mode instead.
 
-## Security Settings
+Restart uses the arguments and environment supplied to the restart command; it
+does not remember the previous process configuration.
 
-### Session Security
-The application uses secure session configuration:
+## File and Directory Permissions
 
-```python
-# Session cookies (configured automatically)
-SESSION_COOKIE_SECURE = False      # HTTP for localhost
-SESSION_COOKIE_HTTPONLY = True     # No JavaScript access
-SESSION_COOKIE_SAMESITE = 'Lax'    # CSRF protection
-PERMANENT_SESSION_LIFETIME = timedelta(hours=2)  # Auto-logout
-```
+On Unix-like systems, application configuration attempts to set:
 
-### Secret Key
-- **Auto-generated**: 32-byte random key generated automatically
-- **Environment override**: Set `SECRET_KEY` environment variable for custom key
-- **Validation**: Configuration validation checks key strength
+| Resource | Mode |
+| --- | --- |
+| Database, log, backup, and temporary files | `0600` |
+| Data, log, backup, and temporary directories | `0700` |
 
-### Database Security
-- **Encryption**: All financial data encrypted with master password
-- **File permissions**: Database files set to 600 (owner read/write only)
-- **Access control**: Master password required for access
+The Unix `start.sh` wrapper also applies its own permissions before startup and
+currently creates `logs/` as `0755`; `config.py` tightens configured sensitive
+directories during application initialization.
 
-## File Permissions
+## Validation
 
-The application automatically sets secure file permissions on Unix/Linux/macOS systems:
+`--validate-only` checks:
 
-### Database Files
-```bash
-chmod 600 *.db  # Owner read/write only
-```
+- Whether configured log and backup directories exist
+- Existing database file mode on Unix-like systems
+- A minimum 32-character `SECRET_KEY`
+- Whether `MAX_LOG_SIZE` is at least 1 MiB
 
-### Log Files
-```bash
-chmod 644 logs/*.log  # Owner read/write, others read
-```
-
-### Backup Files
-```bash
-chmod 600 backups/*  # Owner read/write only
-```
-
-### Directory Structure
-```
-networth-tracker/
-├── data/           # 755 - Database directory
-├── logs/           # 755 - Log files
-├── backups/        # 700 - Backup files (owner only)
-└── temp/           # 700 - Temporary files (owner only)
-```
-
-**Note**: File permissions are not set on Windows systems due to different permission models.
-
-## Configuration Validation
-
-### Validation Command
-```bash
-# Validate current configuration
-python scripts/start.py --validate-only
-
-# Validate specific environment
-python scripts/start.py --env development --validate-only
-```
-
-### Validation Checks
-The validation system checks:
-
-1. **Required directories exist**
-2. **File permissions are secure** (Unix/Linux/macOS)
-3. **Secret key strength** (minimum 32 characters)
-4. **Log file size limits** (reasonable values)
-5. **Database accessibility**
-
-### Example Validation Output
-```
-[INFO] Configuration validation started
-[INFO] Environment: production
-[INFO] Database path: networth.db
-[INFO] Log directory: logs
-[WARNING] Database file permissions are 644, should be 600
-[INFO] Secret key strength: OK
-[INFO] All required directories exist
-[INFO] Configuration validation completed
-```
-
-### Validation Results
-- **Errors**: Critical issues that prevent startup
-- **Warnings**: Issues that should be addressed but don't prevent startup
-- **Info**: Confirmation of correct settings
-
-## Environment Variable Examples
-
-### Development Setup
-```bash
-export FLASK_ENV=development
-export LOG_LEVEL=DEBUG
-export DATABASE_PATH=dev_networth.db
-export MAX_LOG_SIZE=52428800  # 50MB for development
-python scripts/start.py --debug
-```
-
-### Production Setup
-```bash
-export FLASK_ENV=production
-export LOG_LEVEL=INFO
-export DATABASE_PATH=/opt/networth/data/networth.db
-export LOG_DIR=/opt/networth/logs
-export BACKUP_DIR=/opt/networth/backups
-export SECRET_KEY=your-production-secret-key-here
-python scripts/start.py --daemon --pid-file /var/run/networth.pid
-```
-
-### Testing Setup
-```bash
-export FLASK_ENV=testing
-export DATABASE_PATH=:memory:
-export LOG_LEVEL=DEBUG
-python scripts/start.py --validate-only
-```
-
-## Troubleshooting Configuration
-
-### Common Issues
-
-**Permission Denied**
-```bash
-# Check and fix file permissions
-ls -la *.db
-chmod 600 *.db
-```
-
-**Missing Directories**
-```bash
-# Create required directories
-python scripts/start.py --create-dirs
-```
-
-**Invalid Configuration**
-```bash
-# Validate configuration
-python scripts/start.py --validate-only
-```
-
-**Environment Issues**
-```bash
-# Check current environment
-echo $FLASK_ENV
-
-# Reset environment
-unset FLASK_ENV
-export FLASK_ENV=production
-```
-
-### Debug Configuration
-```bash
-# Start with maximum verbosity
-export FLASK_ENV=development
-export LOG_LEVEL=DEBUG
-python scripts/start.py --env development --debug
-```
-
-### Configuration Reset
-```bash
-# Remove custom environment variables
-unset FLASK_ENV LOG_LEVEL DATABASE_PATH
-
-# Recreate directories with defaults
-python scripts/start.py --create-dirs
-
-# Validate default configuration
-python scripts/start.py --validate-only
-```
-
-This configuration system provides a robust, secure, and flexible foundation for the Networth Tracker application while maintaining simplicity for end users.
+It does not open the database, verify its schema, test quote providers, or
+validate every configured path.

@@ -275,6 +275,9 @@ class TestStockPriceErrorHandling:
     def setup_method(self):
         """Set up test fixtures."""
         self.stock_service = StockPriceService()
+        # Neutralize the live-network alternative price sources so tests
+        # deterministically exercise the mocked yfinance path.
+        self.stock_service._try_alternative_price_fetch = Mock(return_value=None)
 
     @patch('yfinance.Ticker')
     def test_stock_not_found_error(self, mock_ticker):
@@ -288,7 +291,7 @@ class TestStockPriceErrorHandling:
         with pytest.raises(StockPriceServiceError) as exc_info:
             self.stock_service.get_current_price("NOTFOUND")
 
-        assert "No data available" in str(exc_info.value)
+        assert "No valid price data available" in str(exc_info.value)
 
     @patch('yfinance.Ticker')
     def test_stock_price_network_timeout(self, mock_ticker):
@@ -424,11 +427,14 @@ class TestErrorRecoveryAndGracefulDegradation:
     def test_stock_price_service_graceful_degradation(self):
         """Test stock price service graceful degradation."""
         stock_service = StockPriceService()
+        # Neutralize the live-network alternative price sources so tests
+        # deterministically exercise the mocked yfinance path.
+        stock_service._try_alternative_price_fetch = Mock(return_value=None)
 
         # Test batch operation with mixed results
         with patch('yfinance.Ticker') as mock_ticker:
             # Mock different behaviors for different symbols
-            def ticker_side_effect(symbol):
+            def ticker_side_effect(symbol, session=None):
                 mock_instance = Mock()
                 if symbol == "AAPL":
                     successful_hist = Mock()

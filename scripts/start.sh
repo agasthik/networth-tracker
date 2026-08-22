@@ -107,13 +107,13 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Check Python version (3.8+)
+    # Check Python version (3.10+)
     python_version=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
     major_version=$(echo "$python_version" | cut -d. -f1)
     minor_version=$(echo "$python_version" | cut -d. -f2)
 
-    if [[ $major_version -lt 3 ]] || [[ $major_version -eq 3 && $minor_version -lt 8 ]]; then
-        print_error "Python 3.8 or higher is required (found: $python_version)"
+    if [[ $major_version -lt 3 ]] || [[ $major_version -eq 3 && $minor_version -lt 10 ]]; then
+        print_error "Python 3.10 or higher is required (found: $python_version)"
         exit 1
     fi
 

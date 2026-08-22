@@ -12,6 +12,18 @@ import atexit
 import time
 from pathlib import Path
 
+# Enforce the minimum supported Python version before importing anything that
+# relies on the pinned dependencies. The pinned test dependency (pytest 9.1.1)
+# requires 3.10+, so 3.10 is the consistent floor across runtime and dev.
+MIN_PYTHON_VERSION = (3, 10)
+if sys.version_info < MIN_PYTHON_VERSION:
+    required = f"{MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]}"
+    current = f"{sys.version_info.major}.{sys.version_info.minor}"
+    sys.stderr.write(
+        f"Python {required} or higher is required (found: {current})\n"
+    )
+    sys.exit(1)
+
 # Add the parent directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
