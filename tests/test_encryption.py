@@ -127,7 +127,9 @@ class TestEncryptionService(unittest.TestCase):
         self.assertTrue(self.encryption_service.verify_password(password, stored_hash))
 
         # Incorrect password should not verify
-        self.assertFalse(self.encryption_service.verify_password("wrong_password", stored_hash))
+        self.assertFalse(
+            self.encryption_service.verify_password("wrong_password", stored_hash)
+        )
 
     def test_multiple_encrypt_decrypt_operations(self):
         """Test multiple encryption/decryption operations."""
@@ -139,7 +141,7 @@ class TestEncryptionService(unittest.TestCase):
             "Interest rate: 2.5%",
             "Maturity date: 2025-12-31",
             "Stock symbol: AAPL",
-            "Shares: 100"
+            "Shares: 100",
         ]
 
         encrypted_data = []
@@ -174,5 +176,5 @@ class TestEncryptionService(unittest.TestCase):
         self.assertEqual(decrypted2, data)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

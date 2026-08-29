@@ -17,20 +17,18 @@ class ColoredFormatter(logging.Formatter):
 
     # ANSI color codes
     COLORS = {
-        'DEBUG': '\033[36m',      # Cyan
-        'INFO': '\033[32m',       # Green
-        'WARNING': '\033[33m',    # Yellow
-        'ERROR': '\033[31m',      # Red
-        'CRITICAL': '\033[35m',   # Magenta
-        'RESET': '\033[0m'        # Reset
+        "DEBUG": "\033[36m",  # Cyan
+        "INFO": "\033[32m",  # Green
+        "WARNING": "\033[33m",  # Yellow
+        "ERROR": "\033[31m",  # Red
+        "CRITICAL": "\033[35m",  # Magenta
+        "RESET": "\033[0m",  # Reset
     }
 
     def format(self, record):
         """Format log record with colors."""
-        if hasattr(record, 'levelname') and record.levelname in self.COLORS:
-            record.levelname = (
-                f"{self.COLORS[record.levelname]}{record.levelname}{self.COLORS['RESET']}"
-            )
+        if hasattr(record, "levelname") and record.levelname in self.COLORS:
+            record.levelname = f"{self.COLORS[record.levelname]}{record.levelname}{self.COLORS['RESET']}"
         return super().format(record)
 
 
@@ -40,7 +38,7 @@ class StructuredFormatter(logging.Formatter):
     def format(self, record):
         """Format log record with structured information."""
         # Add timestamp if not present
-        if not hasattr(record, 'timestamp'):
+        if not hasattr(record, "timestamp"):
             record.timestamp = datetime.now().isoformat()
 
         # Add process and thread info for debugging
@@ -51,7 +49,7 @@ class StructuredFormatter(logging.Formatter):
         formatted = super().format(record)
 
         # Add any extra context if available
-        if hasattr(record, 'context') and record.context:
+        if hasattr(record, "context") and record.context:
             formatted += f" | Context: {record.context}"
 
         return formatted
@@ -64,7 +62,7 @@ def setup_logging(
     enable_console: bool = True,
     enable_file: bool = True,
     max_file_size: int = 10 * 1024 * 1024,  # 10MB
-    backup_count: int = 5
+    backup_count: int = 5,
 ) -> logging.Logger:
     """
     Set up comprehensive logging configuration.
@@ -110,14 +108,14 @@ def setup_logging(
             app_log_file,
             maxBytes=max_file_size,
             backupCount=backup_count,
-            encoding='utf-8'
+            encoding="utf-8",
         )
         file_handler.setLevel(numeric_level)
 
         # Structured formatter for file logs
         file_formatter = StructuredFormatter(
-            fmt='%(timestamp)s | %(levelname)-8s | %(name)s | %(funcName)s:%(lineno)d | %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            fmt="%(timestamp)s | %(levelname)-8s | %(name)s | %(funcName)s:%(lineno)d | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
@@ -127,7 +125,7 @@ def setup_logging(
             error_log_file,
             maxBytes=max_file_size,
             backupCount=backup_count,
-            encoding='utf-8'
+            encoding="utf-8",
         )
         error_handler.setLevel(logging.ERROR)
         error_handler.setFormatter(file_formatter)
@@ -140,8 +138,8 @@ def setup_logging(
 
         # Use colored formatter for console output
         console_formatter = ColoredFormatter(
-            fmt='%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
-            datefmt='%H:%M:%S'
+            fmt="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+            datefmt="%H:%M:%S",
         )
         console_handler.setFormatter(console_formatter)
         logger.addHandler(console_handler)
@@ -167,7 +165,12 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
-def log_function_call(logger: logging.Logger, func_name: str, args: dict = None, level: int = logging.DEBUG):
+def log_function_call(
+    logger: logging.Logger,
+    func_name: str,
+    args: dict = None,
+    level: int = logging.DEBUG,
+):
     """
     Log function call with arguments for debugging.
 
@@ -181,7 +184,7 @@ def log_function_call(logger: logging.Logger, func_name: str, args: dict = None,
     if args:
         # Filter out sensitive information
         safe_args = {}
-        sensitive_keys = ['password', 'key', 'token', 'secret']
+        sensitive_keys = ["password", "key", "token", "secret"]
 
         for key, value in args.items():
             if any(sensitive in key.lower() for sensitive in sensitive_keys):
@@ -194,7 +197,9 @@ def log_function_call(logger: logging.Logger, func_name: str, args: dict = None,
     logger.log(level, message)
 
 
-def log_performance(logger: logging.Logger, operation: str, duration: float, context: dict = None):
+def log_performance(
+    logger: logging.Logger, operation: str, duration: float, context: dict = None
+):
     """
     Log performance metrics for operations.
 
@@ -230,7 +235,7 @@ class LoggingContext:
         """
         self.logger = logger
         self.context = context
-        self.old_context = getattr(logger, '_context', {})
+        self.old_context = getattr(logger, "_context", {})
 
     def __enter__(self):
         """Enter context and add context to logger."""
@@ -255,16 +260,24 @@ def with_logging_context(logger: logging.Logger, **context):
     Returns:
         Decorator function
     """
+
     def decorator(func):
         def wrapper(*args, **kwargs):
             with LoggingContext(logger, **context):
                 return func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
 # Security-focused logging utilities
-def log_security_event(logger: logging.Logger, event_type: str, details: dict = None, severity: str = "INFO"):
+def log_security_event(
+    logger: logging.Logger,
+    event_type: str,
+    details: dict = None,
+    severity: str = "INFO",
+):
     """
     Log security-related events with special formatting.
 
@@ -279,7 +292,7 @@ def log_security_event(logger: logging.Logger, event_type: str, details: dict = 
     if details:
         # Filter sensitive information
         safe_details = {}
-        sensitive_keys = ['password', 'key', 'token', 'secret', 'hash']
+        sensitive_keys = ["password", "key", "token", "secret", "hash"]
 
         for key, value in details.items():
             if any(sensitive in key.lower() for sensitive in sensitive_keys):
@@ -294,7 +307,13 @@ def log_security_event(logger: logging.Logger, event_type: str, details: dict = 
     logger.log(level, message)
 
 
-def log_data_access(logger: logging.Logger, operation: str, resource_type: str, resource_id: str = None, user_id: str = None):
+def log_data_access(
+    logger: logging.Logger,
+    operation: str,
+    resource_type: str,
+    resource_id: str = None,
+    user_id: str = None,
+):
     """
     Log data access operations for audit purposes.
 
@@ -338,5 +357,5 @@ def setup_app_logging(debug_mode: bool = False) -> logging.Logger:
         log_level=log_level,
         log_dir=str(log_dir),
         enable_console=True,
-        enable_file=True
+        enable_file=True,
     )

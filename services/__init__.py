@@ -6,11 +6,11 @@ from .stock_prices import StockPriceService, PriceUpdateResult, StockPriceServic
 from .watchlist import WatchlistService, WatchlistServiceError
 
 __all__ = [
-    'EncryptionService',
-    'DatabaseService',
-    'StockPriceService',
-    'PriceUpdateResult',
-    'StockPriceServiceError',
-    'WatchlistService',
-    'WatchlistServiceError'
+    "EncryptionService",
+    "DatabaseService",
+    "StockPriceService",
+    "PriceUpdateResult",
+    "StockPriceServiceError",
+    "WatchlistService",
+    "WatchlistServiceError",
 ]

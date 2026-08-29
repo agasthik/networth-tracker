@@ -20,10 +20,7 @@ class TestWatchlistItem:
     def test_create_valid_watchlist_item(self):
         """Test creating a valid watchlist item."""
         item = WatchlistItem(
-            id="test-id",
-            symbol="AAPL",
-            notes="Apple Inc.",
-            added_date=datetime.now()
+            id="test-id", symbol="AAPL", notes="Apple Inc.", added_date=datetime.now()
         )
         assert item.id == "test-id"
         assert item.symbol == "AAPL"
@@ -70,10 +67,14 @@ class TestWatchlistItem:
 
     def test_invalid_symbol_characters(self):
         """Test validation for invalid symbol characters."""
-        with pytest.raises(ValueError, match="Stock symbol contains invalid characters"):
+        with pytest.raises(
+            ValueError, match="Stock symbol contains invalid characters"
+        ):
             WatchlistItem(id="test-id", symbol="AAPL@")
 
-        with pytest.raises(ValueError, match="Stock symbol contains invalid characters"):
+        with pytest.raises(
+            ValueError, match="Stock symbol contains invalid characters"
+        ):
             WatchlistItem(id="test-id", symbol="TEST#")
 
     def test_symbol_too_long(self):
@@ -109,7 +110,9 @@ class TestWatchlistItem:
     def test_future_price_update_validation(self):
         """Test validation for future price update timestamp."""
         future_date = datetime.now() + timedelta(hours=1)
-        with pytest.raises(ValueError, match="Last price update cannot be in the future"):
+        with pytest.raises(
+            ValueError, match="Last price update cannot be in the future"
+        ):
             WatchlistItem(id="test-id", symbol="AAPL", last_price_update=future_date)
 
     def test_default_added_date(self):
@@ -217,46 +220,46 @@ class TestWatchlistItem:
             current_price=150.0,
             last_price_update=now,
             daily_change=2.5,
-            daily_change_percent=1.69
+            daily_change_percent=1.69,
         )
 
         data = item.to_dict()
 
-        assert data['id'] == "test-id"
-        assert data['symbol'] == "AAPL"
-        assert data['notes'] == "Apple Inc."
-        assert data['added_date'] == now.isoformat()
-        assert data['current_price'] == 150.0
-        assert data['last_price_update'] == now.isoformat()
-        assert data['daily_change'] == 2.5
-        assert data['daily_change_percent'] == 1.69
+        assert data["id"] == "test-id"
+        assert data["symbol"] == "AAPL"
+        assert data["notes"] == "Apple Inc."
+        assert data["added_date"] == now.isoformat()
+        assert data["current_price"] == 150.0
+        assert data["last_price_update"] == now.isoformat()
+        assert data["daily_change"] == 2.5
+        assert data["daily_change_percent"] == 1.69
 
     def test_to_dict_with_none_values(self):
         """Test serialization with None values."""
         item = WatchlistItem.create_new("AAPL")
         data = item.to_dict()
 
-        assert data['id'] is not None
-        assert data['symbol'] == "AAPL"
-        assert data['notes'] is None
-        assert data['added_date'] is not None  # Should be set by create_new
-        assert data['current_price'] is None
-        assert data['last_price_update'] is None
-        assert data['daily_change'] is None
-        assert data['daily_change_percent'] is None
+        assert data["id"] is not None
+        assert data["symbol"] == "AAPL"
+        assert data["notes"] is None
+        assert data["added_date"] is not None  # Should be set by create_new
+        assert data["current_price"] is None
+        assert data["last_price_update"] is None
+        assert data["daily_change"] is None
+        assert data["daily_change_percent"] is None
 
     def test_from_dict(self):
         """Test deserialization from dictionary."""
         now = datetime.now()
         data = {
-            'id': 'test-id',
-            'symbol': 'AAPL',
-            'notes': 'Apple Inc.',
-            'added_date': now.isoformat(),
-            'current_price': 150.0,
-            'last_price_update': now.isoformat(),
-            'daily_change': 2.5,
-            'daily_change_percent': 1.69
+            "id": "test-id",
+            "symbol": "AAPL",
+            "notes": "Apple Inc.",
+            "added_date": now.isoformat(),
+            "current_price": 150.0,
+            "last_price_update": now.isoformat(),
+            "daily_change": 2.5,
+            "daily_change_percent": 1.69,
         }
 
         item = WatchlistItem.from_dict(data)
@@ -273,14 +276,14 @@ class TestWatchlistItem:
     def test_from_dict_with_none_values(self):
         """Test deserialization with None values."""
         data = {
-            'id': 'test-id',
-            'symbol': 'AAPL',
-            'notes': None,
-            'added_date': None,
-            'current_price': None,
-            'last_price_update': None,
-            'daily_change': None,
-            'daily_change_percent': None
+            "id": "test-id",
+            "symbol": "AAPL",
+            "notes": None,
+            "added_date": None,
+            "current_price": None,
+            "last_price_update": None,
+            "daily_change": None,
+            "daily_change_percent": None,
         }
 
         item = WatchlistItem.from_dict(data)

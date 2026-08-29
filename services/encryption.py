@@ -9,6 +9,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
 import os
 import hashlib
+import hmac
 from typing import Optional
 
 
@@ -103,4 +104,10 @@ class EncryptionService:
         Returns:
             True if password matches hash
         """
-        return self.hash_password(password) == stored_hash
+        return hmac.compare_digest(self.hash_password(password), stored_hash)
+
+    def clear_key(self) -> None:
+        """Drop references to derived key material when a session ends."""
+        self.salt = None
+        self.key = None
+        self._fernet = None

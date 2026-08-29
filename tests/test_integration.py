@@ -12,15 +12,13 @@ Tests cover:
 import unittest
 import tempfile
 import os
-import json
 from datetime import date, datetime, timedelta
 from unittest.mock import patch, MagicMock
 
 # Mock Flask app configuration before importing
-os.environ['FLASK_ENV'] = 'testing'
+os.environ["FLASK_ENV"] = "testing"
 
 from services.database import DatabaseService
-from services.encryption import EncryptionService
 from services.auth import AuthenticationManager
 from services.stock_prices import StockPriceService
 from services.historical import HistoricalDataService
@@ -35,6 +33,7 @@ class _FakeSession(dict):
     (session.permanent) so it can be used to patch ``services.auth.session``
     outside of a real Flask request context.
     """
+
     pass
 
 
@@ -44,7 +43,7 @@ class TestServiceIntegration(unittest.TestCase):
     def setUp(self):
         """Set up integrated test environment."""
         # Create temporary database
-        self.db_fd, self.db_path = tempfile.mkstemp(suffix='.db')
+        self.db_fd, self.db_path = tempfile.mkstemp(suffix=".db")
 
         # Initialize services
         self.test_password = "TestPassword123!"
@@ -66,7 +65,9 @@ class TestServiceIntegration(unittest.TestCase):
         # instead of making real network calls.
         self.stock_service._try_alternative_price_fetch = lambda symbol: None
         self.historical_service = HistoricalDataService(self.db_service)
-        self.export_service = ExportImportService(self.db_service, self.encryption_service)
+        self.export_service = ExportImportService(
+            self.db_service, self.encryption_service
+        )
 
     def tearDown(self):
         """Clean up test environment."""
@@ -80,7 +81,7 @@ class TestServiceIntegration(unittest.TestCase):
         self.assertFalse(self.auth_manager.is_setup_required())
 
         # Test password verification with database
-        with patch('services.auth.session', _FakeSession()):
+        with patch("services.auth.session", _FakeSession()):
             result = self.auth_manager.verify_password(self.test_password)
             self.assertTrue(result)
 
@@ -101,21 +102,21 @@ class TestServiceIntegration(unittest.TestCase):
             name="Integration Test Savings",
             institution="Test Bank",
             current_balance=5000.0,
-            interest_rate=2.0
+            interest_rate=2.0,
         )
 
         # Store in database
         account_dict = account.to_dict()
-        account_dict['type'] = account_dict['account_type']
-        if 'id' in account_dict:
-            del account_dict['id']
+        account_dict["type"] = account_dict["account_type"]
+        if "id" in account_dict:
+            del account_dict["id"]
 
         account_id = self.db_service.create_account(account_dict)
         account.id = account_id
 
         # Create initial historical snapshot
         snapshot_id = self.historical_service.create_snapshot(
-            account, ChangeType.INITIAL_ENTRY, {'note': 'Account created'}
+            account, ChangeType.INITIAL_ENTRY, {"note": "Account created"}
         )
 
         self.assertIsNotNone(snapshot_id)
@@ -123,7 +124,7 @@ class TestServiceIntegration(unittest.TestCase):
         # Verify account and snapshot exist
         retrieved_account = self.db_service.get_account(account_id)
         self.assertIsNotNone(retrieved_account)
-        self.assertEqual(retrieved_account['name'], "Integration Test Savings")
+        self.assertEqual(retrieved_account["name"], "Integration Test Savings")
 
         snapshots = self.historical_service.get_historical_snapshots(account_id)
         self.assertEqual(len(snapshots), 1)
@@ -138,64 +139,69 @@ class TestServiceIntegration(unittest.TestCase):
             institution="Test Broker",
             broker_name="Test Broker",
             cash_balance=10000.0,
-            positions=[]
+            positions=[],
         )
 
         account_dict = trading_account.to_dict()
-        account_dict['type'] = account_dict['account_type']
-        if 'id' in account_dict:
-            del account_dict['id']
+        account_dict["type"] = account_dict["account_type"]
+        if "id" in account_dict:
+            del account_dict["id"]
 
         account_id = self.db_service.create_account(account_dict)
 
         # Add stock positions to database
         purchase_date = int(datetime.now().timestamp())
 
-        position_id1 = self.db_service.create_stock_position(
-            account_id, 'AAPL', 100.0, 150.0, purchase_date
+        self.db_service.create_stock_position(
+            account_id, "AAPL", 100.0, 150.0, purchase_date
         )
-        position_id2 = self.db_service.create_stock_position(
-            account_id, 'GOOGL', 50.0, 2500.0, purchase_date
+        self.db_service.create_stock_position(
+            account_id, "GOOGL", 50.0, 2500.0, purchase_date
         )
 
         # Mock stock price updates
-        with patch('services.stock_prices.yf.Ticker') as mock_ticker:
+        with patch("services.stock_prices.yf.Ticker") as mock_ticker:
             mock_ticker_instance = MagicMock()
             mock_ticker.return_value = mock_ticker_instance
 
             def mock_history(period):
                 symbol = mock_ticker.call_args[0][0]
-                prices = {'AAPL': 160.0, 'GOOGL': 2600.0}
+                prices = {"AAPL": 160.0, "GOOGL": 2600.0}
                 import pandas as pd
-                return pd.DataFrame({
-                    'Close': [prices.get(symbol, 100.0)]
-                }, index=[pd.Timestamp.now()])
+
+                return pd.DataFrame(
+                    {"Close": [prices.get(symbol, 100.0)]}, index=[pd.Timestamp.now()]
+                )
 
             mock_ticker_instance.history.side_effect = mock_history
 
             # Update stock prices
             positions = self.db_service.get_stock_positions(account_id)
             for position in positions:
-                current_price = self.stock_service.get_current_price(position['symbol'])
-                self.db_service.update_stock_price(position['id'], current_price)
+                current_price = self.stock_service.get_current_price(position["symbol"])
+                self.db_service.update_stock_price(position["id"], current_price)
 
         # Verify integration
         updated_positions = self.db_service.get_stock_positions(account_id)
         self.assertEqual(len(updated_positions), 2)
 
         # Check AAPL position
-        aapl_position = next(p for p in updated_positions if p['symbol'] == 'AAPL')
-        self.assertEqual(aapl_position['current_price'], 160.0)
+        aapl_position = next(p for p in updated_positions if p["symbol"] == "AAPL")
+        self.assertEqual(aapl_position["current_price"], 160.0)
 
         # Check GOOGL position
-        googl_position = next(p for p in updated_positions if p['symbol'] == 'GOOGL')
-        self.assertEqual(googl_position['current_price'], 2600.0)
+        googl_position = next(p for p in updated_positions if p["symbol"] == "GOOGL")
+        self.assertEqual(googl_position["current_price"], 2600.0)
 
         # Calculate total portfolio value
-        total_stock_value = sum(pos['current_price'] * pos['shares'] for pos in updated_positions)
+        total_stock_value = sum(
+            pos["current_price"] * pos["shares"] for pos in updated_positions
+        )
         total_portfolio_value = total_stock_value + 10000.0  # Cash balance
 
-        expected_total = (160.0 * 100) + (2600.0 * 50) + 10000.0  # 16000 + 130000 + 10000 = 156000
+        expected_total = (
+            (160.0 * 100) + (2600.0 * 50) + 10000.0
+        )  # 16000 + 130000 + 10000 = 156000
         self.assertEqual(total_portfolio_value, expected_total)
 
     def test_export_import_integration(self):
@@ -203,33 +209,33 @@ class TestServiceIntegration(unittest.TestCase):
         # Create multiple account types
         accounts_data = [
             {
-                'type': AccountType.CD,
-                'name': "Test CD",
-                'institution': "Bank A",
-                'principal_amount': 5000.0,
-                'interest_rate': 2.0,
-                'maturity_date': date.today() + timedelta(days=365),
-                'current_value': 5100.0
+                "type": AccountType.CD,
+                "name": "Test CD",
+                "institution": "Bank A",
+                "principal_amount": 5000.0,
+                "interest_rate": 2.0,
+                "maturity_date": date.today() + timedelta(days=365),
+                "current_value": 5100.0,
             },
             {
-                'type': AccountType.TRADING,
-                'name': "Test Trading",
-                'institution': "Broker A",
-                'broker_name': "Broker A",
-                'cash_balance': 15000.0,
-                'positions': []
-            }
+                "type": AccountType.TRADING,
+                "name": "Test Trading",
+                "institution": "Broker A",
+                "broker_name": "Broker A",
+                "cash_balance": 15000.0,
+                "positions": [],
+            },
         ]
 
         created_account_ids = []
         for account_data in accounts_data:
-            account_type = account_data.pop('type')
+            account_type = account_data.pop("type")
             account = AccountFactory.create_account(account_type, **account_data)
 
             account_dict = account.to_dict()
-            account_dict['type'] = account_dict['account_type']
-            if 'id' in account_dict:
-                del account_dict['id']
+            account_dict["type"] = account_dict["account_type"]
+            if "id" in account_dict:
+                del account_dict["id"]
 
             account_id = self.db_service.create_account(account_dict)
             created_account_ids.append(account_id)
@@ -241,7 +247,7 @@ class TestServiceIntegration(unittest.TestCase):
         # Add stock position to trading account
         trading_account_id = created_account_ids[1]
         self.db_service.create_stock_position(
-            trading_account_id, 'MSFT', 75.0, 300.0, int(datetime.now().timestamp())
+            trading_account_id, "MSFT", 75.0, 300.0, int(datetime.now().timestamp())
         )
 
         # Export all data
@@ -249,14 +255,14 @@ class TestServiceIntegration(unittest.TestCase):
 
         # Verify export structure. stock_positions and historical_snapshots are
         # dicts keyed by account id; backup metadata lives under 'backup_metadata'.
-        self.assertIn('accounts', export_data)
-        self.assertIn('historical_snapshots', export_data)
-        self.assertIn('stock_positions', export_data)
-        self.assertIn('backup_metadata', export_data)
+        self.assertIn("accounts", export_data)
+        self.assertIn("historical_snapshots", export_data)
+        self.assertIn("stock_positions", export_data)
+        self.assertIn("backup_metadata", export_data)
 
-        self.assertEqual(len(export_data['accounts']), 2)
-        self.assertGreater(len(export_data['historical_snapshots']), 0)
-        self.assertEqual(len(export_data['stock_positions']), 1)
+        self.assertEqual(len(export_data["accounts"]), 2)
+        self.assertGreater(len(export_data["historical_snapshots"]), 0)
+        self.assertEqual(len(export_data["stock_positions"]), 1)
 
         # Clear database
         for account_id in created_account_ids:
@@ -269,20 +275,22 @@ class TestServiceIntegration(unittest.TestCase):
         # Import data
         import_result = self.export_service.import_data(export_data)
 
-        self.assertEqual(len(import_result['errors']), 0)
-        self.assertEqual(import_result['accounts_imported'], 2)
-        self.assertEqual(import_result['stock_positions_imported'], 1)
-        self.assertGreater(import_result['historical_snapshots_imported'], 0)
+        self.assertEqual(len(import_result["errors"]), 0)
+        self.assertEqual(import_result["accounts_imported"], 2)
+        self.assertEqual(import_result["stock_positions_imported"], 1)
+        self.assertGreater(import_result["historical_snapshots_imported"], 0)
 
         # Verify data restoration
         restored_accounts = self.db_service.get_accounts()
         self.assertEqual(len(restored_accounts), 2)
 
         # Verify trading account has stock position
-        trading_account = next(acc for acc in restored_accounts if acc['type'] == 'TRADING')
-        positions = self.db_service.get_stock_positions(trading_account['id'])
+        trading_account = next(
+            acc for acc in restored_accounts if acc["type"] == "TRADING"
+        )
+        positions = self.db_service.get_stock_positions(trading_account["id"])
         self.assertEqual(len(positions), 1)
-        self.assertEqual(positions[0]['symbol'], 'MSFT')
+        self.assertEqual(positions[0]["symbol"], "MSFT")
 
     def test_historical_performance_integration(self):
         """Test historical service integration with performance calculations."""
@@ -292,29 +300,32 @@ class TestServiceIntegration(unittest.TestCase):
             name="Performance Test Account",
             institution="Growth Bank",
             current_balance=10000.0,
-            interest_rate=2.5
+            interest_rate=2.5,
         )
 
         account_dict = account.to_dict()
-        account_dict['type'] = account_dict['account_type']
-        if 'id' in account_dict:
-            del account_dict['id']
+        account_dict["type"] = account_dict["account_type"]
+        if "id" in account_dict:
+            del account_dict["id"]
 
         account_id = self.db_service.create_account(account_dict)
         account.id = account_id
 
         # Create historical snapshots with growth pattern
         from datetime import datetime, timedelta
+
         base_date = datetime.now() - timedelta(days=180)
         values = [10000, 10200, 10500, 10800, 11000, 11300, 11500]
 
-        with patch('services.database.datetime') as mock_datetime:
+        with patch("services.database.datetime") as mock_datetime:
             for i, value in enumerate(values):
                 snapshot_date = base_date + timedelta(days=i * 30)
-                mock_datetime.now.return_value.timestamp.return_value = snapshot_date.timestamp()
+                mock_datetime.now.return_value.timestamp.return_value = (
+                    snapshot_date.timestamp()
+                )
 
                 self.db_service.create_historical_snapshot(
-                    account_id, value, 'MANUAL_UPDATE'
+                    account_id, value, "MANUAL_UPDATE"
                 )
 
         # Test performance metrics calculation
@@ -336,8 +347,9 @@ class TestServiceIntegration(unittest.TestCase):
         gains_90_days = self.historical_service.calculate_gains_losses(account_id, 90)
         gains_180_days = self.historical_service.calculate_gains_losses(account_id, 180)
 
-        self.assertGreater(gains_180_days['absolute_gain_loss'],
-                          gains_90_days['absolute_gain_loss'])
+        self.assertGreater(
+            gains_180_days["absolute_gain_loss"], gains_90_days["absolute_gain_loss"]
+        )
 
     def test_error_handling_integration(self):
         """Test error handling across integrated services."""
@@ -346,19 +358,19 @@ class TestServiceIntegration(unittest.TestCase):
         # AccountFactory, which is the single entry point for constructing accounts.
         with self.assertRaises(Exception):
             invalid_account_data = {
-                'name': '',  # Invalid empty name
-                'institution': 'Test Bank',
-                'account_type': 'INVALID_TYPE',
-                'current_balance': -1000.0  # Invalid negative balance
+                "name": "",  # Invalid empty name
+                "institution": "Test Bank",
+                "account_type": "INVALID_TYPE",
+                "current_balance": -1000.0,  # Invalid negative balance
             }
             AccountFactory.create_account_from_dict(invalid_account_data)
 
         # Test stock service error handling
-        with patch('services.stock_prices.yf.Ticker') as mock_ticker:
+        with patch("services.stock_prices.yf.Ticker") as mock_ticker:
             mock_ticker.side_effect = Exception("Network error")
 
             with self.assertRaises(Exception):
-                self.stock_service.get_current_price('INVALID_SYMBOL')
+                self.stock_service.get_current_price("INVALID_SYMBOL")
 
         # Test authentication error handling
         with self.assertRaises(ValueError):
@@ -368,8 +380,8 @@ class TestServiceIntegration(unittest.TestCase):
         # Test export/import error handling. import_data raises when the backup
         # format is invalid (e.g. missing the required 'backup_metadata' key).
         invalid_import_data = {
-            'accounts': 'invalid_format',  # Should be list
-            'metadata': {'version': '999.0'}  # Wrong key / unsupported version
+            "accounts": "invalid_format",  # Should be list
+            "metadata": {"version": "999.0"},  # Wrong key / unsupported version
         }
 
         with self.assertRaises(Exception):
@@ -383,20 +395,19 @@ class TestServiceIntegration(unittest.TestCase):
             name="Concurrent Test Account",
             institution="Test Bank",
             current_balance=5000.0,
-            interest_rate=1.5
+            interest_rate=1.5,
         )
 
         account_dict = account.to_dict()
-        account_dict['type'] = account_dict['account_type']
-        if 'id' in account_dict:
-            del account_dict['id']
+        account_dict["type"] = account_dict["account_type"]
+        if "id" in account_dict:
+            del account_dict["id"]
 
         account_id = self.db_service.create_account(account_dict)
         account.id = account_id
 
         # Simulate concurrent operations
         import threading
-        import time
 
         results = []
         errors = []
@@ -412,7 +423,7 @@ class TestServiceIntegration(unittest.TestCase):
                 db.connect()
                 hist = HistoricalDataService(db)
                 snapshot_id = hist.create_snapshot(
-                    account, change_type, {'concurrent_test': True}
+                    account, change_type, {"concurrent_test": True}
                 )
                 results.append(snapshot_id)
                 db.close()
@@ -424,7 +435,7 @@ class TestServiceIntegration(unittest.TestCase):
                 db = DatabaseService(self.db_path, self.encryption_service)
                 db.connect()
                 updated_data = account_dict.copy()
-                updated_data['current_balance'] = new_balance
+                updated_data["current_balance"] = new_balance
                 success = db.update_account(account_id, updated_data)
                 results.append(success)
                 db.close()
@@ -436,13 +447,17 @@ class TestServiceIntegration(unittest.TestCase):
 
         # Create multiple historical snapshots concurrently
         for i in range(3):
-            thread = threading.Thread(target=create_snapshot, args=(5000 + i * 100, ChangeType.MANUAL_UPDATE))
+            thread = threading.Thread(
+                target=create_snapshot, args=(5000 + i * 100, ChangeType.MANUAL_UPDATE)
+            )
             threads.append(thread)
             thread.start()
 
         # Update account balance concurrently
         for i in range(2):
-            thread = threading.Thread(target=update_account_balance, args=(5500 + i * 100,))
+            thread = threading.Thread(
+                target=update_account_balance, args=(5500 + i * 100,)
+            )
             threads.append(thread)
             thread.start()
 
@@ -473,13 +488,13 @@ class TestServiceIntegration(unittest.TestCase):
             institution="Test Broker",
             broker_name="Test Broker",
             cash_balance=20000.0,
-            positions=[]
+            positions=[],
         )
 
         account_dict = trading_account.to_dict()
-        account_dict['type'] = account_dict['account_type']
-        if 'id' in account_dict:
-            del account_dict['id']
+        account_dict["type"] = account_dict["account_type"]
+        if "id" in account_dict:
+            del account_dict["id"]
 
         account_id = self.db_service.create_account(account_dict)
 
@@ -487,9 +502,9 @@ class TestServiceIntegration(unittest.TestCase):
         purchase_date = int(datetime.now().timestamp())
 
         positions_data = [
-            ('AAPL', 100.0, 150.0),
-            ('GOOGL', 50.0, 2500.0),
-            ('MSFT', 75.0, 300.0)
+            ("AAPL", 100.0, 150.0),
+            ("GOOGL", 50.0, 2500.0),
+            ("MSFT", 75.0, 300.0),
         ]
 
         position_ids = []
@@ -501,47 +516,51 @@ class TestServiceIntegration(unittest.TestCase):
 
         # Create historical snapshot
         trading_account.id = account_id
-        initial_snapshot = self.historical_service.create_snapshot(
+        self.historical_service.create_snapshot(
             trading_account, ChangeType.INITIAL_ENTRY
         )
 
         # Update stock prices and verify consistency
-        with patch('services.stock_prices.yf.Ticker') as mock_ticker:
+        with patch("services.stock_prices.yf.Ticker") as mock_ticker:
             mock_ticker_instance = MagicMock()
             mock_ticker.return_value = mock_ticker_instance
 
             def mock_history(period):
                 symbol = mock_ticker.call_args[0][0]
-                prices = {'AAPL': 160.0, 'GOOGL': 2600.0, 'MSFT': 320.0}
+                prices = {"AAPL": 160.0, "GOOGL": 2600.0, "MSFT": 320.0}
                 import pandas as pd
-                return pd.DataFrame({
-                    'Close': [prices.get(symbol, 100.0)]
-                }, index=[pd.Timestamp.now()])
+
+                return pd.DataFrame(
+                    {"Close": [prices.get(symbol, 100.0)]}, index=[pd.Timestamp.now()]
+                )
 
             mock_ticker_instance.history.side_effect = mock_history
 
             # Update all positions
             positions = self.db_service.get_stock_positions(account_id)
             for position in positions:
-                current_price = self.stock_service.get_current_price(position['symbol'])
-                self.db_service.update_stock_price(position['id'], current_price)
+                current_price = self.stock_service.get_current_price(position["symbol"])
+                self.db_service.update_stock_price(position["id"], current_price)
 
         # Calculate portfolio value
         updated_positions = self.db_service.get_stock_positions(account_id)
-        total_stock_value = sum(pos['current_price'] * pos['shares'] for pos in updated_positions)
+        total_stock_value = sum(
+            pos["current_price"] * pos["shares"] for pos in updated_positions
+        )
         total_portfolio_value = total_stock_value + 20000.0
 
         # Create snapshot after price update
-        price_update_snapshot = self.historical_service.create_snapshot(
-            trading_account, ChangeType.STOCK_PRICE_UPDATE,
-            {'total_portfolio_value': total_portfolio_value}
+        self.historical_service.create_snapshot(
+            trading_account,
+            ChangeType.STOCK_PRICE_UPDATE,
+            {"total_portfolio_value": total_portfolio_value},
         )
 
         # Verify data consistency
         # 1. All positions should have current prices
         for position in updated_positions:
-            self.assertIsNotNone(position['current_price'])
-            self.assertGreater(position['current_price'], 0)
+            self.assertIsNotNone(position["current_price"])
+            self.assertGreater(position["current_price"], 0)
 
         # 2. Historical snapshots should exist
         snapshots = self.historical_service.get_historical_snapshots(account_id)
@@ -550,23 +569,26 @@ class TestServiceIntegration(unittest.TestCase):
         # 3. Account should still exist and be retrievable
         retrieved_account = self.db_service.get_account(account_id)
         self.assertIsNotNone(retrieved_account)
-        self.assertEqual(retrieved_account['name'], "Consistency Test Trading")
+        self.assertEqual(retrieved_account["name"], "Consistency Test Trading")
 
         # 4. Export should include all data consistently
         export_data = self.export_service.export_data()
 
         # Find our account in export
-        our_account = next(acc for acc in export_data['accounts']
-                          if acc['name'] == "Consistency Test Trading")
+        our_account = next(
+            acc
+            for acc in export_data["accounts"]
+            if acc["name"] == "Consistency Test Trading"
+        )
         self.assertIsNotNone(our_account)
 
         # stock_positions and historical_snapshots are dicts keyed by account id.
-        our_positions = export_data['stock_positions'].get(account_id, [])
+        our_positions = export_data["stock_positions"].get(account_id, [])
         self.assertEqual(len(our_positions), 3)
 
-        our_snapshots = export_data['historical_snapshots'].get(account_id, [])
+        our_snapshots = export_data["historical_snapshots"].get(account_id, [])
         self.assertEqual(len(our_snapshots), 2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

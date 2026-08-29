@@ -41,8 +41,8 @@ _LIMITS_BY_YEAR = {
     ),
 }
 
-CONTRIBUTION_LIMITS_BY_YEAR: Mapping[int, ContributionLimits] = (
-    MappingProxyType(_LIMITS_BY_YEAR)
+CONTRIBUTION_LIMITS_BY_YEAR: Mapping[int, ContributionLimits] = MappingProxyType(
+    _LIMITS_BY_YEAR
 )
 
 

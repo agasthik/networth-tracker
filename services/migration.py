@@ -4,15 +4,13 @@ Handles schema version management and data preservation during updates.
 """
 
 import sqlite3
-import json
-import logging
-from typing import Dict, List, Callable, Any, Optional
+from typing import Dict, List, Callable, Any
 from datetime import datetime
 from pathlib import Path
 
 from .error_handler import (
-    DatabaseError, DatabaseMigrationError, DataIntegrityError,
-    SystemError
+    DatabaseMigrationError,
+    DataIntegrityError,
 )
 from .logging_config import get_logger
 
@@ -95,7 +93,9 @@ class DatabaseMigration:
             logger.info(f"Database already at latest version {current_version}")
             return False
 
-        logger.info(f"Starting migration from version {current_version} to {target_version}")
+        logger.info(
+            f"Starting migration from version {current_version} to {target_version}"
+        )
 
         try:
             # Create backup before migration
@@ -126,13 +126,13 @@ class DatabaseMigration:
                 raise DatabaseMigrationError(
                     message="Migration failed and backup restoration failed",
                     technical_details=f"Migration error: {e}, Restore error: {restore_error}",
-                    original_exception=e
+                    original_exception=e,
                 )
 
             raise DatabaseMigrationError(
                 message="Database migration failed",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
     def _apply_migration(self, version: int):
@@ -148,7 +148,7 @@ class DatabaseMigration:
         if version not in self.migrations:
             raise DatabaseMigrationError(
                 message=f"No migration available for version {version}",
-                technical_details=f"Available migrations: {list(self.migrations.keys())}"
+                technical_details=f"Available migrations: {list(self.migrations.keys())}",
             )
 
         try:
@@ -158,7 +158,7 @@ class DatabaseMigration:
             raise DatabaseMigrationError(
                 message=f"Failed to apply migration to version {version}",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
     def _update_schema_version(self, version: int):
@@ -168,7 +168,7 @@ class DatabaseMigration:
         Args:
             version: New schema version
         """
-        self.db_service.set_setting('schema_version', str(version))
+        self.db_service.set_setting("schema_version", str(version))
 
     def _create_backup(self) -> str:
         """
@@ -197,7 +197,7 @@ class DatabaseMigration:
             raise DatabaseMigrationError(
                 message="Failed to create database backup",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
     def _restore_from_backup(self, backup_path: str):
@@ -219,6 +219,7 @@ class DatabaseMigration:
 
             # Replace current database with backup
             import shutil
+
             shutil.copy2(backup_path, self.db_service.db_path)
 
             # Reconnect to restored database
@@ -228,7 +229,7 @@ class DatabaseMigration:
             raise DatabaseMigrationError(
                 message="Failed to restore from backup",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
     def _verify_data_integrity(self):
@@ -242,47 +243,47 @@ class DatabaseMigration:
             cursor = self.db_service.connect().cursor()
 
             # Check foreign key constraints
-            cursor.execute('PRAGMA foreign_key_check')
+            cursor.execute("PRAGMA foreign_key_check")
             fk_violations = cursor.fetchall()
             if fk_violations:
                 raise DataIntegrityError(
                     message="Foreign key constraint violations found after migration",
-                    technical_details=f"Violations: {fk_violations}"
+                    technical_details=f"Violations: {fk_violations}",
                 )
 
             # Check that all accounts can be decrypted
             accounts = self.db_service.get_accounts()
             for account in accounts:
-                if not account.get('id'):
+                if not account.get("id"):
                     raise DataIntegrityError(
                         message="Account missing required ID field",
-                        technical_details=f"Account: {account}"
+                        technical_details=f"Account: {account}",
                     )
 
             # Check that historical snapshots reference valid accounts
-            cursor.execute('''
+            cursor.execute("""
                 SELECT COUNT(*) FROM historical_snapshots h
                 LEFT JOIN accounts a ON h.account_id = a.id
                 WHERE a.id IS NULL
-            ''')
+            """)
             orphaned_snapshots = cursor.fetchone()[0]
             if orphaned_snapshots > 0:
                 raise DataIntegrityError(
                     message=f"Found {orphaned_snapshots} orphaned historical snapshots",
-                    technical_details="Historical snapshots reference non-existent accounts"
+                    technical_details="Historical snapshots reference non-existent accounts",
                 )
 
             # Check that stock positions reference valid trading accounts
-            cursor.execute('''
+            cursor.execute("""
                 SELECT COUNT(*) FROM stock_positions s
                 LEFT JOIN accounts a ON s.trading_account_id = a.id
                 WHERE a.id IS NULL OR a.type != 'TRADING'
-            ''')
+            """)
             orphaned_positions = cursor.fetchone()[0]
             if orphaned_positions > 0:
                 raise DataIntegrityError(
                     message=f"Found {orphaned_positions} orphaned stock positions",
-                    technical_details="Stock positions reference non-existent or non-trading accounts"
+                    technical_details="Stock positions reference non-existent or non-trading accounts",
                 )
 
             logger.info("Data integrity verification passed")
@@ -293,7 +294,7 @@ class DatabaseMigration:
             raise DataIntegrityError(
                 message="Data integrity verification failed",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
     # Migration methods for specific versions
@@ -311,11 +312,13 @@ class DatabaseMigration:
 
         # No schema changes needed - I-bonds use existing flexible schema
         # Just verify that the accounts table supports the new type
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='accounts'")
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='accounts'"
+        )
         if not cursor.fetchone():
             raise DatabaseMigrationError(
                 message="Accounts table not found during I-bonds migration",
-                technical_details="Database schema appears corrupted"
+                technical_details="Database schema appears corrupted",
             )
 
         # Add any I-bonds specific indexes if needed
@@ -344,17 +347,17 @@ class DatabaseMigration:
         cursor.execute("PRAGMA table_info(accounts)")
         columns = [column[1] for column in cursor.fetchall()]
 
-        if 'metadata' not in columns:
+        if "metadata" not in columns:
             # Add metadata column for flexible attributes
-            cursor.execute('ALTER TABLE accounts ADD COLUMN metadata BLOB')
+            cursor.execute("ALTER TABLE accounts ADD COLUMN metadata BLOB")
             logger.info("Added metadata column to accounts table")
 
         # Add metadata column to historical snapshots if not exists
         cursor.execute("PRAGMA table_info(historical_snapshots)")
         columns = [column[1] for column in cursor.fetchall()]
 
-        if 'metadata' not in columns:
-            cursor.execute('ALTER TABLE historical_snapshots ADD COLUMN metadata BLOB')
+        if "metadata" not in columns:
+            cursor.execute("ALTER TABLE historical_snapshots ADD COLUMN metadata BLOB")
             logger.info("Added metadata column to historical_snapshots table")
 
         self.db_service.connection.commit()
@@ -380,10 +383,10 @@ class DatabaseMigration:
         # ''')
 
         # Add index for account numbers (encrypted)
-        cursor.execute('''
+        cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_accounts_institution_type
             ON accounts (institution, type)
-        ''')
+        """)
 
         self.db_service.connection.commit()
         logger.info("Enhanced broker support migration completed")
@@ -400,10 +403,12 @@ class DatabaseMigration:
         cursor = self.db_service.connection.cursor()
 
         # Check if watchlist table already exists
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='watchlist'")
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='watchlist'"
+        )
         if not cursor.fetchone():
             # Create watchlist table
-            cursor.execute('''
+            cursor.execute("""
                 CREATE TABLE watchlist (
                     id TEXT PRIMARY KEY,
                     symbol TEXT NOT NULL UNIQUE,
@@ -412,13 +417,15 @@ class DatabaseMigration:
                     last_price_update INTEGER,
                     is_demo BOOLEAN DEFAULT FALSE
                 )
-            ''')
+            """)
             logger.info("Created watchlist table")
 
             # Add indexes for efficient watchlist queries
-            cursor.execute('CREATE INDEX idx_watchlist_symbol ON watchlist (symbol)')
-            cursor.execute('CREATE INDEX idx_watchlist_added_date ON watchlist (added_date)')
-            cursor.execute('CREATE INDEX idx_watchlist_is_demo ON watchlist (is_demo)')
+            cursor.execute("CREATE INDEX idx_watchlist_symbol ON watchlist (symbol)")
+            cursor.execute(
+                "CREATE INDEX idx_watchlist_added_date ON watchlist (added_date)"
+            )
+            cursor.execute("CREATE INDEX idx_watchlist_is_demo ON watchlist (is_demo)")
             logger.info("Created watchlist indexes")
 
         self.db_service.connection.commit()
@@ -433,31 +440,29 @@ class DatabaseMigration:
         """
         logger.info("Applying migration v6: Consolidating stock positions")
 
-        trading_accounts = self.db_service.get_accounts('TRADING')
+        trading_accounts = self.db_service.get_accounts("TRADING")
         for account in trading_accounts:
-            if 'positions' not in account:
+            if "positions" not in account:
                 continue
 
-            embedded_positions = account.get('positions') or []
-            table_positions = self.db_service.get_stock_positions(account['id'])
-            table_symbols = {
-                position['symbol'].upper() for position in table_positions
-            }
+            embedded_positions = account.get("positions") or []
+            table_positions = self.db_service.get_stock_positions(account["id"])
+            table_symbols = {position["symbol"].upper() for position in table_positions}
             merged_positions = list(table_positions)
             merged_symbols = set(table_symbols)
             for position in embedded_positions:
-                symbol = str(position.get('symbol', '')).upper()
+                symbol = str(position.get("symbol", "")).upper()
                 if not symbol or symbol in merged_symbols:
                     continue
                 merged_positions.append(position)
                 merged_symbols.add(symbol)
 
-            self.db_service.replace_stock_positions(account['id'], merged_positions)
+            self.db_service.replace_stock_positions(account["id"], merged_positions)
 
             account_without_positions = account.copy()
-            account_without_positions.pop('positions', None)
-            account_without_positions.pop('schema_version', None)
-            self.db_service.update_account(account['id'], account_without_positions)
+            account_without_positions.pop("positions", None)
+            account_without_positions.pop("schema_version", None)
+            self.db_service.update_account(account["id"], account_without_positions)
 
         logger.info("Stock position consolidation migration completed")
 
@@ -486,16 +491,19 @@ class DatabaseMigration:
             List of migration history entries
         """
         current_version = self.get_current_schema_version()
-        target_version = self.get_target_schema_version()
 
         history = []
         for version in sorted(self.migrations.keys()):
             status = "completed" if version <= current_version else "pending"
-            history.append({
-                'version': version,
-                'status': status,
-                'description': self.migrations[version].__doc__.strip() if self.migrations[version].__doc__ else f"Migration to version {version}"
-            })
+            history.append(
+                {
+                    "version": version,
+                    "status": status,
+                    "description": self.migrations[version].__doc__.strip()
+                    if self.migrations[version].__doc__
+                    else f"Migration to version {version}",
+                }
+            )
 
         return history
 
@@ -517,17 +525,17 @@ class DatabaseMigration:
         if target_version >= current_version:
             raise DatabaseMigrationError(
                 message=f"Cannot rollback from version {current_version} to {target_version}",
-                technical_details="Target version must be lower than current version"
+                technical_details="Target version must be lower than current version",
             )
 
         if current_version - target_version > 1:
             raise DatabaseMigrationError(
                 message="Rollback only supported to immediately previous version",
-                technical_details=f"Current: {current_version}, Target: {target_version}"
+                technical_details=f"Current: {current_version}, Target: {target_version}",
             )
 
         # For now, rollback is only supported via backup restoration
         raise DatabaseMigrationError(
             message="Rollback not implemented - restore from backup instead",
-            technical_details="Use backup files created during migration for rollback"
+            technical_details="Use backup files created during migration for rollback",
         )

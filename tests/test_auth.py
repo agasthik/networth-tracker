@@ -6,16 +6,14 @@ Tests master password handling, session management, and security features.
 import os
 import tempfile
 import unittest
-from datetime import datetime, timedelta
 
 # Import Flask app for testing context
 import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import app
 from services.auth import AuthenticationManager
-from services.encryption import EncryptionService
-from services.database import DatabaseService
 
 
 class TestAuthenticationManager(unittest.TestCase):
@@ -23,7 +21,7 @@ class TestAuthenticationManager(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.temp_db = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
+        self.temp_db = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
         self.temp_db.close()
         self.db_path = self.temp_db.name
         self.auth_manager = AuthenticationManager(self.db_path)
@@ -31,7 +29,7 @@ class TestAuthenticationManager(unittest.TestCase):
 
         # Create Flask test client
         self.app = app
-        self.app.config['TESTING'] = True
+        self.app.config["TESTING"] = True
         self.client = self.app.test_client()
 
     def tearDown(self):
@@ -89,11 +87,7 @@ class TestAuthenticationManager(unittest.TestCase):
     def test_validate_password_strength(self):
         """Test password strength validation."""
         # Valid passwords
-        valid_passwords = [
-            "ValidPassword123!",
-            "AnotherGood1@",
-            "Complex#Pass123"
-        ]
+        valid_passwords = ["ValidPassword123!", "AnotherGood1@", "Complex#Pass123"]
 
         for password in valid_passwords:
             self.assertTrue(self.auth_manager._validate_password_strength(password))
@@ -105,12 +99,14 @@ class TestAuthenticationManager(unittest.TestCase):
             "NOLOWERCASE123!",  # No lowercase
             "NoNumbers!",  # No numbers
             "NoSpecialChars123",  # No special characters
-            "Short1!"  # Less than 12 characters
+            "Short1!",  # Less than 12 characters
         ]
 
         for password in invalid_passwords:
             result = self.auth_manager._validate_password_strength(password)
-            self.assertFalse(result, f"Password '{password}' should be invalid but was accepted")
+            self.assertFalse(
+                result, f"Password '{password}' should be invalid but was accepted"
+            )
 
     def test_hash_password_consistency(self):
         """Test password hashing consistency."""
@@ -121,8 +117,39 @@ class TestAuthenticationManager(unittest.TestCase):
 
         self.assertEqual(hash1, hash2)
         self.assertIsInstance(hash1, str)
-        self.assertEqual(len(hash1), 64)  # SHA-256 hex length
+        self.assertTrue(hash1.startswith("pbkdf2_sha256$"))
+        self.assertEqual(len(hash1.split("$")), 4)
+
+    def test_login_attempt_limit_and_success_reset(self):
+        """Repeated failures are throttled and a success clears the window."""
+        manager = AuthenticationManager(
+            self.db_path,
+            login_max_attempts=2,
+            login_attempt_window=300,
+        )
+        identifier = "127.0.0.1"
+
+        self.assertTrue(manager.is_login_allowed(identifier))
+        manager.record_login_attempt(identifier, success=False)
+        self.assertTrue(manager.is_login_allowed(identifier))
+        manager.record_login_attempt(identifier, success=False)
+        self.assertFalse(manager.is_login_allowed(identifier))
+        manager.record_login_attempt(identifier, success=True)
+        self.assertTrue(manager.is_login_allowed(identifier))
+
+    def test_logout_clears_derived_key(self):
+        """Logout must release the active database and encryption key."""
+        self.auth_manager.encryption_service.derive_key(
+            self.test_password,
+            b"0123456789abcdef",
+        )
+
+        with self.app.test_request_context():
+            self.auth_manager.logout()
+
+        self.assertIsNone(self.auth_manager.encryption_service.key)
+        self.assertIsNone(self.auth_manager.encryption_service.salt)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

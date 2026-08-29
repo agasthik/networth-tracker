@@ -9,21 +9,21 @@ This service provides functionality to:
 """
 
 import json
-import uuid
 import logging
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 
 from models.watchlist import WatchlistItem
 from .database import DatabaseService
-from .stock_prices import StockPriceService, PriceUpdateResult, StockPriceServiceError
+from .stock_prices import StockPriceService, StockPriceServiceError
 from .error_handler import (
-    DatabaseError, RecordNotFoundError, ValidationError, SystemError
+    ValidationError,
 )
 
 
 class WatchlistServiceError(Exception):
     """Custom exception for watchlist service errors"""
+
     pass
 
 
@@ -42,7 +42,9 @@ class WatchlistService:
         self.stock_service = stock_service
         self.logger = logging.getLogger(__name__)
 
-    def add_stock(self, symbol: str, notes: Optional[str] = None, max_watchlist_size: int = 50) -> str:
+    def add_stock(
+        self, symbol: str, notes: Optional[str] = None, max_watchlist_size: int = 50
+    ) -> str:
         """
         Add a stock to the watchlist with symbol validation.
 
@@ -59,8 +61,9 @@ class WatchlistService:
             WatchlistServiceError: If operation fails
         """
         from .error_handler import (
-            WatchlistDuplicateError, WatchlistLimitExceededError,
-            StockValidationError, ValidationError
+            WatchlistDuplicateError,
+            WatchlistLimitExceededError,
+            StockValidationError,
         )
 
         if not symbol or not isinstance(symbol, str):
@@ -70,7 +73,9 @@ class WatchlistService:
 
         # Basic symbol format validation
         if not symbol.isalnum() or len(symbol) > 10 or len(symbol) < 1:
-            raise StockValidationError(symbol, "Symbol must be 1-10 alphanumeric characters")
+            raise StockValidationError(
+                symbol, "Symbol must be 1-10 alphanumeric characters"
+            )
 
         # Check watchlist size limit
         existing_items = self.get_watchlist()
@@ -90,22 +95,32 @@ class WatchlistService:
         except StockPriceServiceError as e:
             error_msg = str(e).lower()
             if "not found" in error_msg or "invalid" in error_msg:
-                raise StockValidationError(symbol, "Symbol not found in stock market data")
+                raise StockValidationError(
+                    symbol, "Symbol not found in stock market data"
+                )
             elif "timeout" in error_msg or "connection" in error_msg:
                 # For network issues, allow adding but log a warning
-                self.logger.warning(f"Could not validate {symbol} due to network issues, adding anyway: {str(e)}")
+                self.logger.warning(
+                    f"Could not validate {symbol} due to network issues, adding anyway: {str(e)}"
+                )
             elif "rate limit" in error_msg:
                 # For rate limiting, allow adding but log a warning
-                self.logger.warning(f"Rate limit exceeded while validating {symbol}, adding anyway: {str(e)}")
+                self.logger.warning(
+                    f"Rate limit exceeded while validating {symbol}, adding anyway: {str(e)}"
+                )
             else:
                 # For other errors, allow adding but log a warning
-                self.logger.warning(f"Could not validate {symbol}, adding anyway: {str(e)}")
+                self.logger.warning(
+                    f"Could not validate {symbol}, adding anyway: {str(e)}"
+                )
 
         # Create new watchlist item
         try:
             item = WatchlistItem.create_new(symbol, notes)
         except Exception as e:
-            raise ValidationError(f"Failed to create watchlist item: {str(e)}", "VAL_ITEM_CREATE")
+            raise ValidationError(
+                f"Failed to create watchlist item: {str(e)}", "VAL_ITEM_CREATE"
+            )
 
         # Store in database
         try:
@@ -139,7 +154,7 @@ class WatchlistService:
             cursor = connection.cursor()
 
             # Find the item by symbol
-            cursor.execute('SELECT id FROM watchlist WHERE symbol = ?', (symbol,))
+            cursor.execute("SELECT id FROM watchlist WHERE symbol = ?", (symbol,))
             row = cursor.fetchone()
 
             if not row:
@@ -147,14 +162,16 @@ class WatchlistService:
                 return False
 
             # Delete the item
-            cursor.execute('DELETE FROM watchlist WHERE symbol = ?', (symbol,))
+            cursor.execute("DELETE FROM watchlist WHERE symbol = ?", (symbol,))
             connection.commit()
 
             self.logger.info(f"Removed {symbol} from watchlist")
             return True
 
         except Exception as e:
-            raise WatchlistServiceError(f"Failed to remove stock from watchlist: {str(e)}")
+            raise WatchlistServiceError(
+                f"Failed to remove stock from watchlist: {str(e)}"
+            )
 
     def get_watchlist(self) -> List[WatchlistItem]:
         """
@@ -173,25 +190,33 @@ class WatchlistService:
             connection = self.db_service.connect()
             cursor = connection.cursor()
 
-            cursor.execute('''
+            cursor.execute("""
                 SELECT id, symbol, encrypted_data, added_date, last_price_update, is_demo
                 FROM watchlist
                 ORDER BY symbol
-            ''')
+            """)
 
             items = []
             for row in cursor.fetchall():
                 try:
                     # Decrypt the data
-                    encrypted_data = row['encrypted_data']
-                    decrypted_data = json.loads(self.db_service.encryption_service.decrypt(encrypted_data))
+                    encrypted_data = row["encrypted_data"]
+                    decrypted_data = json.loads(
+                        self.db_service.encryption_service.decrypt(encrypted_data)
+                    )
 
                     # Create WatchlistItem from decrypted data
                     item_data = {
-                        'id': row['id'],
-                        'symbol': row['symbol'],
-                        'added_date': datetime.fromtimestamp(row['added_date']).isoformat(),
-                        'last_price_update': datetime.fromtimestamp(row['last_price_update']).isoformat() if row['last_price_update'] else None
+                        "id": row["id"],
+                        "symbol": row["symbol"],
+                        "added_date": datetime.fromtimestamp(
+                            row["added_date"]
+                        ).isoformat(),
+                        "last_price_update": datetime.fromtimestamp(
+                            row["last_price_update"]
+                        ).isoformat()
+                        if row["last_price_update"]
+                        else None,
                     }
                     item_data.update(decrypted_data)
 
@@ -199,7 +224,9 @@ class WatchlistService:
                     items.append(item)
 
                 except Exception as e:
-                    self.logger.error(f"Failed to decrypt watchlist item {row['id']}: {str(e)}")
+                    self.logger.error(
+                        f"Failed to decrypt watchlist item {row['id']}: {str(e)}"
+                    )
                     continue
 
             return items
@@ -242,26 +269,27 @@ class WatchlistService:
         Raises:
             WatchlistServiceError: If batch update fails completely
         """
-        from .error_handler import WatchlistPriceUpdateError
 
         try:
             watchlist = self.get_watchlist()
             if not watchlist:
                 return {
-                    'success': True,
-                    'results': {},
-                    'summary': {
-                        'total_items': 0,
-                        'successful_updates': 0,
-                        'failed_updates': 0,
-                        'successful_symbols': [],
-                        'failed_symbols': []
-                    }
+                    "success": True,
+                    "results": {},
+                    "summary": {
+                        "total_items": 0,
+                        "successful_updates": 0,
+                        "failed_updates": 0,
+                        "successful_symbols": [],
+                        "failed_symbols": [],
+                    },
                 }
 
             # Extract symbols for batch price update
             symbols = [item.symbol for item in watchlist]
-            self.logger.info(f"Starting price update for {len(symbols)} watchlist items")
+            self.logger.info(
+                f"Starting price update for {len(symbols)} watchlist items"
+            )
 
             # Fetch prices in batch
             try:
@@ -286,38 +314,47 @@ class WatchlistService:
                         daily_change = None
                         daily_change_percent = None
 
-                        if item.current_price is not None and price_result.price is not None:
+                        if (
+                            item.current_price is not None
+                            and price_result.price is not None
+                        ):
                             daily_change = price_result.price - item.current_price
                             if item.current_price > 0:
-                                daily_change_percent = (daily_change / item.current_price) * 100
+                                daily_change_percent = (
+                                    daily_change / item.current_price
+                                ) * 100
 
                         # Update item with new price data
                         item.update_price(
                             current_price=price_result.price,
                             daily_change=daily_change,
-                            daily_change_percent=daily_change_percent
+                            daily_change_percent=daily_change_percent,
                         )
 
                         # Store updated item
                         self._store_watchlist_item(item)
                         update_results[symbol] = {
-                            'success': True,
-                            'price': price_result.price,
-                            'daily_change': daily_change,
-                            'daily_change_percent': daily_change_percent
+                            "success": True,
+                            "price": price_result.price,
+                            "daily_change": daily_change,
+                            "daily_change_percent": daily_change_percent,
                         }
                         successful_symbols.append(symbol)
-                        self.logger.info(f"Updated price for {symbol}: ${price_result.price:.2f}")
+                        self.logger.info(
+                            f"Updated price for {symbol}: ${price_result.price:.2f}"
+                        )
 
                     except Exception as e:
                         # Database storage error
-                        error_msg = f"Database error storing price for {symbol}: {str(e)}"
+                        error_msg = (
+                            f"Database error storing price for {symbol}: {str(e)}"
+                        )
                         self.logger.error(error_msg)
                         database_errors.append(symbol)
                         update_results[symbol] = {
-                            'success': False,
-                            'error': 'database_error',
-                            'error_message': str(e)
+                            "success": False,
+                            "error": "database_error",
+                            "error_message": str(e),
                         }
                         failed_symbols.append(symbol)
 
@@ -325,12 +362,14 @@ class WatchlistService:
                     # Price fetch failed
                     error_msg = price_result.error if price_result else "Unknown error"
                     update_results[symbol] = {
-                        'success': False,
-                        'error': 'price_fetch_failed',
-                        'error_message': error_msg
+                        "success": False,
+                        "error": "price_fetch_failed",
+                        "error_message": error_msg,
                     }
                     failed_symbols.append(symbol)
-                    self.logger.warning(f"Failed to update price for {symbol}: {error_msg}")
+                    self.logger.warning(
+                        f"Failed to update price for {symbol}: {error_msg}"
+                    )
 
             # Prepare summary
             total_items = len(symbols)
@@ -338,29 +377,35 @@ class WatchlistService:
             failed_updates = len(failed_symbols)
 
             summary = {
-                'total_items': total_items,
-                'successful_updates': successful_updates,
-                'failed_updates': failed_updates,
-                'successful_symbols': successful_symbols,
-                'failed_symbols': failed_symbols,
-                'database_errors': database_errors
+                "total_items": total_items,
+                "successful_updates": successful_updates,
+                "failed_updates": failed_updates,
+                "successful_symbols": successful_symbols,
+                "failed_symbols": failed_symbols,
+                "database_errors": database_errors,
             }
 
             # Log summary
-            self.logger.info(f"Price update completed: {successful_updates}/{total_items} successful")
+            self.logger.info(
+                f"Price update completed: {successful_updates}/{total_items} successful"
+            )
 
             if failed_symbols:
-                self.logger.warning(f"Failed to update prices for: {', '.join(failed_symbols)}")
+                self.logger.warning(
+                    f"Failed to update prices for: {', '.join(failed_symbols)}"
+                )
 
             # If more than half failed, consider it a significant issue
             if failed_updates > successful_updates and total_items > 1:
-                self.logger.error(f"Majority of price updates failed ({failed_updates}/{total_items})")
+                self.logger.error(
+                    f"Majority of price updates failed ({failed_updates}/{total_items})"
+                )
 
             return {
-                'success': True,
-                'results': update_results,
-                'summary': summary,
-                'timestamp': datetime.now().isoformat()
+                "success": True,
+                "results": update_results,
+                "summary": summary,
+                "timestamp": datetime.now().isoformat(),
             }
 
         except WatchlistServiceError:
@@ -401,33 +446,41 @@ class WatchlistService:
 
             total_items = len(watchlist)
             items_with_prices = sum(1 for item in watchlist if item.has_price_data())
-            items_with_stale_prices = sum(1 for item in watchlist if item.is_price_data_stale())
+            items_with_stale_prices = sum(
+                1 for item in watchlist if item.is_price_data_stale()
+            )
 
             # Calculate gain/loss statistics
-            gainers = sum(1 for item in watchlist
-                         if item.daily_change is not None and item.daily_change > 0)
-            losers = sum(1 for item in watchlist
-                        if item.daily_change is not None and item.daily_change < 0)
+            gainers = sum(
+                1
+                for item in watchlist
+                if item.daily_change is not None and item.daily_change > 0
+            )
+            losers = sum(
+                1
+                for item in watchlist
+                if item.daily_change is not None and item.daily_change < 0
+            )
 
             return {
-                'total_items': total_items,
-                'items_with_prices': items_with_prices,
-                'items_with_stale_prices': items_with_stale_prices,
-                'gainers': gainers,
-                'losers': losers,
-                'last_updated': datetime.now()
+                "total_items": total_items,
+                "items_with_prices": items_with_prices,
+                "items_with_stale_prices": items_with_stale_prices,
+                "gainers": gainers,
+                "losers": losers,
+                "last_updated": datetime.now(),
             }
 
         except Exception as e:
             self.logger.error(f"Failed to generate watchlist summary: {str(e)}")
             return {
-                'total_items': 0,
-                'items_with_prices': 0,
-                'items_with_stale_prices': 0,
-                'gainers': 0,
-                'losers': 0,
-                'last_updated': datetime.now(),
-                'error': str(e)
+                "total_items": 0,
+                "items_with_prices": 0,
+                "items_with_stale_prices": 0,
+                "gainers": 0,
+                "losers": 0,
+                "last_updated": datetime.now(),
+                "error": str(e),
             }
 
     def _store_watchlist_item(self, item: WatchlistItem) -> None:
@@ -446,18 +499,20 @@ class WatchlistService:
 
             # Prepare data for storage
             public_data = {
-                'id': item.id,
-                'symbol': item.symbol,
-                'added_date': int(item.added_date.timestamp()),
-                'last_price_update': int(item.last_price_update.timestamp()) if item.last_price_update else None
+                "id": item.id,
+                "symbol": item.symbol,
+                "added_date": int(item.added_date.timestamp()),
+                "last_price_update": int(item.last_price_update.timestamp())
+                if item.last_price_update
+                else None,
             }
 
             # Encrypt sensitive data (notes and price information)
             sensitive_data = {
-                'notes': item.notes,
-                'current_price': item.current_price,
-                'daily_change': item.daily_change,
-                'daily_change_percent': item.daily_change_percent
+                "notes": item.notes,
+                "current_price": item.current_price,
+                "daily_change": item.daily_change,
+                "daily_change_percent": item.daily_change_percent,
             }
 
             encrypted_data = self.db_service.encryption_service.encrypt(
@@ -468,18 +523,21 @@ class WatchlistService:
             cursor = connection.cursor()
 
             # Use INSERT OR REPLACE to handle both create and update
-            cursor.execute('''
+            cursor.execute(
+                """
                 INSERT OR REPLACE INTO watchlist
                 (id, symbol, encrypted_data, added_date, last_price_update, is_demo)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
-                public_data['id'],
-                public_data['symbol'],
-                encrypted_data,
-                public_data['added_date'],
-                public_data['last_price_update'],
-                False  # Default to non-demo
-            ))
+            """,
+                (
+                    public_data["id"],
+                    public_data["symbol"],
+                    encrypted_data,
+                    public_data["added_date"],
+                    public_data["last_price_update"],
+                    False,  # Default to non-demo
+                ),
+            )
 
             connection.commit()
 
@@ -498,7 +556,7 @@ class WatchlistService:
             cursor = connection.cursor()
 
             # Create watchlist table if it doesn't exist
-            cursor.execute('''
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS watchlist (
                     id TEXT PRIMARY KEY,
                     symbol TEXT NOT NULL UNIQUE,
@@ -507,15 +565,19 @@ class WatchlistService:
                     last_price_update INTEGER,
                     is_demo BOOLEAN DEFAULT FALSE
                 )
-            ''')
+            """)
 
             # Create index for efficient symbol lookups
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_watchlist_symbol ON watchlist (symbol)')
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_watchlist_symbol ON watchlist (symbol)"
+            )
 
             connection.commit()
 
         except Exception as e:
-            raise WatchlistServiceError(f"Failed to ensure watchlist table exists: {str(e)}")
+            raise WatchlistServiceError(
+                f"Failed to ensure watchlist table exists: {str(e)}"
+            )
 
     def clear_watchlist(self) -> int:
         """
@@ -532,11 +594,11 @@ class WatchlistService:
             cursor = connection.cursor()
 
             # Count items before deletion
-            cursor.execute('SELECT COUNT(*) FROM watchlist')
+            cursor.execute("SELECT COUNT(*) FROM watchlist")
             count = cursor.fetchone()[0]
 
             # Delete all items
-            cursor.execute('DELETE FROM watchlist')
+            cursor.execute("DELETE FROM watchlist")
             connection.commit()
 
             self.logger.info(f"Cleared {count} items from watchlist")
@@ -556,14 +618,14 @@ class WatchlistService:
             WatchlistServiceError: If demo data creation fails
         """
         demo_stocks = [
-            ('AAPL', 'Apple Inc. - Technology giant'),
-            ('GOOGL', 'Alphabet Inc. - Search and cloud services'),
-            ('MSFT', 'Microsoft Corporation - Software and cloud'),
-            ('TSLA', 'Tesla Inc. - Electric vehicles and energy'),
-            ('AMZN', 'Amazon.com Inc. - E-commerce and cloud'),
-            ('NVDA', 'NVIDIA Corporation - Graphics and AI chips'),
-            ('META', 'Meta Platforms Inc. - Social media'),
-            ('NFLX', 'Netflix Inc. - Streaming entertainment')
+            ("AAPL", "Apple Inc. - Technology giant"),
+            ("GOOGL", "Alphabet Inc. - Search and cloud services"),
+            ("MSFT", "Microsoft Corporation - Software and cloud"),
+            ("TSLA", "Tesla Inc. - Electric vehicles and energy"),
+            ("AMZN", "Amazon.com Inc. - E-commerce and cloud"),
+            ("NVDA", "NVIDIA Corporation - Graphics and AI chips"),
+            ("META", "Meta Platforms Inc. - Social media"),
+            ("NFLX", "Netflix Inc. - Streaming entertainment"),
         ]
 
         created_ids = []
@@ -593,7 +655,9 @@ class WatchlistService:
             return created_ids
 
         except Exception as e:
-            raise WatchlistServiceError(f"Failed to create demo watchlist items: {str(e)}")
+            raise WatchlistServiceError(
+                f"Failed to create demo watchlist items: {str(e)}"
+            )
 
     def _store_demo_watchlist_item(self, item: WatchlistItem) -> None:
         """
@@ -606,17 +670,19 @@ class WatchlistService:
             self._ensure_watchlist_table()
 
             public_data = {
-                'id': item.id,
-                'symbol': item.symbol,
-                'added_date': int(item.added_date.timestamp()),
-                'last_price_update': int(item.last_price_update.timestamp()) if item.last_price_update else None
+                "id": item.id,
+                "symbol": item.symbol,
+                "added_date": int(item.added_date.timestamp()),
+                "last_price_update": int(item.last_price_update.timestamp())
+                if item.last_price_update
+                else None,
             }
 
             sensitive_data = {
-                'notes': item.notes,
-                'current_price': item.current_price,
-                'daily_change': item.daily_change,
-                'daily_change_percent': item.daily_change_percent
+                "notes": item.notes,
+                "current_price": item.current_price,
+                "daily_change": item.daily_change,
+                "daily_change_percent": item.daily_change_percent,
             }
 
             encrypted_data = self.db_service.encryption_service.encrypt(
@@ -626,20 +692,25 @@ class WatchlistService:
             connection = self.db_service.connect()
             cursor = connection.cursor()
 
-            cursor.execute('''
+            cursor.execute(
+                """
                 INSERT OR REPLACE INTO watchlist
                 (id, symbol, encrypted_data, added_date, last_price_update, is_demo)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
-                public_data['id'],
-                public_data['symbol'],
-                encrypted_data,
-                public_data['added_date'],
-                public_data['last_price_update'],
-                True  # Mark as demo data
-            ))
+            """,
+                (
+                    public_data["id"],
+                    public_data["symbol"],
+                    encrypted_data,
+                    public_data["added_date"],
+                    public_data["last_price_update"],
+                    True,  # Mark as demo data
+                ),
+            )
 
             connection.commit()
 
         except Exception as e:
-            raise WatchlistServiceError(f"Failed to store demo watchlist item: {str(e)}")
+            raise WatchlistServiceError(
+                f"Failed to store demo watchlist item: {str(e)}"
+            )

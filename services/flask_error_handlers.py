@@ -4,20 +4,71 @@ Integrates the comprehensive error handling system with Flask routes and middlew
 """
 
 import functools
+import hmac
+import secrets
 import uuid
-from typing import Callable, Any, Optional
-from flask import request, jsonify, current_app, g
-from werkzeug.exceptions import HTTPException
+from typing import Callable
+from urllib.parse import urlparse
+
+from flask import request, current_app, g, session
+from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 
 from .error_handler import (
-    AppError, ErrorHandler, ErrorContext, ErrorType, ErrorSeverity,
-    AuthenticationError, ValidationError, DatabaseError, SystemError,
-    create_json_error_response
+    AppError,
+    ErrorContext,
+    ErrorType,
+    AuthenticationError,
+    ValidationError,
+    SystemError,
+    create_json_error_response,
 )
 from .logging_config import get_logger, log_security_event, log_data_access
 
 
 logger = get_logger(__name__)
+
+
+def generate_csrf_token() -> str:
+    """Return the session's CSRF token, creating it when necessary."""
+    token = session.get("_csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["_csrf_token"] = token
+    return token
+
+
+def _same_origin_request() -> bool:
+    """Validate Origin/Referer headers when the browser supplies them."""
+    source = request.headers.get("Origin") or request.headers.get("Referer")
+    if not source:
+        return True
+    parsed = urlparse(source)
+    return parsed.netloc == request.host
+
+
+def _validate_csrf() -> None:
+    if request.method in {"GET", "HEAD", "OPTIONS", "TRACE"}:
+        return
+    if not current_app.config.get("WTF_CSRF_ENABLED", True):
+        return
+    if not _same_origin_request():
+        raise ValidationError(
+            message="Cross-origin request rejected",
+            code="SEC_CSRF_ORIGIN",
+        )
+
+    expected = session.get("_csrf_token")
+    supplied = request.headers.get("X-CSRF-Token") or request.form.get("csrf_token")
+    if (
+        not expected
+        or not supplied
+        or not hmac.compare_digest(str(expected), str(supplied))
+    ):
+        raise ValidationError(
+            message="Invalid or missing CSRF token",
+            code="SEC_CSRF_TOKEN",
+            user_action="Refresh the page and try again",
+        )
 
 
 def generate_request_id() -> str:
@@ -32,18 +83,18 @@ def get_request_context() -> ErrorContext:
     Returns:
         ErrorContext with request information
     """
-    request_id = getattr(g, 'request_id', None)
-    user_id = getattr(g, 'user_id', None)
+    request_id = getattr(g, "request_id", None)
+    user_id = getattr(g, "user_id", None)
 
     return ErrorContext(
         user_id=user_id,
         request_id=request_id,
         additional_data={
-            'method': request.method,
-            'endpoint': request.endpoint,
-            'remote_addr': request.remote_addr,
-            'user_agent': request.headers.get('User-Agent', 'Unknown')
-        }
+            "method": request.method,
+            "endpoint": request.endpoint,
+            "remote_addr": request.remote_addr,
+            "user_agent": request.headers.get("User-Agent", "Unknown"),
+        },
     )
 
 
@@ -57,6 +108,7 @@ def handle_api_error(func: Callable) -> Callable:
     Returns:
         Wrapped function with error handling
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -64,13 +116,17 @@ def handle_api_error(func: Callable) -> Callable:
             g.request_id = generate_request_id()
 
             # Log API call
-            logger.debug(f"API call: {request.method} {request.endpoint} | Request ID: {g.request_id}")
+            logger.debug(
+                f"API call: {request.method} {request.endpoint} | Request ID: {g.request_id}"
+            )
 
             # Call the original function
             result = func(*args, **kwargs)
 
             # Log successful completion
-            logger.debug(f"API call completed successfully | Request ID: {g.request_id}")
+            logger.debug(
+                f"API call completed successfully | Request ID: {g.request_id}"
+            )
 
             return result
 
@@ -79,7 +135,9 @@ def handle_api_error(func: Callable) -> Callable:
             context = get_request_context()
             context.operation = func.__name__
 
-            logger.error(f"API error in {func.__name__}: {e.message} | Request ID: {g.request_id}")
+            logger.error(
+                f"API error in {func.__name__}: {e.message} | Request ID: {g.request_id}"
+            )
 
             # Determine appropriate HTTP status code
             status_code = _get_http_status_for_error(e)
@@ -92,10 +150,12 @@ def handle_api_error(func: Callable) -> Callable:
             app_error = ValidationError(
                 message=e.description or "HTTP error occurred",
                 code=f"HTTP_{e.code}",
-                context=context
+                context=context,
             )
 
-            logger.warning(f"HTTP exception in {func.__name__}: {e.description} | Request ID: {g.request_id}")
+            logger.warning(
+                f"HTTP exception in {func.__name__}: {e.description} | Request ID: {g.request_id}"
+            )
 
             return create_json_error_response(app_error, e.code)
 
@@ -104,15 +164,10 @@ def handle_api_error(func: Callable) -> Callable:
             context = get_request_context()
             context.operation = func.__name__
 
-            app_error = SystemError(
-                message="An unexpected error occurred",
-                code="SYS_999",
-                technical_details=str(e),
-                original_exception=e,
-                context=context
+            logger.error(
+                f"Unexpected error in {func.__name__}: {str(e)} | Request ID: {g.request_id}",
+                exc_info=True,
             )
-
-            logger.error(f"Unexpected error in {func.__name__}: {str(e)} | Request ID: {g.request_id}", exc_info=True)
 
             return create_json_error_response(app_error, 500)
 
@@ -129,6 +184,7 @@ def handle_view_error(func: Callable) -> Callable:
     Returns:
         Wrapped function with error handling
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -136,13 +192,17 @@ def handle_view_error(func: Callable) -> Callable:
             g.request_id = generate_request_id()
 
             # Log view call
-            logger.debug(f"View call: {request.method} {request.endpoint} | Request ID: {g.request_id}")
+            logger.debug(
+                f"View call: {request.method} {request.endpoint} | Request ID: {g.request_id}"
+            )
 
             # Call the original function
             result = func(*args, **kwargs)
 
             # Log successful completion
-            logger.debug(f"View call completed successfully | Request ID: {g.request_id}")
+            logger.debug(
+                f"View call completed successfully | Request ID: {g.request_id}"
+            )
 
             return result
 
@@ -151,38 +211,37 @@ def handle_view_error(func: Callable) -> Callable:
             context = get_request_context()
             context.operation = func.__name__
 
-            logger.error(f"View error in {func.__name__}: {e.message} | Request ID: {g.request_id}")
+            logger.error(
+                f"View error in {func.__name__}: {e.message} | Request ID: {g.request_id}"
+            )
 
             # For view functions, we typically want to flash the error and redirect
             from flask import flash, redirect, url_for
 
-            flash(e.message, 'error')
+            flash(e.message, "error")
 
             # Redirect based on error type
             if isinstance(e, AuthenticationError):
-                return redirect(url_for('login'))
+                return redirect(url_for("login"))
             else:
                 # Try to redirect to a safe page
-                return redirect(url_for('dashboard') if 'dashboard' in current_app.view_functions else url_for('index'))
+                return redirect(
+                    url_for("dashboard")
+                    if "dashboard" in current_app.view_functions
+                    else url_for("index")
+                )
 
         except Exception as e:
             # Handle unexpected errors
-            context = get_request_context()
-            context.operation = func.__name__
-
-            app_error = SystemError(
-                message="An unexpected error occurred",
-                code="SYS_999",
-                technical_details=str(e),
-                original_exception=e,
-                context=context
+            logger.error(
+                f"Unexpected error in {func.__name__}: {str(e)} | Request ID: {g.request_id}",
+                exc_info=True,
             )
 
-            logger.error(f"Unexpected error in {func.__name__}: {str(e)} | Request ID: {g.request_id}", exc_info=True)
-
             from flask import flash, redirect, url_for
-            flash("An unexpected error occurred. Please try again.", 'error')
-            return redirect(url_for('index'))
+
+            flash("An unexpected error occurred. Please try again.", "error")
+            return redirect(url_for("index"))
 
     return wrapper
 
@@ -197,18 +256,17 @@ def require_auth_with_error_handling(func: Callable) -> Callable:
     Returns:
         Wrapped function with authentication and error handling
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
-            from services.auth import AuthenticationManager
             from flask import current_app
 
             # Get authentication manager
-            auth_manager = getattr(current_app, 'auth_manager', None)
+            auth_manager = getattr(current_app, "auth_manager", None)
             if not auth_manager:
                 raise SystemError(
-                    message="Authentication system not available",
-                    code="AUTH_SYS_001"
+                    message="Authentication system not available", code="AUTH_SYS_001"
                 )
 
             # Check if setup is required
@@ -216,7 +274,7 @@ def require_auth_with_error_handling(func: Callable) -> Callable:
                 raise AuthenticationError(
                     message="Initial setup is required",
                     code="AUTH_004",
-                    user_action="Please complete the initial setup"
+                    user_action="Please complete the initial setup",
                 )
 
             # Check if user is authenticated
@@ -225,39 +283,39 @@ def require_auth_with_error_handling(func: Callable) -> Callable:
                     logger,
                     "UNAUTHORIZED_ACCESS_ATTEMPT",
                     {
-                        'endpoint': request.endpoint,
-                        'method': request.method,
-                        'remote_addr': request.remote_addr
+                        "endpoint": request.endpoint,
+                        "method": request.method,
+                        "remote_addr": request.remote_addr,
                     },
-                    "WARNING"
+                    "WARNING",
                 )
 
                 raise AuthenticationError(
                     message="Authentication required",
                     code="AUTH_001",
-                    user_action="Please log in to continue"
+                    user_action="Please log in to continue",
                 )
 
             # Set user context for logging
             session_info = auth_manager.get_session_info()
-            g.user_id = session_info.get('user_id', 'unknown')
+            g.user_id = session_info.get("user_id", "unknown")
 
             # Log successful authentication
             log_security_event(
                 logger,
                 "AUTHENTICATED_ACCESS",
                 {
-                    'endpoint': request.endpoint,
-                    'method': request.method,
-                    'user_id': g.user_id
+                    "endpoint": request.endpoint,
+                    "method": request.method,
+                    "user_id": g.user_id,
                 },
-                "DEBUG"
+                "DEBUG",
             )
 
             return func(*args, **kwargs)
 
-        except AppError:
-            # Re-raise application errors
+        except (AppError, HTTPException):
+            # Re-raise application and HTTP errors for the API wrapper.
             raise
         except Exception as e:
             # Convert unexpected errors
@@ -265,7 +323,7 @@ def require_auth_with_error_handling(func: Callable) -> Callable:
                 message="Authentication check failed",
                 code="AUTH_SYS_002",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
     return wrapper
@@ -282,18 +340,19 @@ def log_data_operation(operation: str, resource_type: str):
     Returns:
         Decorator function
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             # Extract resource ID from arguments if available
             resource_id = None
-            if 'account_id' in kwargs:
-                resource_id = kwargs['account_id']
+            if "account_id" in kwargs:
+                resource_id = kwargs["account_id"]
             elif len(args) > 0 and isinstance(args[0], str):
                 resource_id = args[0]
 
             # Get user ID from context
-            user_id = getattr(g, 'user_id', None)
+            user_id = getattr(g, "user_id", None)
 
             # Log the operation
             log_data_access(logger, operation, resource_type, resource_id, user_id)
@@ -301,6 +360,7 @@ def log_data_operation(operation: str, resource_type: str):
             return func(*args, **kwargs)
 
         return wrapper
+
     return decorator
 
 
@@ -353,24 +413,33 @@ def register_error_handlers(app):
     Args:
         app: Flask application instance
     """
-    error_handler = ErrorHandler(logger)
+    app.jinja_env.globals["csrf_token"] = generate_csrf_token
+
+    @app.errorhandler(RequestEntityTooLarge)
+    def handle_request_too_large(error):
+        app_error = ValidationError(
+            message="Uploaded file is too large",
+            code="FILE_TOO_LARGE",
+            user_action="Choose a smaller backup file",
+        )
+        if request.path.startswith("/api/"):
+            return create_json_error_response(app_error, 413)
+        return "Uploaded file is too large", 413
 
     @app.errorhandler(404)
     def handle_404(error):
         """Handle 404 Not Found errors."""
-        if request.path.startswith('/api/'):
+        if request.path.startswith("/api/"):
             # API endpoint - return JSON
-            app_error = ValidationError(
-                message="Endpoint not found",
-                code="HTTP_404"
-            )
+            app_error = ValidationError(message="Endpoint not found", code="HTTP_404")
             return create_json_error_response(app_error, 404)
         else:
             # Web page - render error template or redirect
             from flask import render_template
+
             try:
-                return render_template('errors/404.html'), 404
-            except:
+                return render_template("errors/404.html"), 404
+            except Exception:
                 # Fallback if template doesn't exist
                 return "Page not found", 404
 
@@ -379,22 +448,23 @@ def register_error_handlers(app):
         """Handle 500 Internal Server Error."""
         context = get_request_context()
         app_error = SystemError(
-            message="Internal server error",
-            code="HTTP_500",
-            context=context
+            message="Internal server error", code="HTTP_500", context=context
         )
 
-        logger.error(f"Internal server error: {str(error)} | Request ID: {getattr(g, 'request_id', 'unknown')}")
+        logger.error(
+            f"Internal server error: {str(error)} | Request ID: {getattr(g, 'request_id', 'unknown')}"
+        )
 
-        if request.path.startswith('/api/'):
+        if request.path.startswith("/api/"):
             # API endpoint - return JSON
             return create_json_error_response(app_error, 500)
         else:
             # Web page - render error template or redirect
             from flask import render_template
+
             try:
-                return render_template('errors/500.html'), 500
-            except:
+                return render_template("errors/500.html"), 500
+            except Exception:
                 # Fallback if template doesn't exist
                 return "Internal server error", 500
 
@@ -404,32 +474,53 @@ def register_error_handlers(app):
         context = get_request_context()
         error.context = context
 
-        if request.path.startswith('/api/'):
+        if request.path.startswith("/api/"):
             # API endpoint - return JSON
             status_code = _get_http_status_for_error(error)
             return create_json_error_response(error, status_code)
         else:
             # Web page - flash message and redirect
             from flask import flash, redirect, url_for
-            flash(error.message, 'error')
+
+            flash(error.message, "error")
 
             if isinstance(error, AuthenticationError):
-                return redirect(url_for('login'))
+                return redirect(url_for("login"))
             else:
-                return redirect(url_for('dashboard') if 'dashboard' in app.view_functions else url_for('index'))
+                return redirect(
+                    url_for("dashboard")
+                    if "dashboard" in app.view_functions
+                    else url_for("index")
+                )
 
     @app.before_request
     def before_request():
         """Set up request context before each request."""
         g.request_id = generate_request_id()
+        generate_csrf_token()
+        _validate_csrf()
 
         # Log request details for debugging
-        logger.debug(f"Request: {request.method} {request.path} | Request ID: {g.request_id}")
+        logger.debug(
+            f"Request: {request.method} {request.path} | Request ID: {g.request_id}"
+        )
 
     @app.after_request
     def after_request(response):
         """Log response details after each request."""
-        logger.debug(f"Response: {response.status_code} | Request ID: {getattr(g, 'request_id', 'unknown')}")
+        logger.debug(
+            f"Response: {response.status_code} | Request ID: {getattr(g, 'request_id', 'unknown')}"
+        )
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "same-origin")
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; img-src 'self' data:; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "font-src 'self'; connect-src 'self'; frame-ancestors 'none'",
+        )
         return response
 
 

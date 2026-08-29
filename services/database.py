@@ -15,13 +15,29 @@ from pathlib import Path
 
 from .encryption import EncryptionService
 from .error_handler import (
-    DatabaseError, DatabaseConnectionError, DatabaseCorruptionError,
-    RecordNotFoundError, EncryptionError, DecryptionError, SystemError,
-    FilePermissionError, DiskSpaceError
+    DatabaseError,
+    DatabaseConnectionError,
+    FilePermissionError,
+    DiskSpaceError,
 )
-from .logging_config import get_logger, log_function_call, log_performance, with_logging_context
+from .logging_config import (
+    get_logger,
+)
 
 logger = get_logger(__name__)
+
+
+def _to_timestamp(value: Any, default: int) -> int:
+    """Normalize supported date values to a Unix timestamp."""
+    if value is None:
+        return default
+    if isinstance(value, datetime):
+        return int(value.timestamp())
+    if isinstance(value, date):
+        return int(datetime.combine(value, datetime.min.time()).timestamp())
+    if isinstance(value, str):
+        return int(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp())
+    return int(value)
 
 
 class DatabaseService:
@@ -56,7 +72,10 @@ class DatabaseService:
             DiskSpaceError: If insufficient disk space
         """
         # Check if we have a connection for this thread
-        if not hasattr(self._thread_local, 'connection') or self._thread_local.connection is None:
+        if (
+            not hasattr(self._thread_local, "connection")
+            or self._thread_local.connection is None
+        ):
             try:
                 # Check if database directory exists and is writable
                 db_dir = Path(self.db_path).parent
@@ -66,11 +85,11 @@ class DatabaseService:
                     except PermissionError:
                         raise FilePermissionError(
                             file_path=str(db_dir),
-                            technical_details="Cannot create database directory"
+                            technical_details="Cannot create database directory",
                         )
 
                 # Check disk space (at least 10MB required)
-                if hasattr(os, 'statvfs'):  # Unix-like systems
+                if hasattr(os, "statvfs"):  # Unix-like systems
                     stat = os.statvfs(db_dir)
                     free_space = stat.f_bavail * stat.f_frsize
                     if free_space < 10 * 1024 * 1024:  # 10MB
@@ -80,13 +99,15 @@ class DatabaseService:
 
                 # Attempt to connect to database
                 self._thread_local.connection = sqlite3.connect(self.db_path)
-                self._thread_local.connection.row_factory = sqlite3.Row  # Enable dict-like access
+                self._thread_local.connection.row_factory = (
+                    sqlite3.Row
+                )  # Enable dict-like access
 
                 # Enable foreign key constraints
-                self._thread_local.connection.execute('PRAGMA foreign_keys = ON')
+                self._thread_local.connection.execute("PRAGMA foreign_keys = ON")
 
                 # Test the connection
-                self._thread_local.connection.execute('SELECT 1').fetchone()
+                self._thread_local.connection.execute("SELECT 1").fetchone()
 
                 # Initialize schema
                 self._initialize_schema()
@@ -95,32 +116,28 @@ class DatabaseService:
 
             except sqlite3.OperationalError as e:
                 error_msg = str(e).lower()
-                if 'permission denied' in error_msg or 'readonly' in error_msg:
+                if "permission denied" in error_msg or "readonly" in error_msg:
                     raise FilePermissionError(
                         file_path=self.db_path,
                         technical_details=str(e),
-                        original_exception=e
+                        original_exception=e,
                     )
-                elif 'disk' in error_msg or 'space' in error_msg:
-                    raise DiskSpaceError(
-                        technical_details=str(e),
-                        original_exception=e
-                    )
-                elif 'database is locked' in error_msg:
+                elif "disk" in error_msg or "space" in error_msg:
+                    raise DiskSpaceError(technical_details=str(e), original_exception=e)
+                elif "database is locked" in error_msg:
                     raise DatabaseConnectionError(
                         technical_details="Database is locked by another process",
                         user_action="Please ensure no other instances of the application are running",
-                        original_exception=e
+                        original_exception=e,
                     )
                 else:
                     raise DatabaseConnectionError(
-                        technical_details=str(e),
-                        original_exception=e
+                        technical_details=str(e), original_exception=e
                     )
             except Exception as e:
                 raise DatabaseConnectionError(
                     technical_details=f"Unexpected error connecting to database: {str(e)}",
-                    original_exception=e
+                    original_exception=e,
                 )
 
         # Also set the main connection for backward compatibility
@@ -130,7 +147,7 @@ class DatabaseService:
     def close(self):
         """Close database connection for current thread."""
         # Close thread-local connection
-        if hasattr(self._thread_local, 'connection') and self._thread_local.connection:
+        if hasattr(self._thread_local, "connection") and self._thread_local.connection:
             self._thread_local.connection.close()
             self._thread_local.connection = None
 
@@ -141,7 +158,7 @@ class DatabaseService:
 
     def _get_connection(self) -> sqlite3.Connection:
         """Get the current database connection (thread-local or main)."""
-        connection = getattr(self._thread_local, 'connection', None) or self.connection
+        connection = getattr(self._thread_local, "connection", None) or self.connection
         if not connection:
             # Try to connect if no connection exists
             return self.connect()
@@ -155,9 +172,9 @@ class DatabaseService:
         that a surrounding transaction() can batch them into a single atomic
         unit (all-or-nothing) rather than persisting each write immediately.
         """
-        if getattr(self._thread_local, 'suppress_commit', False):
+        if getattr(self._thread_local, "suppress_commit", False):
             return
-        self.connection.commit()
+        self._get_connection().commit()
 
     @contextmanager
     def transaction(self):
@@ -173,7 +190,7 @@ class DatabaseService:
             The original exception after rolling back, so callers can react.
         """
         conn = self.connect()
-        already_active = getattr(self._thread_local, 'suppress_commit', False)
+        already_active = getattr(self._thread_local, "suppress_commit", False)
         self._thread_local.suppress_commit = True
         try:
             yield
@@ -199,7 +216,7 @@ class DatabaseService:
             cursor = connection.cursor()
 
             # Accounts table with flexible schema for future investment types
-            cursor.execute('''
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS accounts (
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
@@ -211,10 +228,10 @@ class DatabaseService:
                     schema_version INTEGER DEFAULT 1,
                     is_demo BOOLEAN DEFAULT FALSE
                 )
-            ''')
+            """)
 
             # Historical snapshots table
-            cursor.execute('''
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS historical_snapshots (
                     id TEXT PRIMARY KEY,
                     account_id TEXT NOT NULL,
@@ -224,10 +241,10 @@ class DatabaseService:
                     encrypted_metadata BLOB,
                     FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE
                 )
-            ''')
+            """)
 
             # Stock positions table
-            cursor.execute('''
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS stock_positions (
                     id TEXT PRIMARY KEY,
                     trading_account_id TEXT NOT NULL,
@@ -239,19 +256,19 @@ class DatabaseService:
                     last_price_update INTEGER,
                     FOREIGN KEY (trading_account_id) REFERENCES accounts (id) ON DELETE CASCADE
                 )
-            ''')
+            """)
 
             # Application settings table
-            cursor.execute('''
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS app_settings (
                     key TEXT PRIMARY KEY,
                     value TEXT,
                     encrypted_value BLOB
                 )
-            ''')
+            """)
 
             # Watchlist table for stock tracking
-            cursor.execute('''
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS watchlist (
                     id TEXT PRIMARY KEY,
                     symbol TEXT NOT NULL UNIQUE,
@@ -260,18 +277,32 @@ class DatabaseService:
                     last_price_update INTEGER,
                     is_demo BOOLEAN DEFAULT FALSE
                 )
-            ''')
+            """)
 
             # Create indexes for better performance
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_accounts_type ON accounts (type)')
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_historical_account_id ON historical_snapshots (account_id)')
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_historical_timestamp ON historical_snapshots (timestamp)')
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_stock_positions_account ON stock_positions (trading_account_id)')
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_watchlist_symbol ON watchlist (symbol)')
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_watchlist_added_date ON watchlist (added_date)')
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_watchlist_is_demo ON watchlist (is_demo)')
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_accounts_type ON accounts (type)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_historical_account_id ON historical_snapshots (account_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_historical_timestamp ON historical_snapshots (timestamp)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_stock_positions_account ON stock_positions (trading_account_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_watchlist_symbol ON watchlist (symbol)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_watchlist_added_date ON watchlist (added_date)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_watchlist_is_demo ON watchlist (is_demo)"
+            )
 
-            connection.commit()
+            self._commit()
 
             # Set schema version if not exists
             self._set_schema_version_if_needed()
@@ -289,40 +320,35 @@ class DatabaseService:
                 message="Failed to initialize database schema",
                 code="DB_006",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
         except Exception as e:
             raise DatabaseError(
                 message="Unexpected error during schema initialization",
                 code="DB_007",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
     def _set_schema_version_if_needed(self):
         """Set initial schema version in app_settings if not exists."""
         try:
-            self.get_setting('schema_version')
+            self.get_setting("schema_version")
         except KeyError:
-            self.set_setting('schema_version', str(self.SCHEMA_VERSION))
+            self.set_setting("schema_version", str(self.SCHEMA_VERSION))
 
     def _run_migrations_if_needed(self):
         """Run database migrations if needed."""
-        try:
-            from .migration import DatabaseMigration
-            migration = DatabaseMigration(self)
+        from .migration import DatabaseMigration
 
-            if migration.needs_migration():
-                logger.info("Database migration needed, starting migration process")
-                migration.migrate_to_latest()
-                logger.info("Database migration completed successfully")
-            else:
-                logger.debug("Database is up to date, no migration needed")
+        migration = DatabaseMigration(self)
 
-        except Exception as e:
-            logger.error(f"Migration failed: {e}")
-            # Don't raise here to allow application to start with current schema
-            # Migration can be attempted manually later
+        if migration.needs_migration():
+            logger.info("Database migration needed, starting migration process")
+            migration.migrate_to_latest()
+            logger.info("Database migration completed successfully")
+        else:
+            logger.debug("Database is up to date, no migration needed")
 
     def database_exists(self) -> bool:
         """Check if database file exists."""
@@ -340,44 +366,68 @@ class DatabaseService:
             Generated account ID
         """
         account_data = account_data.copy()
-        positions = account_data.pop('positions', None)
+        positions = account_data.pop("positions", None)
 
         # Use provided ID if available, otherwise generate new one
-        account_id = account_data.get('id', str(uuid.uuid4()))
+        account_id = account_data.get("id", str(uuid.uuid4()))
         now = int(datetime.now().timestamp())
+        created_date = _to_timestamp(account_data.get("created_date"), now)
+        last_updated = _to_timestamp(account_data.get("last_updated"), now)
 
         # Separate public and sensitive data
         public_data = {
-            'name': account_data['name'],
-            'institution': account_data['institution'],
-            'type': account_data['type']
+            "name": account_data["name"],
+            "institution": account_data["institution"],
+            "type": account_data["type"],
         }
 
         # Handle demo marker - default to False if not specified
-        is_demo = account_data.get('is_demo', False)
+        is_demo = account_data.get("is_demo", False)
 
         # Encrypt sensitive account-specific data
-        sensitive_data = {k: v for k, v in account_data.items()
-                         if k not in ['name', 'institution', 'type', 'is_demo']}
+        sensitive_data = {
+            k: v
+            for k, v in account_data.items()
+            if k
+            not in [
+                "id",
+                "name",
+                "institution",
+                "type",
+                "is_demo",
+                "created_date",
+                "last_updated",
+                "schema_version",
+            ]
+        }
 
         # Use default=str to handle any non-serializable objects (like datetime)
-        encrypted_data = self.encryption_service.encrypt(json.dumps(sensitive_data, default=str))
+        encrypted_data = self.encryption_service.encrypt(
+            json.dumps(sensitive_data, default=str)
+        )
 
-        cursor = self.connect().cursor()
-        cursor.execute('''
-            INSERT INTO accounts (id, name, institution, type, encrypted_data,
-                                created_date, last_updated, schema_version, is_demo)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (account_id, public_data['name'], public_data['institution'],
-              public_data['type'], encrypted_data, now, now, self.SCHEMA_VERSION, is_demo))
-
-        self._commit()
-        if positions is not None:
-            try:
+        with self.transaction():
+            cursor = self.connect().cursor()
+            cursor.execute(
+                """
+                INSERT INTO accounts (id, name, institution, type, encrypted_data,
+                                    created_date, last_updated, schema_version, is_demo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    account_id,
+                    public_data["name"],
+                    public_data["institution"],
+                    public_data["type"],
+                    encrypted_data,
+                    created_date,
+                    last_updated,
+                    self.SCHEMA_VERSION,
+                    is_demo,
+                ),
+            )
+            if positions is not None:
                 self.replace_stock_positions(account_id, positions)
-            except Exception:
-                self.delete_account(account_id)
-                raise
         return account_id
 
     def get_account(self, account_id: str) -> Optional[Dict[str, Any]]:
@@ -391,32 +441,32 @@ class DatabaseService:
             Account data dictionary or None if not found
         """
         cursor = self.connect().cursor()
-        cursor.execute('SELECT * FROM accounts WHERE id = ?', (account_id,))
+        cursor.execute("SELECT * FROM accounts WHERE id = ?", (account_id,))
         row = cursor.fetchone()
 
         if not row:
             return None
 
         # Decrypt sensitive data
-        encrypted_data = row['encrypted_data']
+        encrypted_data = row["encrypted_data"]
         sensitive_data = json.loads(self.encryption_service.decrypt(encrypted_data))
 
         # Combine public and decrypted data
         account_data = {
-            'id': row['id'],
-            'name': row['name'],
-            'institution': row['institution'],
-            'type': row['type'],
-            'created_date': datetime.fromtimestamp(row['created_date']),
-            'last_updated': datetime.fromtimestamp(row['last_updated']),
-            'schema_version': row['schema_version']
+            "id": row["id"],
+            "name": row["name"],
+            "institution": row["institution"],
+            "type": row["type"],
+            "created_date": datetime.fromtimestamp(row["created_date"]),
+            "last_updated": datetime.fromtimestamp(row["last_updated"]),
+            "schema_version": row["schema_version"],
         }
 
         # Handle is_demo column gracefully (might not exist in older databases)
         try:
-            account_data['is_demo'] = bool(row['is_demo'])
+            account_data["is_demo"] = bool(row["is_demo"])
         except (IndexError, KeyError):
-            account_data['is_demo'] = False
+            account_data["is_demo"] = False
         account_data.update(sensitive_data)
 
         return account_data
@@ -434,13 +484,15 @@ class DatabaseService:
         cursor = self.connect().cursor()
 
         if account_type:
-            cursor.execute('SELECT * FROM accounts WHERE type = ? ORDER BY name', (account_type,))
+            cursor.execute(
+                "SELECT * FROM accounts WHERE type = ? ORDER BY name", (account_type,)
+            )
         else:
-            cursor.execute('SELECT * FROM accounts ORDER BY name')
+            cursor.execute("SELECT * FROM accounts ORDER BY name")
 
         accounts = []
         for row in cursor.fetchall():
-            account_data = self.get_account(row['id'])
+            account_data = self.get_account(row["id"])
             if account_data:
                 accounts.append(account_data)
 
@@ -454,11 +506,11 @@ class DatabaseService:
             List of demo account data dictionaries
         """
         cursor = self.connect().cursor()
-        cursor.execute('SELECT * FROM accounts WHERE is_demo = 1 ORDER BY name')
+        cursor.execute("SELECT * FROM accounts WHERE is_demo = 1 ORDER BY name")
 
         accounts = []
         for row in cursor.fetchall():
-            account_data = self.get_account(row['id'])
+            account_data = self.get_account(row["id"])
             if account_data:
                 accounts.append(account_data)
 
@@ -472,11 +524,11 @@ class DatabaseService:
             List of real account data dictionaries
         """
         cursor = self.connect().cursor()
-        cursor.execute('SELECT * FROM accounts WHERE is_demo = 0 ORDER BY name')
+        cursor.execute("SELECT * FROM accounts WHERE is_demo = 0 ORDER BY name")
 
         accounts = []
         for row in cursor.fetchall():
-            account_data = self.get_account(row['id'])
+            account_data = self.get_account(row["id"])
             if account_data:
                 accounts.append(account_data)
 
@@ -490,11 +542,11 @@ class DatabaseService:
             List of all account data dictionaries
         """
         cursor = self.connect().cursor()
-        cursor.execute('SELECT * FROM accounts ORDER BY name')
+        cursor.execute("SELECT * FROM accounts ORDER BY name")
 
         accounts = []
         for row in cursor.fetchall():
-            account_data = self.get_account(row['id'])
+            account_data = self.get_account(row["id"])
             if account_data:
                 accounts.append(account_data)
 
@@ -511,51 +563,57 @@ class DatabaseService:
             DatabaseError: If deletion fails
         """
         try:
-            cursor = self.connect().cursor()
+            with self.transaction():
+                cursor = self.connect().cursor()
 
-            # Get list of demo account IDs before deletion
-            cursor.execute('SELECT id FROM accounts WHERE is_demo = 1')
-            demo_account_ids = [row['id'] for row in cursor.fetchall()]
+                # Get list of demo account IDs before deletion
+                cursor.execute("SELECT id FROM accounts WHERE is_demo = 1")
+                demo_account_ids = [row["id"] for row in cursor.fetchall()]
 
-            if not demo_account_ids:
-                return 0
+                if not demo_account_ids:
+                    return 0
 
-            # Delete related data first (due to foreign key constraints)
-            # Delete historical snapshots for demo accounts - use individual deletes for security
-            for account_id in demo_account_ids:
-                cursor.execute('DELETE FROM historical_snapshots WHERE account_id = ?', (account_id,))
+                # Delete related data first (due to foreign key constraints)
+                for account_id in demo_account_ids:
+                    cursor.execute(
+                        "DELETE FROM historical_snapshots WHERE account_id = ?",
+                        (account_id,),
+                    )
+                    cursor.execute(
+                        "DELETE FROM stock_positions WHERE trading_account_id = ?",
+                        (account_id,),
+                    )
 
-            # Delete stock positions for demo trading accounts - use individual deletes for security
-            for account_id in demo_account_ids:
-                cursor.execute('DELETE FROM stock_positions WHERE trading_account_id = ?', (account_id,))
+                # Finally, delete the demo accounts themselves
+                cursor.execute("DELETE FROM accounts WHERE is_demo = 1")
+                deleted_count = cursor.rowcount
 
-            # Finally, delete the demo accounts themselves
-            cursor.execute('DELETE FROM accounts WHERE is_demo = 1')
-            deleted_count = cursor.rowcount
-
-            self._commit()
-
-            logger.info(f"Successfully deleted {deleted_count} demo accounts and their related data")
+            logger.info(
+                f"Successfully deleted {deleted_count} demo accounts and their related data"
+            )
             return deleted_count
 
         except sqlite3.Error as e:
-            self.connection.rollback()
             raise DatabaseError(
                 message="Failed to delete demo accounts",
                 code="DB_008",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
         except Exception as e:
-            self.connection.rollback()
             raise DatabaseError(
                 message="Unexpected error during demo account deletion",
                 code="DB_009",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
-    def update_account(self, account_id: str, account_data: Dict[str, Any]) -> bool:
+    def update_account(
+        self,
+        account_id: str,
+        account_data: Dict[str, Any],
+        preserve_timestamps: bool = False,
+    ) -> bool:
         """
         Update existing account with encrypted data.
 
@@ -567,48 +625,85 @@ class DatabaseService:
             True if account was updated, False if not found
         """
         account_data = account_data.copy()
-        positions = account_data.pop('positions', None)
+        positions = account_data.pop("positions", None)
         cursor = self.connect().cursor()
 
         # Check if account exists and get current demo status
-        cursor.execute('SELECT id, is_demo FROM accounts WHERE id = ?', (account_id,))
+        cursor.execute(
+            "SELECT id, is_demo, created_date, last_updated FROM accounts WHERE id = ?",
+            (account_id,),
+        )
         row = cursor.fetchone()
         if not row:
             return False
 
         now = int(datetime.now().timestamp())
+        created_date = row["created_date"]
+        last_updated = now
+        if preserve_timestamps:
+            created_date = _to_timestamp(
+                account_data.get("created_date"), row["created_date"]
+            )
+            last_updated = _to_timestamp(
+                account_data.get("last_updated"), row["last_updated"]
+            )
 
         # Separate public and sensitive data
         public_data = {
-            'name': account_data.get('name'),
-            'institution': account_data.get('institution'),
-            'type': account_data.get('type')
+            "name": account_data.get("name"),
+            "institution": account_data.get("institution"),
+            "type": account_data.get("type"),
         }
 
         # Preserve demo marker if not explicitly provided in update
         try:
-            current_is_demo = bool(row['is_demo'])
+            current_is_demo = bool(row["is_demo"])
         except (IndexError, KeyError):
             current_is_demo = False
-        is_demo = account_data.get('is_demo', current_is_demo)
+        is_demo = account_data.get("is_demo", current_is_demo)
 
         # Encrypt sensitive account-specific data
-        sensitive_data = {k: v for k, v in account_data.items()
-                         if k not in ['name', 'institution', 'type', 'id', 'created_date', 'last_updated', 'is_demo']}
+        sensitive_data = {
+            k: v
+            for k, v in account_data.items()
+            if k
+            not in [
+                "name",
+                "institution",
+                "type",
+                "id",
+                "created_date",
+                "last_updated",
+                "is_demo",
+            ]
+        }
 
         # Use default=str to handle any non-serializable objects (like datetime)
-        encrypted_data = self.encryption_service.encrypt(json.dumps(sensitive_data, default=str))
+        encrypted_data = self.encryption_service.encrypt(
+            json.dumps(sensitive_data, default=str)
+        )
 
-        cursor.execute('''
-            UPDATE accounts
-            SET name = ?, institution = ?, type = ?, encrypted_data = ?, last_updated = ?, is_demo = ?
-            WHERE id = ?
-        ''', (public_data['name'], public_data['institution'], public_data['type'],
-              encrypted_data, now, is_demo, account_id))
-
-        self._commit()
-        if positions is not None:
-            self.replace_stock_positions(account_id, positions)
+        with self.transaction():
+            cursor.execute(
+                """
+                UPDATE accounts
+                SET name = ?, institution = ?, type = ?, encrypted_data = ?,
+                    created_date = ?, last_updated = ?, is_demo = ?
+                WHERE id = ?
+            """,
+                (
+                    public_data["name"],
+                    public_data["institution"],
+                    public_data["type"],
+                    encrypted_data,
+                    created_date,
+                    last_updated,
+                    is_demo,
+                    account_id,
+                ),
+            )
+            if positions is not None:
+                self.replace_stock_positions(account_id, positions)
         return True
 
     def save_account(self, account, is_demo: bool = False) -> str:
@@ -623,30 +718,30 @@ class DatabaseService:
             Account ID
         """
         # Convert account object to dictionary
-        if hasattr(account, 'to_dict'):
+        if hasattr(account, "to_dict"):
             account_data = account.to_dict()
         else:
             account_data = account
 
         # Add demo marker
-        account_data['is_demo'] = is_demo
+        account_data["is_demo"] = is_demo
 
         # Fix field name mapping (account objects use 'account_type', database uses 'type')
-        if 'account_type' in account_data and 'type' not in account_data:
-            account_data['type'] = account_data['account_type']
+        if "account_type" in account_data and "type" not in account_data:
+            account_data["type"] = account_data["account_type"]
 
         # Check if account exists
-        if hasattr(account, 'id') and account.id:
+        if hasattr(account, "id") and account.id:
             cursor = self.connect().cursor()
-            cursor.execute('SELECT id FROM accounts WHERE id = ?', (account.id,))
+            cursor.execute("SELECT id FROM accounts WHERE id = ?", (account.id,))
             if cursor.fetchone():
                 # Update existing account
                 self.update_account(account.id, account_data)
                 return account.id
 
         # Create new account, but preserve the original ID if provided
-        if hasattr(account, 'id') and account.id:
-            account_data['id'] = account.id
+        if hasattr(account, "id") and account.id:
+            account_data["id"] = account.id
             return self.create_account(account_data)
         else:
             return self.create_account(account_data)
@@ -664,20 +759,26 @@ class DatabaseService:
         cursor = self.connect().cursor()
 
         # Check if account exists
-        cursor.execute('SELECT id FROM accounts WHERE id = ?', (account_id,))
+        cursor.execute("SELECT id FROM accounts WHERE id = ?", (account_id,))
         if not cursor.fetchone():
             return False
 
         # Delete account (cascading deletes will handle related data)
-        cursor.execute('DELETE FROM accounts WHERE id = ?', (account_id,))
+        cursor.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
         self._commit()
         return True
 
     # Historical snapshots operations
-    def create_historical_snapshot(self, account_id: str, value: float,
-                                 change_type: str, metadata: Optional[Dict[str, Any]] = None,
-                                 timestamp: Optional[Union[datetime, int]] = None,
-                                 snapshot_id: Optional[str] = None) -> str:
+    def create_historical_snapshot(
+        self,
+        account_id: str,
+        value: float,
+        change_type: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        timestamp: Optional[Union[datetime, int]] = None,
+        snapshot_id: Optional[str] = None,
+        replace_existing: bool = False,
+    ) -> str:
         """
         Create historical snapshot for account value.
 
@@ -707,21 +808,32 @@ class DatabaseService:
 
         encrypted_metadata = None
         if metadata:
-            encrypted_metadata = self.encryption_service.encrypt(json.dumps(metadata, default=str))
+            encrypted_metadata = self.encryption_service.encrypt(
+                json.dumps(metadata, default=str)
+            )
 
         cursor = self.connect().cursor()
-        cursor.execute('''
-            INSERT INTO historical_snapshots (id, account_id, timestamp, value,
-                                            change_type, encrypted_metadata)
+        insert_clause = "INSERT OR REPLACE" if replace_existing else "INSERT"
+        cursor.execute(
+            f"""
+            {insert_clause} INTO historical_snapshots (
+                id, account_id, timestamp, value,
+                change_type, encrypted_metadata
+            )
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (snapshot_id, account_id, ts, value, change_type, encrypted_metadata))
+        """,
+            (snapshot_id, account_id, ts, value, change_type, encrypted_metadata),
+        )
 
         self._commit()
         return snapshot_id
 
-    def get_historical_snapshots(self, account_id: str,
-                               start_timestamp: Optional[int] = None,
-                               end_timestamp: Optional[int] = None) -> List[Dict[str, Any]]:
+    def get_historical_snapshots(
+        self,
+        account_id: str,
+        start_timestamp: Optional[int] = None,
+        end_timestamp: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
         """
         Retrieve historical snapshots for account.
 
@@ -735,43 +847,51 @@ class DatabaseService:
         """
         cursor = self.connect().cursor()
 
-        query = 'SELECT * FROM historical_snapshots WHERE account_id = ?'
+        query = "SELECT * FROM historical_snapshots WHERE account_id = ?"
         params = [account_id]
 
         if start_timestamp:
-            query += ' AND timestamp >= ?'
+            query += " AND timestamp >= ?"
             params.append(start_timestamp)
 
         if end_timestamp:
-            query += ' AND timestamp <= ?'
+            query += " AND timestamp <= ?"
             params.append(end_timestamp)
 
-        query += ' ORDER BY timestamp DESC'
+        query += " ORDER BY timestamp DESC"
 
         cursor.execute(query, params)
 
         snapshots = []
         for row in cursor.fetchall():
             snapshot_data = {
-                'id': row['id'],
-                'account_id': row['account_id'],
-                'timestamp': datetime.fromtimestamp(row['timestamp']),
-                'value': row['value'],
-                'change_type': row['change_type']
+                "id": row["id"],
+                "account_id": row["account_id"],
+                "timestamp": datetime.fromtimestamp(row["timestamp"]),
+                "value": row["value"],
+                "change_type": row["change_type"],
             }
 
             # Decrypt metadata if present
-            if row['encrypted_metadata']:
-                metadata = json.loads(self.encryption_service.decrypt(row['encrypted_metadata']))
-                snapshot_data['metadata'] = metadata
+            if row["encrypted_metadata"]:
+                metadata = json.loads(
+                    self.encryption_service.decrypt(row["encrypted_metadata"])
+                )
+                snapshot_data["metadata"] = metadata
 
             snapshots.append(snapshot_data)
 
         return snapshots
 
     # Stock positions operations
-    def create_stock_position(self, trading_account_id: str, symbol: str, shares: float,
-                            purchase_price: float, purchase_date: int) -> str:
+    def create_stock_position(
+        self,
+        trading_account_id: str,
+        symbol: str,
+        shares: float,
+        purchase_price: float,
+        purchase_date: int,
+    ) -> str:
         """
         Create stock position for trading account.
 
@@ -788,11 +908,21 @@ class DatabaseService:
         position_id = str(uuid.uuid4())
 
         cursor = self.connect().cursor()
-        cursor.execute('''
+        cursor.execute(
+            """
             INSERT INTO stock_positions (id, trading_account_id, symbol, shares,
                                        purchase_price, purchase_date)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (position_id, trading_account_id, symbol, shares, purchase_price, purchase_date))
+        """,
+            (
+                position_id,
+                trading_account_id,
+                symbol,
+                shares,
+                purchase_price,
+                purchase_date,
+            ),
+        )
 
         self._commit()
         return position_id
@@ -808,23 +938,28 @@ class DatabaseService:
             List of stock position dictionaries
         """
         cursor = self.connect().cursor()
-        cursor.execute('''
+        cursor.execute(
+            """
             SELECT * FROM stock_positions
             WHERE trading_account_id = ?
             ORDER BY symbol
-        ''', (trading_account_id,))
+        """,
+            (trading_account_id,),
+        )
 
         positions = []
         for row in cursor.fetchall():
             position_data = {
-                'id': row['id'],
-                'trading_account_id': row['trading_account_id'],
-                'symbol': row['symbol'],
-                'shares': row['shares'],
-                'purchase_price': row['purchase_price'],
-                'purchase_date': datetime.fromtimestamp(row['purchase_date']),
-                'current_price': row['current_price'],
-                'last_price_update': datetime.fromtimestamp(row['last_price_update']) if row['last_price_update'] else None
+                "id": row["id"],
+                "trading_account_id": row["trading_account_id"],
+                "symbol": row["symbol"],
+                "shares": row["shares"],
+                "purchase_price": row["purchase_price"],
+                "purchase_date": datetime.fromtimestamp(row["purchase_date"]),
+                "current_price": row["current_price"],
+                "last_price_update": datetime.fromtimestamp(row["last_price_update"])
+                if row["last_price_update"]
+                else None,
             }
             positions.append(position_data)
 
@@ -844,11 +979,14 @@ class DatabaseService:
         cursor = self.connect().cursor()
         now = int(datetime.now().timestamp())
 
-        cursor.execute('''
+        cursor.execute(
+            """
             UPDATE stock_positions
             SET current_price = ?, last_price_update = ?
             WHERE id = ?
-        ''', (current_price, now, position_id))
+        """,
+            (current_price, now, position_id),
+        )
 
         if cursor.rowcount > 0:
             self._commit()
@@ -871,20 +1009,32 @@ class DatabaseService:
         # Use explicit field updates for maximum security - no dynamic SQL
         updated = False
 
-        if 'shares' in updates:
-            cursor.execute('UPDATE stock_positions SET shares = ? WHERE id = ?', (updates['shares'], position_id))
+        if "shares" in updates:
+            cursor.execute(
+                "UPDATE stock_positions SET shares = ? WHERE id = ?",
+                (updates["shares"], position_id),
+            )
             updated = True
 
-        if 'purchase_price' in updates:
-            cursor.execute('UPDATE stock_positions SET purchase_price = ? WHERE id = ?', (updates['purchase_price'], position_id))
+        if "purchase_price" in updates:
+            cursor.execute(
+                "UPDATE stock_positions SET purchase_price = ? WHERE id = ?",
+                (updates["purchase_price"], position_id),
+            )
             updated = True
 
-        if 'purchase_date' in updates:
-            cursor.execute('UPDATE stock_positions SET purchase_date = ? WHERE id = ?', (updates['purchase_date'], position_id))
+        if "purchase_date" in updates:
+            cursor.execute(
+                "UPDATE stock_positions SET purchase_date = ? WHERE id = ?",
+                (updates["purchase_date"], position_id),
+            )
             updated = True
 
-        if 'current_price' in updates:
-            cursor.execute('UPDATE stock_positions SET current_price = ? WHERE id = ?', (updates['current_price'], position_id))
+        if "current_price" in updates:
+            cursor.execute(
+                "UPDATE stock_positions SET current_price = ? WHERE id = ?",
+                (updates["current_price"], position_id),
+            )
             updated = True
 
         if not updated:
@@ -898,7 +1048,8 @@ class DatabaseService:
     def replace_stock_positions(
         self,
         trading_account_id: str,
-        positions: List[Dict[str, Any]]
+        positions: List[Dict[str, Any]],
+        preserve_ids: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Replace an account's holdings in the canonical stock_positions table.
@@ -909,21 +1060,21 @@ class DatabaseService:
         connection = self.connect()
         cursor = connection.cursor()
         cursor.execute(
-            'SELECT id, symbol FROM stock_positions WHERE trading_account_id = ?',
-            (trading_account_id,)
+            "SELECT id, symbol FROM stock_positions WHERE trading_account_id = ?",
+            (trading_account_id,),
         )
         existing_rows = cursor.fetchall()
-        existing_ids = {row['id'] for row in existing_rows}
-        existing_by_symbol = {row['symbol'].upper(): row['id'] for row in existing_rows}
+        existing_ids = {row["id"] for row in existing_rows}
+        existing_by_symbol = {row["symbol"].upper(): row["id"] for row in existing_rows}
 
         prepared_positions = []
         seen_symbols = set()
         for position in positions:
-            symbol = str(position.get('symbol', '')).upper().strip()
-            shares = float(position.get('shares', 0))
-            purchase_price = float(position.get('purchase_price', 0))
-            current_price = position.get('current_price')
-            if current_price in ('', None):
+            symbol = str(position.get("symbol", "")).upper().strip()
+            shares = float(position.get("shares", 0))
+            purchase_price = float(position.get("purchase_price", 0))
+            current_price = position.get("current_price")
+            if current_price in ("", None):
                 current_price = None
             else:
                 current_price = float(current_price)
@@ -939,7 +1090,7 @@ class DatabaseService:
             if current_price is not None and current_price <= 0:
                 raise ValueError("Current price must be positive")
 
-            purchase_date = position.get('purchase_date')
+            purchase_date = position.get("purchase_date")
             if isinstance(purchase_date, datetime):
                 purchase_timestamp = int(purchase_date.timestamp())
             elif isinstance(purchase_date, date):
@@ -949,21 +1100,21 @@ class DatabaseService:
             elif isinstance(purchase_date, str):
                 purchase_timestamp = int(
                     datetime.fromisoformat(
-                        purchase_date.replace('Z', '+00:00')
+                        purchase_date.replace("Z", "+00:00")
                     ).timestamp()
                 )
             else:
                 purchase_timestamp = int(purchase_date)
 
-            last_price_update = (
-                position.get('last_price_update') or position.get('last_updated')
+            last_price_update = position.get("last_price_update") or position.get(
+                "last_updated"
             )
             if isinstance(last_price_update, datetime):
                 last_price_timestamp = int(last_price_update.timestamp())
             elif isinstance(last_price_update, str):
                 last_price_timestamp = int(
                     datetime.fromisoformat(
-                        last_price_update.replace('Z', '+00:00')
+                        last_price_update.replace("Z", "+00:00")
                     ).timestamp()
                 )
             elif last_price_update is not None:
@@ -971,72 +1122,75 @@ class DatabaseService:
             else:
                 last_price_timestamp = None
 
-            requested_id = position.get('id')
-            if requested_id not in existing_ids:
+            requested_id = position.get("id")
+            if not preserve_ids and requested_id not in existing_ids:
                 requested_id = existing_by_symbol.get(symbol)
             position_id = requested_id or str(uuid.uuid4())
 
-            prepared_positions.append({
-                'id': position_id,
-                'symbol': symbol,
-                'shares': shares,
-                'purchase_price': purchase_price,
-                'purchase_date': purchase_timestamp,
-                'current_price': current_price,
-                'last_price_update': last_price_timestamp,
-            })
+            prepared_positions.append(
+                {
+                    "id": position_id,
+                    "symbol": symbol,
+                    "shares": shares,
+                    "purchase_price": purchase_price,
+                    "purchase_date": purchase_timestamp,
+                    "current_price": current_price,
+                    "last_price_update": last_price_timestamp,
+                }
+            )
             seen_symbols.add(symbol)
 
-        retained_ids = {position['id'] for position in prepared_positions}
+        retained_ids = {position["id"] for position in prepared_positions}
 
-        try:
+        with self.transaction():
             for position in prepared_positions:
-                if position['id'] in existing_ids:
-                    cursor.execute('''
+                if position["id"] in existing_ids:
+                    cursor.execute(
+                        """
                         UPDATE stock_positions
                         SET symbol = ?, shares = ?, purchase_price = ?,
                             purchase_date = ?, current_price = ?,
                             last_price_update = ?
                         WHERE id = ? AND trading_account_id = ?
-                    ''', (
-                        position['symbol'],
-                        position['shares'],
-                        position['purchase_price'],
-                        position['purchase_date'],
-                        position['current_price'],
-                        position['last_price_update'],
-                        position['id'],
-                        trading_account_id,
-                    ))
+                    """,
+                        (
+                            position["symbol"],
+                            position["shares"],
+                            position["purchase_price"],
+                            position["purchase_date"],
+                            position["current_price"],
+                            position["last_price_update"],
+                            position["id"],
+                            trading_account_id,
+                        ),
+                    )
                 else:
-                    cursor.execute('''
+                    cursor.execute(
+                        """
                         INSERT INTO stock_positions (
                             id, trading_account_id, symbol, shares,
                             purchase_price, purchase_date, current_price,
                             last_price_update
                         )
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        position['id'],
-                        trading_account_id,
-                        position['symbol'],
-                        position['shares'],
-                        position['purchase_price'],
-                        position['purchase_date'],
-                        position['current_price'],
-                        position['last_price_update'],
-                    ))
+                    """,
+                        (
+                            position["id"],
+                            trading_account_id,
+                            position["symbol"],
+                            position["shares"],
+                            position["purchase_price"],
+                            position["purchase_date"],
+                            position["current_price"],
+                            position["last_price_update"],
+                        ),
+                    )
 
             for position_id in existing_ids - retained_ids:
                 cursor.execute(
-                    'DELETE FROM stock_positions WHERE id = ? AND trading_account_id = ?',
-                    (position_id, trading_account_id)
+                    "DELETE FROM stock_positions WHERE id = ? AND trading_account_id = ?",
+                    (position_id, trading_account_id),
                 )
-
-            connection.commit()
-        except Exception:
-            connection.rollback()
-            raise
 
         return self.get_stock_positions(trading_account_id)
 
@@ -1051,7 +1205,7 @@ class DatabaseService:
             True if position was deleted, False if not found
         """
         cursor = self.connect().cursor()
-        cursor.execute('DELETE FROM stock_positions WHERE id = ?', (position_id,))
+        cursor.execute("DELETE FROM stock_positions WHERE id = ?", (position_id,))
 
         if cursor.rowcount > 0:
             self._commit()
@@ -1070,10 +1224,13 @@ class DatabaseService:
         encrypted_value = self.encryption_service.encrypt(value)
 
         cursor = self.connect().cursor()
-        cursor.execute('''
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO app_settings (key, encrypted_value)
             VALUES (?, ?)
-        ''', (key, encrypted_value))
+        """,
+            (key, encrypted_value),
+        )
 
         self._commit()
 
@@ -1091,13 +1248,13 @@ class DatabaseService:
             KeyError: If setting key not found
         """
         cursor = self.connect().cursor()
-        cursor.execute('SELECT encrypted_value FROM app_settings WHERE key = ?', (key,))
+        cursor.execute("SELECT encrypted_value FROM app_settings WHERE key = ?", (key,))
         row = cursor.fetchone()
 
         if not row:
             raise KeyError(f"Setting '{key}' not found")
 
-        return self.encryption_service.decrypt(row['encrypted_value'])
+        return self.encryption_service.decrypt(row["encrypted_value"])
 
     def get_schema_version(self) -> int:
         """
@@ -1107,7 +1264,7 @@ class DatabaseService:
             Schema version number
         """
         try:
-            return int(self.get_setting('schema_version'))
+            return int(self.get_setting("schema_version"))
         except KeyError:
             return 1  # Default version
 
@@ -1123,43 +1280,41 @@ class DatabaseService:
             DatabaseError: If migration fails
         """
         try:
-            cursor = self.connect().cursor()
+            with self.transaction():
+                cursor = self.connect().cursor()
 
-            # Check if is_demo column already exists
-            cursor.execute("PRAGMA table_info(accounts)")
-            columns = [column[1] for column in cursor.fetchall()]
+                # Check if is_demo column already exists
+                cursor.execute("PRAGMA table_info(accounts)")
+                columns = [column[1] for column in cursor.fetchall()]
 
-            if 'is_demo' in columns:
-                logger.info("is_demo column already exists, no migration needed")
-                return True
+                if "is_demo" in columns:
+                    logger.info("is_demo column already exists, no migration needed")
+                    return True
 
-            # Add the is_demo column with default value FALSE
-            cursor.execute('ALTER TABLE accounts ADD COLUMN is_demo BOOLEAN DEFAULT FALSE')
-
-            # Update all existing accounts to have is_demo = FALSE (explicit)
-            cursor.execute('UPDATE accounts SET is_demo = FALSE WHERE is_demo IS NULL')
-
-            self._commit()
+                cursor.execute(
+                    "ALTER TABLE accounts ADD COLUMN is_demo BOOLEAN DEFAULT FALSE"
+                )
+                cursor.execute(
+                    "UPDATE accounts SET is_demo = FALSE WHERE is_demo IS NULL"
+                )
 
             logger.info("Successfully added is_demo column to accounts table")
             return True
 
         except sqlite3.Error as e:
-            self.connection.rollback()
             raise DatabaseError(
                 message="Failed to add is_demo column to accounts table",
                 code="DB_010",
                 technical_details=str(e),
                 user_action="Please check database permissions and try again",
-                original_exception=e
+                original_exception=e,
             )
         except Exception as e:
-            self.connection.rollback()
             raise DatabaseError(
                 message="Unexpected error during database migration",
                 code="DB_011",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
     # Watchlist operations
@@ -1178,52 +1333,74 @@ class DatabaseService:
         """
         try:
             # Use provided ID if available, otherwise generate new one
-            item_id = watchlist_data.get('id', str(uuid.uuid4()))
+            item_id = watchlist_data.get("id", str(uuid.uuid4()))
             now = int(datetime.now().timestamp())
 
             # Extract public data
-            symbol = watchlist_data['symbol'].upper()  # Normalize symbol to uppercase
-            is_demo = watchlist_data.get('is_demo', False)
-            added_date = watchlist_data.get('added_date', now)
+            symbol = watchlist_data["symbol"].upper()  # Normalize symbol to uppercase
+            is_demo = watchlist_data.get("is_demo", False)
+            added_date = _to_timestamp(watchlist_data.get("added_date"), now)
+            last_price_update = watchlist_data.get("last_price_update")
+            if last_price_update is not None:
+                last_price_update = _to_timestamp(last_price_update, now)
 
             # Encrypt sensitive data (notes, price data, etc.)
-            sensitive_data = {k: v for k, v in watchlist_data.items()
-                             if k not in ['id', 'symbol', 'is_demo', 'added_date']}
+            sensitive_data = {
+                k: v
+                for k, v in watchlist_data.items()
+                if k
+                not in ["id", "symbol", "is_demo", "added_date", "last_price_update"]
+            }
 
-            encrypted_data = self.encryption_service.encrypt(json.dumps(sensitive_data, default=str))
+            encrypted_data = self.encryption_service.encrypt(
+                json.dumps(sensitive_data, default=str)
+            )
 
             cursor = self.connect().cursor()
-            cursor.execute('''
-                INSERT INTO watchlist (id, symbol, encrypted_data, added_date, is_demo)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (item_id, symbol, encrypted_data, added_date, is_demo))
+            cursor.execute(
+                """
+                INSERT INTO watchlist (
+                    id, symbol, encrypted_data, added_date,
+                    last_price_update, is_demo
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    item_id,
+                    symbol,
+                    encrypted_data,
+                    added_date,
+                    last_price_update,
+                    is_demo,
+                ),
+            )
 
             self._commit()
             logger.info(f"Created watchlist item for symbol {symbol}")
             return item_id
 
         except sqlite3.IntegrityError as e:
-            if 'UNIQUE constraint failed' in str(e):
+            if "UNIQUE constraint failed" in str(e):
                 raise DatabaseError(
                     message=f"Stock symbol {symbol} is already in watchlist",
                     code="DB_012",
                     technical_details=str(e),
                     user_action="Remove existing entry or choose a different symbol",
-                    original_exception=e
+                    original_exception=e,
                 )
             else:
                 raise DatabaseError(
                     message="Failed to create watchlist item due to constraint violation",
                     code="DB_013",
                     technical_details=str(e),
-                    original_exception=e
+                    original_exception=e,
                 )
         except Exception as e:
             raise DatabaseError(
                 message="Failed to create watchlist item",
                 code="DB_014",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
     def get_watchlist_item(self, symbol: str) -> Optional[Dict[str, Any]]:
@@ -1241,23 +1418,27 @@ class DatabaseService:
         """
         try:
             cursor = self.connect().cursor()
-            cursor.execute('SELECT * FROM watchlist WHERE symbol = ?', (symbol.upper(),))
+            cursor.execute(
+                "SELECT * FROM watchlist WHERE symbol = ?", (symbol.upper(),)
+            )
             row = cursor.fetchone()
 
             if not row:
                 return None
 
             # Decrypt sensitive data
-            encrypted_data = row['encrypted_data']
+            encrypted_data = row["encrypted_data"]
             sensitive_data = json.loads(self.encryption_service.decrypt(encrypted_data))
 
             # Combine public and decrypted data
             watchlist_data = {
-                'id': row['id'],
-                'symbol': row['symbol'],
-                'added_date': datetime.fromtimestamp(row['added_date']),
-                'last_price_update': datetime.fromtimestamp(row['last_price_update']) if row['last_price_update'] else None,
-                'is_demo': bool(row['is_demo'])
+                "id": row["id"],
+                "symbol": row["symbol"],
+                "added_date": datetime.fromtimestamp(row["added_date"]),
+                "last_price_update": datetime.fromtimestamp(row["last_price_update"])
+                if row["last_price_update"]
+                else None,
+                "is_demo": bool(row["is_demo"]),
             }
             watchlist_data.update(sensitive_data)
 
@@ -1268,7 +1449,7 @@ class DatabaseService:
                 message=f"Failed to retrieve watchlist item for symbol {symbol}",
                 code="DB_015",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
     def get_watchlist_items(self, include_demo: bool = True) -> List[Dict[str, Any]]:
@@ -1288,13 +1469,15 @@ class DatabaseService:
             cursor = self.connect().cursor()
 
             if include_demo:
-                cursor.execute('SELECT * FROM watchlist ORDER BY symbol')
+                cursor.execute("SELECT * FROM watchlist ORDER BY symbol")
             else:
-                cursor.execute('SELECT * FROM watchlist WHERE is_demo = 0 ORDER BY symbol')
+                cursor.execute(
+                    "SELECT * FROM watchlist WHERE is_demo = 0 ORDER BY symbol"
+                )
 
             watchlist_items = []
             for row in cursor.fetchall():
-                item_data = self.get_watchlist_item(row['symbol'])
+                item_data = self.get_watchlist_item(row["symbol"])
                 if item_data:
                     watchlist_items.append(item_data)
 
@@ -1305,7 +1488,7 @@ class DatabaseService:
                 message="Failed to retrieve watchlist items",
                 code="DB_016",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
     def get_demo_watchlist_items(self) -> List[Dict[str, Any]]:
@@ -1317,11 +1500,11 @@ class DatabaseService:
         """
         try:
             cursor = self.connect().cursor()
-            cursor.execute('SELECT * FROM watchlist WHERE is_demo = 1 ORDER BY symbol')
+            cursor.execute("SELECT * FROM watchlist WHERE is_demo = 1 ORDER BY symbol")
 
             watchlist_items = []
             for row in cursor.fetchall():
-                item_data = self.get_watchlist_item(row['symbol'])
+                item_data = self.get_watchlist_item(row["symbol"])
                 if item_data:
                     watchlist_items.append(item_data)
 
@@ -1332,7 +1515,7 @@ class DatabaseService:
                 message="Failed to retrieve demo watchlist items",
                 code="DB_017",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
     def get_real_watchlist_items(self) -> List[Dict[str, Any]]:
@@ -1344,11 +1527,11 @@ class DatabaseService:
         """
         try:
             cursor = self.connect().cursor()
-            cursor.execute('SELECT * FROM watchlist WHERE is_demo = 0 ORDER BY symbol')
+            cursor.execute("SELECT * FROM watchlist WHERE is_demo = 0 ORDER BY symbol")
 
             watchlist_items = []
             for row in cursor.fetchall():
-                item_data = self.get_watchlist_item(row['symbol'])
+                item_data = self.get_watchlist_item(row["symbol"])
                 if item_data:
                     watchlist_items.append(item_data)
 
@@ -1359,10 +1542,15 @@ class DatabaseService:
                 message="Failed to retrieve real watchlist items",
                 code="DB_018",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
-    def update_watchlist_item(self, symbol: str, watchlist_data: Dict[str, Any]) -> bool:
+    def update_watchlist_item(
+        self,
+        symbol: str,
+        watchlist_data: Dict[str, Any],
+        preserve_timestamps: bool = False,
+    ) -> bool:
         """
         Update existing watchlist item with encrypted data.
 
@@ -1380,39 +1568,70 @@ class DatabaseService:
             cursor = self.connect().cursor()
 
             # Check if item exists
-            cursor.execute('SELECT id, is_demo FROM watchlist WHERE symbol = ?', (symbol.upper(),))
+            cursor.execute(
+                "SELECT id, is_demo, added_date, last_price_update "
+                "FROM watchlist WHERE symbol = ?",
+                (symbol.upper(),),
+            )
             row = cursor.fetchone()
             if not row:
                 return False
 
             # Preserve demo marker if not explicitly provided in update
-            current_is_demo = bool(row['is_demo'])
-            is_demo = watchlist_data.get('is_demo', current_is_demo)
+            current_is_demo = bool(row["is_demo"])
+            is_demo = watchlist_data.get("is_demo", current_is_demo)
+            item_id = (
+                watchlist_data.get("id", row["id"])
+                if preserve_timestamps
+                else row["id"]
+            )
 
             # Update last_price_update if price data is being updated
-            last_price_update = None
-            if 'current_price' in watchlist_data or 'daily_change' in watchlist_data:
+            last_price_update = row["last_price_update"]
+            if preserve_timestamps:
+                last_price_update = watchlist_data.get(
+                    "last_price_update", row["last_price_update"]
+                )
+                if last_price_update is not None:
+                    last_price_update = _to_timestamp(
+                        last_price_update, int(datetime.now().timestamp())
+                    )
+            elif "current_price" in watchlist_data or "daily_change" in watchlist_data:
                 last_price_update = int(datetime.now().timestamp())
+            added_date = row["added_date"]
+            if preserve_timestamps:
+                added_date = _to_timestamp(
+                    watchlist_data.get("added_date"), row["added_date"]
+                )
 
             # Encrypt sensitive data
-            sensitive_data = {k: v for k, v in watchlist_data.items()
-                             if k not in ['symbol', 'is_demo', 'added_date']}
+            sensitive_data = {
+                k: v
+                for k, v in watchlist_data.items()
+                if k
+                not in ["id", "symbol", "is_demo", "added_date", "last_price_update"]
+            }
 
-            encrypted_data = self.encryption_service.encrypt(json.dumps(sensitive_data, default=str))
+            encrypted_data = self.encryption_service.encrypt(
+                json.dumps(sensitive_data, default=str)
+            )
 
-            # Update the record
-            if last_price_update:
-                cursor.execute('''
-                    UPDATE watchlist
-                    SET encrypted_data = ?, last_price_update = ?, is_demo = ?
-                    WHERE symbol = ?
-                ''', (encrypted_data, last_price_update, is_demo, symbol.upper()))
-            else:
-                cursor.execute('''
-                    UPDATE watchlist
-                    SET encrypted_data = ?, is_demo = ?
-                    WHERE symbol = ?
-                ''', (encrypted_data, is_demo, symbol.upper()))
+            cursor.execute(
+                """
+                UPDATE watchlist
+                SET id = ?, encrypted_data = ?, added_date = ?,
+                    last_price_update = ?, is_demo = ?
+                WHERE symbol = ?
+            """,
+                (
+                    item_id,
+                    encrypted_data,
+                    added_date,
+                    last_price_update,
+                    is_demo,
+                    symbol.upper(),
+                ),
+            )
 
             self._commit()
             logger.info(f"Updated watchlist item for symbol {symbol}")
@@ -1423,7 +1642,7 @@ class DatabaseService:
                 message=f"Failed to update watchlist item for symbol {symbol}",
                 code="DB_019",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
     def delete_watchlist_item(self, symbol: str) -> bool:
@@ -1443,12 +1662,14 @@ class DatabaseService:
             cursor = self.connect().cursor()
 
             # Check if item exists
-            cursor.execute('SELECT id FROM watchlist WHERE symbol = ?', (symbol.upper(),))
+            cursor.execute(
+                "SELECT id FROM watchlist WHERE symbol = ?", (symbol.upper(),)
+            )
             if not cursor.fetchone():
                 return False
 
             # Delete the item
-            cursor.execute('DELETE FROM watchlist WHERE symbol = ?', (symbol.upper(),))
+            cursor.execute("DELETE FROM watchlist WHERE symbol = ?", (symbol.upper(),))
             self._commit()
 
             logger.info(f"Deleted watchlist item for symbol {symbol}")
@@ -1459,7 +1680,7 @@ class DatabaseService:
                 message=f"Failed to delete watchlist item for symbol {symbol}",
                 code="DB_020",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
     def delete_demo_watchlist_items(self) -> int:
@@ -1476,7 +1697,7 @@ class DatabaseService:
             cursor = self.connect().cursor()
 
             # Delete demo watchlist items
-            cursor.execute('DELETE FROM watchlist WHERE is_demo = 1')
+            cursor.execute("DELETE FROM watchlist WHERE is_demo = 1")
             deleted_count = cursor.rowcount
 
             self._commit()
@@ -1489,7 +1710,7 @@ class DatabaseService:
                 message="Failed to delete demo watchlist items",
                 code="DB_021",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )
 
     def save_watchlist_item(self, watchlist_item, is_demo: bool = False) -> str:
@@ -1508,22 +1729,22 @@ class DatabaseService:
         """
         try:
             # Convert watchlist item object to dictionary
-            if hasattr(watchlist_item, 'to_dict'):
+            if hasattr(watchlist_item, "to_dict"):
                 item_data = watchlist_item.to_dict()
             else:
                 item_data = watchlist_item
 
             # Add demo marker
-            item_data['is_demo'] = is_demo
+            item_data["is_demo"] = is_demo
 
             # Check if item exists
-            symbol = item_data['symbol'].upper()
+            symbol = item_data["symbol"].upper()
             existing_item = self.get_watchlist_item(symbol)
 
             if existing_item:
                 # Update existing item
                 self.update_watchlist_item(symbol, item_data)
-                return existing_item['id']
+                return existing_item["id"]
             else:
                 # Create new item
                 return self.create_watchlist_item(item_data)
@@ -1533,5 +1754,5 @@ class DatabaseService:
                 message=f"Failed to save watchlist item for symbol {item_data.get('symbol', 'unknown')}",
                 code="DB_022",
                 technical_details=str(e),
-                original_exception=e
+                original_exception=e,
             )

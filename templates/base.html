@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Networth Tracker{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
@@ -42,22 +43,28 @@
                             <i class="fas fa-plus me-1"></i>Add Account
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#" onclick="showAccountForm('CD')">
+                            <li><a class="dropdown-item" href="{{ url_for('dashboard', add_account='CD') }}"
+                                    onclick="return showAccountForm('CD')">
                                     <i class="fas fa-certificate me-2"></i>CD Account
                                 </a></li>
-                            <li><a class="dropdown-item" href="#" onclick="showAccountForm('SAVINGS')">
+                            <li><a class="dropdown-item" href="{{ url_for('dashboard', add_account='SAVINGS') }}"
+                                    onclick="return showAccountForm('SAVINGS')">
                                     <i class="fas fa-piggy-bank me-2"></i>Savings Account
                                 </a></li>
-                            <li><a class="dropdown-item" href="#" onclick="showAccountForm('401K')">
+                            <li><a class="dropdown-item" href="{{ url_for('dashboard', add_account='401K') }}"
+                                    onclick="return showAccountForm('401K')">
                                     <i class="fas fa-briefcase me-2"></i>401k Account
                                 </a></li>
-                            <li><a class="dropdown-item" href="#" onclick="showAccountForm('TRADING')">
+                            <li><a class="dropdown-item" href="{{ url_for('dashboard', add_account='TRADING') }}"
+                                    onclick="return showAccountForm('TRADING')">
                                     <i class="fas fa-chart-bar me-2"></i>Trading Account
                                 </a></li>
-                            <li><a class="dropdown-item" href="#" onclick="showAccountForm('I_BONDS')">
+                            <li><a class="dropdown-item" href="{{ url_for('dashboard', add_account='I_BONDS') }}"
+                                    onclick="return showAccountForm('I_BONDS')">
                                     <i class="fas fa-university me-2"></i>I-Bonds Account
                                 </a></li>
-                            <li><a class="dropdown-item" href="#" onclick="showAccountForm('HSA')">
+                            <li><a class="dropdown-item" href="{{ url_for('dashboard', add_account='HSA') }}"
+                                    onclick="return showAccountForm('HSA')">
                                     <i class="fas fa-medkit me-2"></i>HSA Account
                                 </a></li>
                         </ul>
@@ -99,6 +106,7 @@
                             </li>
                             <li>
                                 <form method="POST" action="{{ url_for('logout') }}" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="dropdown-item">
                                         <i class="fas fa-sign-out-alt me-2"></i>Logout
                                     </button>
@@ -118,6 +126,32 @@
 
     <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+    <script>
+        (function () {
+            const originalFetch = window.fetch.bind(window);
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+            const safeMethods = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE']);
+
+            window.fetch = function (input, options = {}) {
+                const requestMethod = input instanceof Request ? input.method : 'GET';
+                const method = (options.method || requestMethod).toUpperCase();
+                const requestUrl = input instanceof Request ? input.url : input;
+                const url = new URL(requestUrl, window.location.href);
+
+                if (url.origin === window.location.origin && !safeMethods.has(method)) {
+                    const headers = new Headers(
+                        input instanceof Request ? input.headers : undefined
+                    );
+                    new Headers(options.headers || {}).forEach((value, key) => {
+                        headers.set(key, value);
+                    });
+                    headers.set('X-CSRF-Token', csrfToken);
+                    options = {...options, headers};
+                }
+                return originalFetch(input, options);
+            };
+        })();
+    </script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script>
         (function () {

@@ -14,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import ConfigManager, get_environment
 from services.database import DatabaseService
-from services.encryption import EncryptionService
 from services.migration import DatabaseMigration
 from services.logging_config import setup_app_logging
 
@@ -46,7 +45,7 @@ class DatabaseInitializer:
             db_service.initialize_database()
 
             # Set file permissions
-            if os.name != 'nt':  # Unix/Linux/macOS
+            if os.name != "nt":  # Unix/Linux/macOS
                 os.chmod(db_path, self.config.DATABASE_FILE_MODE)
 
             self.logger.info(f"Database created successfully: {db_path}")
@@ -81,7 +80,9 @@ class DatabaseInitializer:
                 return True
 
             # Run migrations
-            self.logger.info(f"Migrating database from version {current_version} to {latest_version}")
+            self.logger.info(
+                f"Migrating database from version {current_version} to {latest_version}"
+            )
             success = migration_service.migrate_to_latest()
 
             if success:
@@ -104,6 +105,7 @@ class DatabaseInitializer:
         try:
             if backup_path is None:
                 from datetime import datetime
+
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 backup_dir = Path(self.config.BACKUP_DIR)
                 backup_dir.mkdir(exist_ok=True)
@@ -111,10 +113,11 @@ class DatabaseInitializer:
 
             # Copy database file
             import shutil
+
             shutil.copy2(db_path, backup_path)
 
             # Set file permissions
-            if os.name != 'nt':  # Unix/Linux/macOS
+            if os.name != "nt":  # Unix/Linux/macOS
                 os.chmod(backup_path, self.config.DATABASE_FILE_MODE)
 
             self.logger.info(f"Database backup created: {backup_path}")
@@ -145,10 +148,12 @@ class DatabaseInitializer:
                 return False
 
             # Check file permissions
-            if os.name != 'nt':  # Unix/Linux/macOS
+            if os.name != "nt":  # Unix/Linux/macOS
                 file_mode = oct(os.stat(db_path).st_mode)[-3:]
-                if file_mode != '600':
-                    self.logger.warning(f"Database file permissions are {file_mode}, should be 600")
+                if file_mode != "600":
+                    self.logger.warning(
+                        f"Database file permissions are {file_mode}, should be 600"
+                    )
 
             self.logger.info("Database verification completed successfully")
             return True
@@ -187,57 +192,42 @@ class DatabaseInitializer:
 
 def main():
     """Main entry point for database initialization."""
-    parser = argparse.ArgumentParser(description='Database initialization for Networth Tracker')
+    parser = argparse.ArgumentParser(
+        description="Database initialization for Networth Tracker"
+    )
     parser.add_argument(
-        '--env',
-        choices=['development', 'production', 'testing'],
+        "--env",
+        choices=["development", "production", "testing"],
         default=get_environment(),
-        help='Environment to use (default: production)'
+        help="Environment to use (default: production)",
+    )
+    parser.add_argument("--database", help="Database path (overrides config)")
+    parser.add_argument("--create", action="store_true", help="Create new database")
+    parser.add_argument(
+        "--migrate", action="store_true", help="Run database migrations"
+    )
+    parser.add_argument("--backup", action="store_true", help="Create database backup")
+    parser.add_argument(
+        "--verify", action="store_true", help="Verify database integrity"
     )
     parser.add_argument(
-        '--database',
-        help='Database path (overrides config)'
+        "--reset", action="store_true", help="Reset database (removes all data)"
     )
     parser.add_argument(
-        '--create',
-        action='store_true',
-        help='Create new database'
+        "--force",
+        action="store_true",
+        help="Force operation (overwrite existing files)",
     )
     parser.add_argument(
-        '--migrate',
-        action='store_true',
-        help='Run database migrations'
-    )
-    parser.add_argument(
-        '--backup',
-        action='store_true',
-        help='Create database backup'
-    )
-    parser.add_argument(
-        '--verify',
-        action='store_true',
-        help='Verify database integrity'
-    )
-    parser.add_argument(
-        '--reset',
-        action='store_true',
-        help='Reset database (removes all data)'
-    )
-    parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Force operation (overwrite existing files)'
-    )
-    parser.add_argument(
-        '--demo',
-        action='store_true',
-        help='Operate on demo database instead of production'
+        "--demo",
+        action="store_true",
+        help="Operate on demo database instead of production",
     )
 
     args = parser.parse_args()
 
     # Set up configuration
-    os.environ['FLASK_ENV'] = args.env
+    os.environ["FLASK_ENV"] = args.env
     config = ConfigManager.get_config(args.env)
 
     # Initialize database manager
@@ -269,7 +259,7 @@ def main():
     if args.reset:
         if not args.force:
             response = input("This will delete all data. Are you sure? (yes/no): ")
-            if response.lower() != 'yes':
+            if response.lower() != "yes":
                 print("Operation cancelled")
                 return 0
         success &= db_init.reset_database(db_path)
@@ -283,5 +273,5 @@ def main():
     return 0 if success else 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

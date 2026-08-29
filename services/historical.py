@@ -8,7 +8,7 @@ This service handles:
 - Historical data analysis and reporting
 """
 
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any
 from datetime import datetime, date, timedelta
 from dataclasses import dataclass
 from enum import Enum
@@ -19,6 +19,7 @@ from services.database import DatabaseService
 
 class TrendDirection(Enum):
     """Enumeration for trend directions."""
+
     INCREASING = "INCREASING"
     DECREASING = "DECREASING"
     STABLE = "STABLE"
@@ -27,6 +28,7 @@ class TrendDirection(Enum):
 @dataclass
 class PerformanceMetrics:
     """Performance metrics for an account over a time period."""
+
     start_value: float
     end_value: float
     absolute_change: float
@@ -37,11 +39,15 @@ class PerformanceMetrics:
     min_value: float
     max_value: float
     total_snapshots: int
+    net_cash_flow: float = 0.0
+    investment_gain: float = 0.0
+    investment_return_percentage: float = 0.0
 
 
 @dataclass
 class TrendAnalysis:
     """Trend analysis for historical data."""
+
     direction: TrendDirection
     slope: float  # Rate of change per day
     r_squared: float  # Correlation coefficient squared (0-1)
@@ -60,8 +66,12 @@ class HistoricalDataService:
         """
         self.db_service = db_service
 
-    def create_snapshot(self, account: BaseAccount, change_type: ChangeType,
-                       metadata: Optional[Dict[str, Any]] = None) -> str:
+    def create_snapshot(
+        self,
+        account: BaseAccount,
+        change_type: ChangeType,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> str:
         """
         Create a historical snapshot for an account.
 
@@ -79,24 +89,26 @@ class HistoricalDataService:
         if metadata is None:
             metadata = {}
 
-        metadata.update({
-            'account_name': account.name,
-            'account_type': account.account_type.value,
-            'institution': account.institution
-        })
-
-        return self.db_service.create_historical_snapshot(
-            account.id,
-            current_value,
-            change_type.value,
-            metadata
+        metadata.update(
+            {
+                "account_name": account.name,
+                "account_type": account.account_type.value,
+                "institution": account.institution,
+            }
         )
 
-    def create_snapshot_if_value_changed(self, account: BaseAccount,
-                                       previous_value: float,
-                                       change_type: ChangeType,
-                                       threshold: float = 0.01,
-                                       metadata: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        return self.db_service.create_historical_snapshot(
+            account.id, current_value, change_type.value, metadata
+        )
+
+    def create_snapshot_if_value_changed(
+        self,
+        account: BaseAccount,
+        previous_value: float,
+        change_type: ChangeType,
+        threshold: float = 0.01,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Optional[str]:
         """
         Create a snapshot only if the account value has changed significantly.
 
@@ -117,10 +129,13 @@ class HistoricalDataService:
 
         return None
 
-    def get_historical_snapshots(self, account_id: str,
-                               start_date: Optional[date] = None,
-                               end_date: Optional[date] = None,
-                               limit: Optional[int] = None) -> List[HistoricalSnapshot]:
+    def get_historical_snapshots(
+        self,
+        account_id: str,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        limit: Optional[int] = None,
+    ) -> List[HistoricalSnapshot]:
         """
         Retrieve historical snapshots for an account with optional filtering.
 
@@ -138,11 +153,15 @@ class HistoricalDataService:
         end_timestamp = None
 
         if start_date:
-            start_timestamp = int(datetime.combine(start_date, datetime.min.time()).timestamp())
+            start_timestamp = int(
+                datetime.combine(start_date, datetime.min.time()).timestamp()
+            )
 
         if end_date:
             # Include the entire end date by using end of day
-            end_timestamp = int(datetime.combine(end_date, datetime.max.time()).timestamp())
+            end_timestamp = int(
+                datetime.combine(end_date, datetime.max.time()).timestamp()
+            )
 
         # Get snapshots from database
         snapshots_data = self.db_service.get_historical_snapshots(
@@ -153,12 +172,12 @@ class HistoricalDataService:
         snapshots = []
         for snapshot_data in snapshots_data:
             snapshot = HistoricalSnapshot(
-                id=snapshot_data['id'],
-                account_id=snapshot_data['account_id'],
-                timestamp=snapshot_data['timestamp'],
-                value=snapshot_data['value'],
-                change_type=ChangeType(snapshot_data['change_type']),
-                metadata=snapshot_data.get('metadata')
+                id=snapshot_data["id"],
+                account_id=snapshot_data["account_id"],
+                timestamp=snapshot_data["timestamp"],
+                value=snapshot_data["value"],
+                change_type=ChangeType(snapshot_data["change_type"]),
+                metadata=snapshot_data.get("metadata"),
             )
             snapshots.append(snapshot)
 
@@ -168,9 +187,12 @@ class HistoricalDataService:
 
         return snapshots
 
-    def calculate_performance_metrics(self, account_id: str,
-                                    start_date: Optional[date] = None,
-                                    end_date: Optional[date] = None) -> Optional[PerformanceMetrics]:
+    def calculate_performance_metrics(
+        self,
+        account_id: str,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> Optional[PerformanceMetrics]:
         """
         Calculate performance metrics for an account over a time period.
 
@@ -196,7 +218,17 @@ class HistoricalDataService:
 
         # Calculate basic metrics
         absolute_change = end_value - start_value
-        percentage_change = (absolute_change / start_value * 100) if start_value != 0 else 0.0
+        percentage_change = (
+            (absolute_change / start_value * 100) if start_value != 0 else 0.0
+        )
+        net_cash_flow = sum(
+            float((snapshot.metadata or {}).get("cash_flow_amount", 0.0))
+            for snapshot in snapshots[1:]
+        )
+        investment_gain = absolute_change - net_cash_flow
+        investment_return_percentage = (
+            investment_gain / start_value * 100 if start_value != 0 else 0.0
+        )
 
         # Determine trend direction
         if percentage_change > 1.0:  # More than 1% increase
@@ -213,7 +245,7 @@ class HistoricalDataService:
 
         # Calculate volatility (standard deviation)
         variance = sum((v - average_value) ** 2 for v in values) / len(values)
-        volatility = variance ** 0.5
+        volatility = variance**0.5
 
         return PerformanceMetrics(
             start_value=start_value,
@@ -225,12 +257,18 @@ class HistoricalDataService:
             average_value=average_value,
             min_value=min_value,
             max_value=max_value,
-            total_snapshots=len(snapshots)
+            total_snapshots=len(snapshots),
+            net_cash_flow=net_cash_flow,
+            investment_gain=investment_gain,
+            investment_return_percentage=investment_return_percentage,
         )
 
-    def analyze_trend(self, account_id: str,
-                     start_date: Optional[date] = None,
-                     end_date: Optional[date] = None) -> Optional[TrendAnalysis]:
+    def analyze_trend(
+        self,
+        account_id: str,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> Optional[TrendAnalysis]:
         """
         Analyze the trend of account values over time using linear regression.
 
@@ -253,7 +291,9 @@ class HistoricalDataService:
         # Prepare data for linear regression
         # Convert timestamps to days since first snapshot
         first_timestamp = snapshots[0].timestamp
-        x_values = [(s.timestamp - first_timestamp).total_seconds() / 86400 for s in snapshots]  # Days
+        x_values = [
+            (s.timestamp - first_timestamp).total_seconds() / 86400 for s in snapshots
+        ]  # Days
         y_values = [s.value for s in snapshots]
 
         # Calculate linear regression
@@ -273,7 +313,9 @@ class HistoricalDataService:
 
         # Calculate correlation coefficient (r-squared)
         numerator = n * sum_xy - sum_x * sum_y
-        denominator_r = ((n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y)) ** 0.5
+        denominator_r = (
+            (n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y)
+        ) ** 0.5
 
         if denominator_r == 0:
             r_squared = 0.0
@@ -298,10 +340,7 @@ class HistoricalDataService:
             confidence = "LOW"
 
         return TrendAnalysis(
-            direction=direction,
-            slope=slope,
-            r_squared=r_squared,
-            confidence=confidence
+            direction=direction, slope=slope, r_squared=r_squared, confidence=confidence
         )
 
     def get_value_at_date(self, account_id: str, target_date: date) -> Optional[float]:
@@ -315,24 +354,20 @@ class HistoricalDataService:
         Returns:
             Account value closest to the target date, or None if no data
         """
-        # Get snapshots around the target date (±7 days)
-        start_date = target_date - timedelta(days=7)
-        end_date = target_date + timedelta(days=7)
-
-        snapshots = self.get_historical_snapshots(account_id, start_date, end_date)
-
-        if not snapshots:
+        end_timestamp = int(
+            datetime.combine(target_date, datetime.max.time()).timestamp()
+        )
+        snapshots_data = self.db_service.get_historical_snapshots(
+            account_id,
+            end_timestamp=end_timestamp,
+        )
+        if not snapshots_data:
             return None
+        return float(snapshots_data[0]["value"])
 
-        # Find the snapshot closest to the target date
-        target_datetime = datetime.combine(target_date, datetime.min.time())
-        closest_snapshot = min(snapshots,
-                             key=lambda s: abs((s.timestamp - target_datetime).total_seconds()))
-
-        return closest_snapshot.value
-
-    def calculate_gains_losses(self, account_id: str,
-                             period_days: int = 30) -> Dict[str, float]:
+    def calculate_gains_losses(
+        self, account_id: str, period_days: int = 30
+    ) -> Dict[str, float]:
         """
         Calculate gains and losses over a specified period.
 
@@ -351,22 +386,49 @@ class HistoricalDataService:
 
         if start_value is None or end_value is None:
             return {
-                'start_value': 0.0,
-                'end_value': 0.0,
-                'absolute_gain_loss': 0.0,
-                'percentage_gain_loss': 0.0,
-                'period_days': period_days
+                "start_value": 0.0,
+                "end_value": 0.0,
+                "absolute_gain_loss": 0.0,
+                "percentage_gain_loss": 0.0,
+                "net_worth_change": 0.0,
+                "net_worth_change_percentage": 0.0,
+                "net_cash_flow": 0.0,
+                "investment_gain": 0.0,
+                "investment_return_percentage": 0.0,
+                "metric_type": "FLOW_ADJUSTED_CHANGE",
+                "period_days": period_days,
             }
 
         absolute_gain_loss = end_value - start_value
-        percentage_gain_loss = (absolute_gain_loss / start_value * 100) if start_value != 0 else 0.0
+        percentage_gain_loss = (
+            (absolute_gain_loss / start_value * 100) if start_value != 0 else 0.0
+        )
+        period_snapshots = self.get_historical_snapshots(
+            account_id,
+            start_date,
+            end_date,
+        )
+        net_cash_flow = sum(
+            float((snapshot.metadata or {}).get("cash_flow_amount", 0.0))
+            for snapshot in period_snapshots
+        )
+        investment_gain = absolute_gain_loss - net_cash_flow
+        investment_return_percentage = (
+            investment_gain / start_value * 100 if start_value != 0 else 0.0
+        )
 
         return {
-            'start_value': start_value,
-            'end_value': end_value,
-            'absolute_gain_loss': absolute_gain_loss,
-            'percentage_gain_loss': percentage_gain_loss,
-            'period_days': period_days
+            "start_value": start_value,
+            "end_value": end_value,
+            "absolute_gain_loss": absolute_gain_loss,
+            "percentage_gain_loss": percentage_gain_loss,
+            "net_worth_change": absolute_gain_loss,
+            "net_worth_change_percentage": percentage_gain_loss,
+            "net_cash_flow": net_cash_flow,
+            "investment_gain": investment_gain,
+            "investment_return_percentage": investment_return_percentage,
+            "metric_type": "FLOW_ADJUSTED_CHANGE",
+            "period_days": period_days,
         }
 
     def get_monthly_summary(self, account_id: str, year: int) -> List[Dict[str, Any]]:
@@ -394,32 +456,36 @@ class HistoricalDataService:
             snapshots = self.get_historical_snapshots(account_id, first_day, last_day)
 
             if not snapshots:
-                monthly_summaries.append({
-                    'month': month,
-                    'month_name': first_day.strftime('%B'),
-                    'start_value': None,
-                    'end_value': None,
-                    'min_value': None,
-                    'max_value': None,
-                    'average_value': None,
-                    'snapshots_count': 0
-                })
+                monthly_summaries.append(
+                    {
+                        "month": month,
+                        "month_name": first_day.strftime("%B"),
+                        "start_value": None,
+                        "end_value": None,
+                        "min_value": None,
+                        "max_value": None,
+                        "average_value": None,
+                        "snapshots_count": 0,
+                    }
+                )
                 continue
 
             # Sort snapshots by timestamp
             snapshots.sort(key=lambda s: s.timestamp)
             values = [s.value for s in snapshots]
 
-            monthly_summaries.append({
-                'month': month,
-                'month_name': first_day.strftime('%B'),
-                'start_value': values[0],
-                'end_value': values[-1],
-                'min_value': min(values),
-                'max_value': max(values),
-                'average_value': sum(values) / len(values),
-                'snapshots_count': len(snapshots)
-            })
+            monthly_summaries.append(
+                {
+                    "month": month,
+                    "month_name": first_day.strftime("%B"),
+                    "start_value": values[0],
+                    "end_value": values[-1],
+                    "min_value": min(values),
+                    "max_value": max(values),
+                    "average_value": sum(values) / len(values),
+                    "snapshots_count": len(snapshots),
+                }
+            )
 
         return monthly_summaries
 
@@ -435,14 +501,19 @@ class HistoricalDataService:
             Number of snapshots deleted
         """
         cutoff_date = date.today() - timedelta(days=keep_days)
-        cutoff_timestamp = int(datetime.combine(cutoff_date, datetime.min.time()).timestamp())
+        cutoff_timestamp = int(
+            datetime.combine(cutoff_date, datetime.min.time()).timestamp()
+        )
 
         # Get old snapshots
         cursor = self.db_service.connect().cursor()
-        cursor.execute('''
+        cursor.execute(
+            """
             SELECT id FROM historical_snapshots
             WHERE account_id = ? AND timestamp < ?
-        ''', (account_id, cutoff_timestamp))
+        """,
+            (account_id, cutoff_timestamp),
+        )
 
         old_snapshot_ids = [row[0] for row in cursor.fetchall()]
 
@@ -450,7 +521,9 @@ class HistoricalDataService:
         if old_snapshot_ids:
             # Use individual DELETE statements for security
             for snapshot_id in old_snapshot_ids:
-                cursor.execute('DELETE FROM historical_snapshots WHERE id = ?', (snapshot_id,))
+                cursor.execute(
+                    "DELETE FROM historical_snapshots WHERE id = ?", (snapshot_id,)
+                )
 
             self.db_service.connection.commit()
 

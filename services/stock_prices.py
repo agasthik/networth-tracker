@@ -11,14 +11,15 @@ This service provides functionality to:
 import yfinance as yf
 import time
 import logging
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+from datetime import datetime
 from dataclasses import dataclass
 
 
 @dataclass
 class PriceUpdateResult:
     """Result of a price update operation"""
+
     symbol: str
     success: bool
     price: Optional[float] = None
@@ -28,6 +29,7 @@ class PriceUpdateResult:
 
 class StockPriceServiceError(Exception):
     """Custom exception for stock price service errors"""
+
     pass
 
 
@@ -62,11 +64,14 @@ class StockPriceService:
         """Get or create a requests session for yfinance."""
         if self._session is None:
             import requests
+
             self._session = requests.Session()
             # Add headers to look more like a regular browser
-            self._session.headers.update({
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            })
+            self._session.headers.update(
+                {
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                }
+            )
         return self._session
 
     def _try_alternative_price_fetch(self, symbol: str) -> Optional[float]:
@@ -99,17 +104,23 @@ class StockPriceService:
 
         try:
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
             }
             response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 data = response.json()
-                if 'chart' in data and 'result' in data['chart'] and len(data['chart']['result']) > 0:
-                    result = data['chart']['result'][0]
-                    if 'meta' in result and 'regularMarketPrice' in result['meta']:
-                        price = float(result['meta']['regularMarketPrice'])
+                if (
+                    "chart" in data
+                    and "result" in data["chart"]
+                    and len(data["chart"]["result"]) > 0
+                ):
+                    result = data["chart"]["result"][0]
+                    if "meta" in result and "regularMarketPrice" in result["meta"]:
+                        price = float(result["meta"]["regularMarketPrice"])
                         if price > 0:
-                            self.logger.info(f"Successfully fetched price from Yahoo direct for {symbol}: ${price:.2f}")
+                            self.logger.info(
+                                f"Successfully fetched price from Yahoo direct for {symbol}: ${price:.2f}"
+                            )
                             return price
         except Exception as e:
             self.logger.warning(f"Yahoo direct request failed for {symbol}: {e}")
@@ -120,16 +131,20 @@ class StockPriceService:
         """Fetch price from Financial Modeling Prep (free tier)."""
         import requests
 
-        url = f"https://financialmodelingprep.com/api/v3/quote-short/{symbol}?apikey=demo"
+        url = (
+            f"https://financialmodelingprep.com/api/v3/quote-short/{symbol}?apikey=demo"
+        )
 
         try:
             response = requests.get(url, timeout=10)
             if response.status_code == 200:
                 data = response.json()
-                if data and len(data) > 0 and 'price' in data[0]:
-                    price = float(data[0]['price'])
+                if data and len(data) > 0 and "price" in data[0]:
+                    price = float(data[0]["price"])
                     if price > 0:
-                        self.logger.info(f"Successfully fetched price from FMP for {symbol}: ${price:.2f}")
+                        self.logger.info(
+                            f"Successfully fetched price from FMP for {symbol}: ${price:.2f}"
+                        )
                         return price
         except Exception as e:
             self.logger.warning(f"FMP request failed for {symbol}: {e}")
@@ -178,26 +193,34 @@ class StockPriceService:
                     try:
                         hist = ticker.history(period=period)
                         if not hist.empty:
-                            price = float(hist['Close'].iloc[-1])
+                            price = float(hist["Close"].iloc[-1])
                             if price > 0:
-                                self.logger.info(f"Successfully fetched price from {period} history for {symbol}: ${price:.2f}")
+                                self.logger.info(
+                                    f"Successfully fetched price from {period} history for {symbol}: ${price:.2f}"
+                                )
                                 return price
                     except Exception as e:
-                        self.logger.warning(f"Failed to fetch {period} data for {symbol}: {e}")
+                        self.logger.warning(
+                            f"Failed to fetch {period} data for {symbol}: {e}"
+                        )
                         continue
 
                 # Method 2: Try fast_info (newer yfinance feature)
                 try:
                     fast_info = ticker.fast_info
-                    if hasattr(fast_info, 'last_price') and fast_info.last_price:
+                    if hasattr(fast_info, "last_price") and fast_info.last_price:
                         price = float(fast_info.last_price)
                         if price > 0:
-                            self.logger.info(f"Successfully fetched fast_info price for {symbol}: ${price:.2f}")
+                            self.logger.info(
+                                f"Successfully fetched fast_info price for {symbol}: ${price:.2f}"
+                            )
                             return price
                 except Exception as e:
                     self.logger.warning(f"Failed to get fast_info for {symbol}: {e}")
 
-                raise StockPriceServiceError(f"No valid price data available for symbol: {symbol}")
+                raise StockPriceServiceError(
+                    f"No valid price data available for symbol: {symbol}"
+                )
 
             except StockPriceServiceError:
                 # Re-raise our custom errors without modification
@@ -206,23 +229,39 @@ class StockPriceService:
                 error_msg = str(e).lower()
 
                 # Categorize different types of errors
-                if "not found" in error_msg or "invalid" in error_msg or "no data" in error_msg:
+                if (
+                    "not found" in error_msg
+                    or "invalid" in error_msg
+                    or "no data" in error_msg
+                ):
                     if attempt == self.max_retries - 1:
-                        raise StockPriceServiceError(f"Symbol '{symbol}' not found or invalid")
+                        raise StockPriceServiceError(
+                            f"Symbol '{symbol}' not found or invalid"
+                        )
                 elif "timeout" in error_msg or "connection" in error_msg:
                     if attempt == self.max_retries - 1:
-                        raise StockPriceServiceError(f"Network timeout while fetching price for {symbol}")
+                        raise StockPriceServiceError(
+                            f"Network timeout while fetching price for {symbol}"
+                        )
                 elif "rate limit" in error_msg or "too many requests" in error_msg:
                     if attempt == self.max_retries - 1:
-                        raise StockPriceServiceError(f"Rate limit exceeded for stock price API")
+                        raise StockPriceServiceError(
+                            "Rate limit exceeded for stock price API"
+                        )
                 else:
-                    self.logger.warning(f"Attempt {attempt + 1} failed for {symbol}: {str(e)}")
+                    self.logger.warning(
+                        f"Attempt {attempt + 1} failed for {symbol}: {str(e)}"
+                    )
                     if attempt == self.max_retries - 1:
-                        raise StockPriceServiceError(f"Failed to fetch price for {symbol} after {self.max_retries} attempts: {str(e)}")
+                        raise StockPriceServiceError(
+                            f"Failed to fetch price for {symbol} after {self.max_retries} attempts: {str(e)}"
+                        )
 
                 # Brief delay before retry for transient errors
                 if attempt < self.max_retries - 1:
-                    time.sleep(min(2 ** attempt, 10))  # Exponential backoff, max 10 seconds
+                    time.sleep(
+                        min(2**attempt, 10)
+                    )  # Exponential backoff, max 10 seconds
 
     def get_batch_prices(self, symbols: List[str]) -> Dict[str, PriceUpdateResult]:
         """
@@ -238,7 +277,9 @@ class StockPriceService:
             return {}
 
         # Clean and deduplicate symbols
-        clean_symbols = list(set(s.upper().strip() for s in symbols if s and isinstance(s, str)))
+        clean_symbols = list(
+            set(s.upper().strip() for s in symbols if s and isinstance(s, str))
+        )
 
         results = {}
 
@@ -246,18 +287,12 @@ class StockPriceService:
             try:
                 price = self.get_current_price(symbol)
                 results[symbol] = PriceUpdateResult(
-                    symbol=symbol,
-                    success=True,
-                    price=price,
-                    timestamp=datetime.now()
+                    symbol=symbol, success=True, price=price, timestamp=datetime.now()
                 )
             except StockPriceServiceError as e:
                 self.logger.error(f"Failed to fetch price for {symbol}: {str(e)}")
                 results[symbol] = PriceUpdateResult(
-                    symbol=symbol,
-                    success=False,
-                    error=str(e),
-                    timestamp=datetime.now()
+                    symbol=symbol, success=False, error=str(e), timestamp=datetime.now()
                 )
 
         return results
@@ -276,7 +311,7 @@ class StockPriceService:
             return []
 
         # Extract unique symbols from positions
-        symbols = list(set(pos.get('symbol') for pos in positions if pos.get('symbol')))
+        symbols = list(set(pos.get("symbol") for pos in positions if pos.get("symbol")))
 
         # Fetch current prices
         price_results = self.get_batch_prices(symbols)
@@ -285,7 +320,7 @@ class StockPriceService:
         updated_positions = []
 
         for position in positions:
-            symbol = position.get('symbol')
+            symbol = position.get("symbol")
             if not symbol:
                 updated_positions.append(position)
                 continue
@@ -294,24 +329,32 @@ class StockPriceService:
             price_result = price_results.get(symbol.upper())
 
             if price_result and price_result.success:
-                updated_position['current_price'] = price_result.price
-                updated_position['last_updated'] = price_result.timestamp
+                updated_position["current_price"] = price_result.price
+                updated_position["last_updated"] = price_result.timestamp
 
                 # Calculate unrealized gain/loss if purchase_price and shares are available
-                if 'purchase_price' in position and 'shares' in position:
-                    purchase_price = position['purchase_price']
-                    shares = position['shares']
+                if "purchase_price" in position and "shares" in position:
+                    purchase_price = position["purchase_price"]
+                    shares = position["shares"]
                     current_value = price_result.price * shares
                     cost_basis = purchase_price * shares
                     unrealized_gain_loss = current_value - cost_basis
-                    unrealized_gain_loss_pct = (unrealized_gain_loss / cost_basis) * 100 if cost_basis > 0 else 0
+                    unrealized_gain_loss_pct = (
+                        (unrealized_gain_loss / cost_basis) * 100
+                        if cost_basis > 0
+                        else 0
+                    )
 
-                    updated_position['current_value'] = current_value
-                    updated_position['unrealized_gain_loss'] = unrealized_gain_loss
-                    updated_position['unrealized_gain_loss_pct'] = unrealized_gain_loss_pct
+                    updated_position["current_value"] = current_value
+                    updated_position["unrealized_gain_loss"] = unrealized_gain_loss
+                    updated_position["unrealized_gain_loss_pct"] = (
+                        unrealized_gain_loss_pct
+                    )
             else:
                 # Keep existing price if update failed
-                self.logger.warning(f"Failed to update price for {symbol}, keeping existing data")
+                self.logger.warning(
+                    f"Failed to update price for {symbol}, keeping existing data"
+                )
 
             updated_positions.append(updated_position)
 
@@ -353,19 +396,19 @@ class StockPriceService:
         try:
             price = self.get_current_price(symbol)
             return {
-                'symbol': symbol.upper(),
-                'price': price,
-                'timestamp': datetime.now(),
-                'success': True,
-                'market_open': self.is_market_open(),
-                'error': None
+                "symbol": symbol.upper(),
+                "price": price,
+                "timestamp": datetime.now(),
+                "success": True,
+                "market_open": self.is_market_open(),
+                "error": None,
             }
         except StockPriceServiceError as e:
             return {
-                'symbol': symbol.upper(),
-                'price': None,
-                'timestamp': datetime.now(),
-                'success': False,
-                'market_open': self.is_market_open(),
-                'error': str(e)
+                "symbol": symbol.upper(),
+                "price": None,
+                "timestamp": datetime.now(),
+                "success": False,
+                "market_open": self.is_market_open(),
+                "error": str(e),
             }

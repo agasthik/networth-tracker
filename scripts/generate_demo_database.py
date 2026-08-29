@@ -15,14 +15,23 @@ import sys
 import random
 from datetime import datetime, timedelta, date
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 # Add parent directory to path to import application modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from models.accounts import (
-    BaseAccount, CDAccount, SavingsAccount, Account401k, TradingAccount, IBondsAccount, HSAAccount,
-    StockPosition, HistoricalSnapshot, AccountType, ChangeType
+    BaseAccount,
+    CDAccount,
+    SavingsAccount,
+    Account401k,
+    TradingAccount,
+    IBondsAccount,
+    HSAAccount,
+    StockPosition,
+    HistoricalSnapshot,
+    AccountType,
+    ChangeType,
 )
 from services.encryption import EncryptionService
 from services.contribution_limits import require_contribution_limits
@@ -34,15 +43,31 @@ class DemoDataGenerator:
     def __init__(self):
         """Initialize demo data generator with realistic financial institutions and stocks."""
         self.demo_institutions = [
-            "Chase Bank", "Bank of America", "Wells Fargo", "Citi Bank",
-            "Capital One", "Ally Bank", "Marcus by Goldman Sachs", "PNC Bank",
-            "US Bank", "TD Bank", "HSBC", "Discover Bank"
+            "Chase Bank",
+            "Bank of America",
+            "Wells Fargo",
+            "Citi Bank",
+            "Capital One",
+            "Ally Bank",
+            "Marcus by Goldman Sachs",
+            "PNC Bank",
+            "US Bank",
+            "TD Bank",
+            "HSBC",
+            "Discover Bank",
         ]
 
         self.demo_brokers = [
-            "Fidelity", "Charles Schwab", "E*TRADE", "TD Ameritrade",
-            "Robinhood", "Interactive Brokers", "Vanguard", "Merrill Edge",
-            "Webull", "Ally Invest"
+            "Fidelity",
+            "Charles Schwab",
+            "E*TRADE",
+            "TD Ameritrade",
+            "Robinhood",
+            "Interactive Brokers",
+            "Vanguard",
+            "Merrill Edge",
+            "Webull",
+            "Ally Invest",
         ]
 
         self.demo_stocks = [
@@ -60,7 +85,7 @@ class DemoDataGenerator:
             ("BRK.B", "Berkshire Hathaway Inc.", 300.0),
             ("JNJ", "Johnson & Johnson", 160.0),
             ("V", "Visa Inc.", 220.0),
-            ("JPM", "JPMorgan Chase & Co.", 140.0)
+            ("JPM", "JPMorgan Chase & Co.", 140.0),
         ]
 
     def generate_demo_accounts(self) -> List[BaseAccount]:
@@ -89,24 +114,30 @@ class DemoDataGenerator:
 
             # Calculate current value with some accrued interest
             months_elapsed = random.randint(1, min(maturity_months - 1, 12))
-            current_value = principal * (1 + (rate/100) * (months_elapsed/12))
+            current_value = principal * (1 + (rate / 100) * (months_elapsed / 12))
 
             remaining_months = maturity_months - months_elapsed
-            maturity_date = date.today() + timedelta(days=max(remaining_months * 30, 30))
-            created_date = datetime.now() - timedelta(days=months_elapsed * 30 + random.randint(1, 30))
+            maturity_date = date.today() + timedelta(
+                days=max(remaining_months * 30, 30)
+            )
+            created_date = datetime.now() - timedelta(
+                days=months_elapsed * 30 + random.randint(1, 30)
+            )
 
-            accounts.append(CDAccount(
-                id=f"demo-cd-{i+1}",
-                name=f"CD Account {i+1} ({maturity_months}mo)",
-                institution=random.choice(self.demo_institutions),
-                account_type=AccountType.CD,
-                created_date=created_date,
-                last_updated=datetime.now() - timedelta(days=random.randint(1, 7)),
-                principal_amount=principal,
-                interest_rate=rate,
-                maturity_date=maturity_date,
-                current_value=round(current_value, 2)
-            ))
+            accounts.append(
+                CDAccount(
+                    id=f"demo-cd-{i + 1}",
+                    name=f"CD Account {i + 1} ({maturity_months}mo)",
+                    institution=random.choice(self.demo_institutions),
+                    account_type=AccountType.CD,
+                    created_date=created_date,
+                    last_updated=datetime.now() - timedelta(days=random.randint(1, 7)),
+                    principal_amount=principal,
+                    interest_rate=rate,
+                    maturity_date=maturity_date,
+                    current_value=round(current_value, 2),
+                )
+            )
         return accounts
 
     def _generate_savings_accounts(self, count: int) -> List[SavingsAccount]:
@@ -117,16 +148,18 @@ class DemoDataGenerator:
             rate = round(random.uniform(0.1, 2.5), 2)
             created_date = datetime.now() - timedelta(days=random.randint(30, 730))
 
-            accounts.append(SavingsAccount(
-                id=f"demo-savings-{i+1}",
-                name=f"High Yield Savings {i+1}",
-                institution=random.choice(self.demo_institutions),
-                account_type=AccountType.SAVINGS,
-                created_date=created_date,
-                last_updated=datetime.now() - timedelta(days=random.randint(1, 14)),
-                current_balance=balance,
-                interest_rate=rate
-            ))
+            accounts.append(
+                SavingsAccount(
+                    id=f"demo-savings-{i + 1}",
+                    name=f"High Yield Savings {i + 1}",
+                    institution=random.choice(self.demo_institutions),
+                    account_type=AccountType.SAVINGS,
+                    created_date=created_date,
+                    last_updated=datetime.now() - timedelta(days=random.randint(1, 14)),
+                    current_balance=balance,
+                    interest_rate=rate,
+                )
+            )
         return accounts
 
     def _generate_401k_accounts(self, count: int) -> List[Account401k]:
@@ -136,24 +169,24 @@ class DemoDataGenerator:
         for i in range(count):
             balance = round(random.uniform(25000, 150000), 2)
             employer_match = round(random.uniform(3.0, 6.0), 1)
-            contribution_limit = float(
-                contribution_limits.retirement_401k_employee
-            )
+            contribution_limit = float(contribution_limits.retirement_401k_employee)
             employer_contribution = round(random.uniform(2000, 8000), 2)
             created_date = datetime.now() - timedelta(days=random.randint(365, 2555))
 
-            accounts.append(Account401k(
-                id=f"demo-401k-{i+1}",
-                name=f"401(k) Retirement Plan",
-                institution=random.choice(self.demo_institutions[:5]),
-                account_type=AccountType.ACCOUNT_401K,
-                created_date=created_date,
-                last_updated=datetime.now() - timedelta(days=random.randint(1, 30)),
-                current_balance=balance,
-                employer_match=employer_match,
-                contribution_limit=contribution_limit,
-                employer_contribution=employer_contribution
-            ))
+            accounts.append(
+                Account401k(
+                    id=f"demo-401k-{i + 1}",
+                    name="401(k) Retirement Plan",
+                    institution=random.choice(self.demo_institutions[:5]),
+                    account_type=AccountType.ACCOUNT_401K,
+                    created_date=created_date,
+                    last_updated=datetime.now() - timedelta(days=random.randint(1, 30)),
+                    current_balance=balance,
+                    employer_match=employer_match,
+                    contribution_limit=contribution_limit,
+                    employer_contribution=employer_contribution,
+                )
+            )
         return accounts
 
     def _generate_trading_accounts(self, count: int) -> List[TradingAccount]:
@@ -162,37 +195,44 @@ class DemoDataGenerator:
         for i in range(count):
             positions = []
             num_positions = random.randint(3, 8)
-            selected_stocks = random.sample(self.demo_stocks, min(num_positions, len(self.demo_stocks)))
+            selected_stocks = random.sample(
+                self.demo_stocks, min(num_positions, len(self.demo_stocks))
+            )
 
             for symbol, name, current_price in selected_stocks:
                 shares = random.randint(10, 200)
                 purchase_price = round(current_price * random.uniform(0.7, 1.3), 2)
                 purchase_date = date.today() - timedelta(days=random.randint(30, 730))
 
-                positions.append(StockPosition(
-                    symbol=symbol,
-                    shares=shares,
-                    purchase_price=purchase_price,
-                    purchase_date=purchase_date,
-                    current_price=current_price,
-                    last_updated=datetime.now() - timedelta(hours=random.randint(1, 24))
-                ))
+                positions.append(
+                    StockPosition(
+                        symbol=symbol,
+                        shares=shares,
+                        purchase_price=purchase_price,
+                        purchase_date=purchase_date,
+                        current_price=current_price,
+                        last_updated=datetime.now()
+                        - timedelta(hours=random.randint(1, 24)),
+                    )
+                )
 
             cash_balance = round(random.uniform(1000, 15000), 2)
             broker = random.choice(self.demo_brokers)
             created_date = datetime.now() - timedelta(days=random.randint(90, 1095))
 
-            accounts.append(TradingAccount(
-                id=f"demo-trading-{i+1}",
-                name=f"Trading Account {i+1}",
-                institution=broker,
-                account_type=AccountType.TRADING,
-                created_date=created_date,
-                last_updated=datetime.now() - timedelta(days=random.randint(1, 7)),
-                broker_name=broker,
-                cash_balance=cash_balance,
-                positions=positions
-            ))
+            accounts.append(
+                TradingAccount(
+                    id=f"demo-trading-{i + 1}",
+                    name=f"Trading Account {i + 1}",
+                    institution=broker,
+                    account_type=AccountType.TRADING,
+                    created_date=created_date,
+                    last_updated=datetime.now() - timedelta(days=random.randint(1, 7)),
+                    broker_name=broker,
+                    cash_balance=cash_balance,
+                    positions=positions,
+                )
+            )
         return accounts
 
     def _generate_ibonds_accounts(self, count: int) -> List[IBondsAccount]:
@@ -207,25 +247,27 @@ class DemoDataGenerator:
             # Calculate current value with compound interest
             years_held = (date.today() - purchase_date).days / 365.25
             composite_rate = fixed_rate + inflation_rate
-            current_value = purchase_amount * ((1 + composite_rate/100) ** years_held)
+            current_value = purchase_amount * ((1 + composite_rate / 100) ** years_held)
 
-            maturity_date = purchase_date + timedelta(days=30*365)  # 30 years
+            maturity_date = purchase_date + timedelta(days=30 * 365)  # 30 years
             created_date = datetime.combine(purchase_date, datetime.min.time())
 
-            accounts.append(IBondsAccount(
-                id=f"demo-ibonds-{i+1}",
-                name=f"I Bonds Series {purchase_date.year}",
-                institution="TreasuryDirect.gov",
-                account_type=AccountType.I_BONDS,
-                created_date=created_date,
-                last_updated=datetime.now() - timedelta(days=random.randint(1, 30)),
-                purchase_amount=purchase_amount,
-                purchase_date=purchase_date,
-                current_value=round(current_value, 2),
-                fixed_rate=fixed_rate,
-                inflation_rate=inflation_rate,
-                maturity_date=maturity_date
-            ))
+            accounts.append(
+                IBondsAccount(
+                    id=f"demo-ibonds-{i + 1}",
+                    name=f"I Bonds Series {purchase_date.year}",
+                    institution="TreasuryDirect.gov",
+                    account_type=AccountType.I_BONDS,
+                    created_date=created_date,
+                    last_updated=datetime.now() - timedelta(days=random.randint(1, 30)),
+                    purchase_amount=purchase_amount,
+                    purchase_date=purchase_date,
+                    current_value=round(current_value, 2),
+                    fixed_rate=fixed_rate,
+                    inflation_rate=inflation_rate,
+                    maturity_date=maturity_date,
+                )
+            )
         return accounts
 
     def _generate_hsa_accounts(self, count: int) -> List[HSAAccount]:
@@ -234,7 +276,9 @@ class DemoDataGenerator:
         contribution_limits = require_contribution_limits()
         for i in range(count):
             is_family_plan = random.choice([True, False])
-            is_over_55 = random.choice([True, False]) if random.random() < 0.3 else False
+            is_over_55 = (
+                random.choice([True, False]) if random.random() < 0.3 else False
+            )
 
             if is_family_plan:
                 annual_limit = float(contribution_limits.hsa_family)
@@ -250,32 +294,48 @@ class DemoDataGenerator:
             # Generate realistic balances and contributions
             current_balance = round(random.uniform(500, 15000), 2)
             current_year_contributions = round(random.uniform(0, annual_limit * 0.8), 2)
-            employer_contributions = round(random.uniform(0, 2000), 2) if random.random() < 0.4 else 0.0
+            employer_contributions = (
+                round(random.uniform(0, 2000), 2) if random.random() < 0.4 else 0.0
+            )
 
             # Split balance between cash and investments (if applicable)
-            investment_ratio = random.uniform(0.0, 0.7) if current_balance > 2000 else 0.0
+            investment_ratio = (
+                random.uniform(0.0, 0.7) if current_balance > 2000 else 0.0
+            )
             investment_balance = round(current_balance * investment_ratio, 2)
             cash_balance = round(current_balance - investment_balance, 2)
 
             created_date = datetime.now() - timedelta(days=random.randint(90, 1095))
 
-            accounts.append(HSAAccount(
-                id=f"demo-hsa-{i+1}",
-                name=f"HSA {plan_type} Plan",
-                institution=random.choice(["HSA Bank", "Optum Bank", "Fidelity HSA", "HealthEquity", "Lively HSA"]),
-                account_type=AccountType.HSA,
-                created_date=created_date,
-                last_updated=datetime.now() - timedelta(days=random.randint(1, 30)),
-                current_balance=current_balance,
-                annual_contribution_limit=annual_limit,
-                current_year_contributions=current_year_contributions,
-                employer_contributions=employer_contributions,
-                investment_balance=investment_balance,
-                cash_balance=cash_balance
-            ))
+            accounts.append(
+                HSAAccount(
+                    id=f"demo-hsa-{i + 1}",
+                    name=f"HSA {plan_type} Plan",
+                    institution=random.choice(
+                        [
+                            "HSA Bank",
+                            "Optum Bank",
+                            "Fidelity HSA",
+                            "HealthEquity",
+                            "Lively HSA",
+                        ]
+                    ),
+                    account_type=AccountType.HSA,
+                    created_date=created_date,
+                    last_updated=datetime.now() - timedelta(days=random.randint(1, 30)),
+                    current_balance=current_balance,
+                    annual_contribution_limit=annual_limit,
+                    current_year_contributions=current_year_contributions,
+                    employer_contributions=employer_contributions,
+                    investment_balance=investment_balance,
+                    cash_balance=cash_balance,
+                )
+            )
         return accounts
 
-    def generate_historical_data(self, accounts: List[BaseAccount]) -> List[HistoricalSnapshot]:
+    def generate_historical_data(
+        self, accounts: List[BaseAccount]
+    ) -> List[HistoricalSnapshot]:
         """
         Generate 24 months of historical performance data for accounts.
 
@@ -290,7 +350,9 @@ class DemoDataGenerator:
             snapshots.extend(self._generate_account_history(account))
         return snapshots
 
-    def _generate_account_history(self, account: BaseAccount) -> List[HistoricalSnapshot]:
+    def _generate_account_history(
+        self, account: BaseAccount
+    ) -> List[HistoricalSnapshot]:
         """Generate monthly historical snapshots for an account with account-type specific volatility."""
         snapshots = []
         start_date = datetime.now() - timedelta(days=730)  # 24 months ago
@@ -344,14 +406,16 @@ class DemoDataGenerator:
             else:
                 change_type = ChangeType.MANUAL_UPDATE
 
-            snapshots.append(HistoricalSnapshot(
-                id=f"demo-hist-{account.id}-{snapshot_date.strftime('%Y%m')}",
-                account_id=account.id,
-                timestamp=snapshot_date,
-                value=round(value, 2),
-                change_type=change_type,
-                metadata={"demo_generated": True, "month": i + 1}
-            ))
+            snapshots.append(
+                HistoricalSnapshot(
+                    id=f"demo-hist-{account.id}-{snapshot_date.strftime('%Y%m')}",
+                    account_id=account.id,
+                    timestamp=snapshot_date,
+                    value=round(value, 2),
+                    change_type=change_type,
+                    metadata={"demo_generated": True, "month": i + 1},
+                )
+            )
 
         return snapshots
 
@@ -378,28 +442,37 @@ class DemoDataGenerator:
             ("KO", "Coca-Cola - Consumer staples", 58.75, 0.45, 0.77),
             ("SPY", "SPDR S&P 500 ETF - Market index", 398.45, 1.25, 0.31),
             ("QQQ", "Invesco QQQ Trust - Tech index", 352.80, 3.15, 0.90),
-            ("VTI", "Vanguard Total Stock Market ETF", 218.90, 0.85, 0.39)
+            ("VTI", "Vanguard Total Stock Market ETF", 218.90, 0.85, 0.39),
         ]
 
-        for i, (symbol, notes, price, change, change_pct) in enumerate(demo_watchlist_stocks):
+        for i, (symbol, notes, price, change, change_pct) in enumerate(
+            demo_watchlist_stocks
+        ):
             # Add some randomness to prices for realism
-            current_price = round(price + random.uniform(-price * 0.02, price * 0.02), 2)
+            current_price = round(
+                price + random.uniform(-price * 0.02, price * 0.02), 2
+            )
             daily_change = round(change + random.uniform(-2, 2), 2)
-            daily_change_percent = round((daily_change / (current_price - daily_change)) * 100, 2)
+            daily_change_percent = round(
+                (daily_change / (current_price - daily_change)) * 100, 2
+            )
 
             added_date = datetime.now() - timedelta(days=random.randint(1, 90))
 
-            watchlist_items.append({
-                'id': f"demo-watchlist-{i+1}",
-                'symbol': symbol,
-                'notes': notes,
-                'current_price': current_price,
-                'daily_change': daily_change,
-                'daily_change_percent': daily_change_percent,
-                'added_date': added_date,
-                'last_price_update': datetime.now() - timedelta(minutes=random.randint(5, 120)),
-                'is_demo': True
-            })
+            watchlist_items.append(
+                {
+                    "id": f"demo-watchlist-{i + 1}",
+                    "symbol": symbol,
+                    "notes": notes,
+                    "current_price": current_price,
+                    "daily_change": daily_change,
+                    "daily_change_percent": daily_change_percent,
+                    "added_date": added_date,
+                    "last_price_update": datetime.now()
+                    - timedelta(minutes=random.randint(5, 120)),
+                    "is_demo": True,
+                }
+            )
 
         return watchlist_items
 
@@ -422,7 +495,7 @@ class DemoDatabaseCreator:
         self.encryption_service = EncryptionService()
 
         # Derive encryption key with fixed salt for demo consistency
-        demo_salt = b'demo_salt_123456'  # Fixed salt for demo database
+        demo_salt = b"demo_salt_123456"  # Fixed salt for demo database
         self.encryption_service.derive_key(password, demo_salt)
 
     def create_demo_database(self) -> bool:
@@ -438,12 +511,12 @@ class DemoDatabaseCreator:
             # Remove existing demo database if it exists
             if os.path.exists(self.db_path):
                 os.remove(self.db_path)
-                print(f"Removed existing demo database")
+                print("Removed existing demo database")
 
             # Create database connection
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
-            conn.execute('PRAGMA foreign_keys = ON')
+            conn.execute("PRAGMA foreign_keys = ON")
 
             # Initialize schema with is_demo column
             self._initialize_schema(conn)
@@ -483,6 +556,7 @@ class DemoDatabaseCreator:
         except Exception as e:
             print(f"Error creating demo database: {str(e)}")
             import traceback
+
             traceback.print_exc()
             return False
 
@@ -491,7 +565,7 @@ class DemoDatabaseCreator:
         cursor = conn.cursor()
 
         # Accounts table with is_demo column
-        cursor.execute('''
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS accounts (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -503,10 +577,10 @@ class DemoDatabaseCreator:
                 schema_version INTEGER DEFAULT 1,
                 is_demo BOOLEAN DEFAULT FALSE
             )
-        ''')
+        """)
 
         # Historical snapshots table
-        cursor.execute('''
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS historical_snapshots (
                 id TEXT PRIMARY KEY,
                 account_id TEXT NOT NULL,
@@ -516,10 +590,10 @@ class DemoDatabaseCreator:
                 encrypted_metadata BLOB,
                 FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE
             )
-        ''')
+        """)
 
         # Stock positions table
-        cursor.execute('''
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS stock_positions (
                 id TEXT PRIMARY KEY,
                 trading_account_id TEXT NOT NULL,
@@ -531,19 +605,19 @@ class DemoDatabaseCreator:
                 last_price_update INTEGER,
                 FOREIGN KEY (trading_account_id) REFERENCES accounts (id) ON DELETE CASCADE
             )
-        ''')
+        """)
 
         # Application settings table
-        cursor.execute('''
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS app_settings (
                 key TEXT PRIMARY KEY,
                 value TEXT,
                 encrypted_value BLOB
             )
-        ''')
+        """)
 
         # Watchlist table for stock tracking
-        cursor.execute('''
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS watchlist (
                 id TEXT PRIMARY KEY,
                 symbol TEXT NOT NULL UNIQUE,
@@ -552,19 +626,37 @@ class DemoDatabaseCreator:
                 last_price_update INTEGER,
                 is_demo BOOLEAN DEFAULT FALSE
             )
-        ''')
+        """)
 
         # Create indexes
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_accounts_type ON accounts (type)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_accounts_is_demo ON accounts (is_demo)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_historical_account_id ON historical_snapshots (account_id)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_historical_timestamp ON historical_snapshots (timestamp)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_stock_positions_account ON stock_positions (trading_account_id)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_watchlist_symbol ON watchlist (symbol)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_watchlist_added_date ON watchlist (added_date)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_watchlist_is_demo ON watchlist (is_demo)')
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_accounts_type ON accounts (type)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_accounts_is_demo ON accounts (is_demo)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_historical_account_id ON historical_snapshots (account_id)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_historical_timestamp ON historical_snapshots (timestamp)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_stock_positions_account ON stock_positions (trading_account_id)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_watchlist_symbol ON watchlist (symbol)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_watchlist_added_date ON watchlist (added_date)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_watchlist_is_demo ON watchlist (is_demo)"
+        )
 
-    def _populate_accounts(self, conn: sqlite3.Connection, accounts: List[BaseAccount]) -> Dict[str, str]:
+    def _populate_accounts(
+        self, conn: sqlite3.Connection, accounts: List[BaseAccount]
+    ) -> Dict[str, str]:
         """
         Populate accounts table with demo data.
 
@@ -581,43 +673,54 @@ class DemoDatabaseCreator:
 
             # Prepare account data
             account_dict = account.to_dict()
-            account_dict.pop('positions', None)
+            account_dict.pop("positions", None)
 
             # Separate public and sensitive data
             public_data = {
-                'name': account_dict['name'],
-                'institution': account_dict['institution'],
-                'type': account_dict['account_type']
+                "name": account_dict["name"],
+                "institution": account_dict["institution"],
+                "type": account_dict["account_type"],
             }
 
             # Encrypt sensitive data
-            sensitive_data = {k: v for k, v in account_dict.items()
-                            if k not in ['name', 'institution', 'account_type', 'id']}
+            sensitive_data = {
+                k: v
+                for k, v in account_dict.items()
+                if k not in ["name", "institution", "account_type", "id"]
+            }
 
-            encrypted_data = self.encryption_service.encrypt(json.dumps(sensitive_data, default=str))
+            encrypted_data = self.encryption_service.encrypt(
+                json.dumps(sensitive_data, default=str)
+            )
 
             # Insert account with is_demo = TRUE
-            cursor.execute('''
+            cursor.execute(
+                """
                 INSERT INTO accounts (id, name, institution, type, encrypted_data,
                                     created_date, last_updated, schema_version, is_demo)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                db_account_id,
-                public_data['name'],
-                public_data['institution'],
-                public_data['type'],
-                encrypted_data,
-                int(account.created_date.timestamp()),
-                int(account.last_updated.timestamp()),
-                self.SCHEMA_VERSION,
-                True  # Mark as demo account
-            ))
+            """,
+                (
+                    db_account_id,
+                    public_data["name"],
+                    public_data["institution"],
+                    public_data["type"],
+                    encrypted_data,
+                    int(account.created_date.timestamp()),
+                    int(account.last_updated.timestamp()),
+                    self.SCHEMA_VERSION,
+                    True,  # Mark as demo account
+                ),
+            )
 
         return account_id_mapping
 
-    def _populate_historical_data(self, conn: sqlite3.Connection,
-                                 snapshots: List[HistoricalSnapshot],
-                                 account_id_mapping: Dict[str, str]):
+    def _populate_historical_data(
+        self,
+        conn: sqlite3.Connection,
+        snapshots: List[HistoricalSnapshot],
+        account_id_mapping: Dict[str, str],
+    ):
         """Populate historical snapshots with demo data."""
         cursor = conn.cursor()
 
@@ -634,22 +737,28 @@ class DemoDatabaseCreator:
                     json.dumps(snapshot.metadata, default=str)
                 )
 
-            cursor.execute('''
+            cursor.execute(
+                """
                 INSERT INTO historical_snapshots (id, account_id, timestamp, value,
                                                 change_type, encrypted_metadata)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
-                str(uuid.uuid4()),
-                db_account_id,
-                int(snapshot.timestamp.timestamp()),
-                snapshot.value,
-                snapshot.change_type.value,
-                encrypted_metadata
-            ))
+            """,
+                (
+                    str(uuid.uuid4()),
+                    db_account_id,
+                    int(snapshot.timestamp.timestamp()),
+                    snapshot.value,
+                    snapshot.change_type.value,
+                    encrypted_metadata,
+                ),
+            )
 
-    def _populate_stock_positions(self, conn: sqlite3.Connection,
-                                 accounts: List[BaseAccount],
-                                 account_id_mapping: Dict[str, str]):
+    def _populate_stock_positions(
+        self,
+        conn: sqlite3.Connection,
+        accounts: List[BaseAccount],
+        account_id_mapping: Dict[str, str],
+    ):
         """Populate stock positions for trading accounts."""
         cursor = conn.cursor()
 
@@ -660,68 +769,98 @@ class DemoDatabaseCreator:
                     continue
 
                 for position in account.positions:
-                    cursor.execute('''
+                    cursor.execute(
+                        """
                         INSERT INTO stock_positions (id, trading_account_id, symbol, shares,
                                                    purchase_price, purchase_date, current_price,
                                                    last_price_update)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        str(uuid.uuid4()),
-                        db_account_id,
-                        position.symbol,
-                        position.shares,
-                        position.purchase_price,
-                        int(position.purchase_date.strftime('%s')) if position.purchase_date else None,
-                        position.current_price,
-                        int(position.last_updated.timestamp()) if position.last_updated else None
-                    ))
+                    """,
+                        (
+                            str(uuid.uuid4()),
+                            db_account_id,
+                            position.symbol,
+                            position.shares,
+                            position.purchase_price,
+                            int(position.purchase_date.strftime("%s"))
+                            if position.purchase_date
+                            else None,
+                            position.current_price,
+                            int(position.last_updated.timestamp())
+                            if position.last_updated
+                            else None,
+                        ),
+                    )
 
-    def _populate_watchlist(self, conn: sqlite3.Connection, watchlist_items: List[Dict[str, Any]]):
+    def _populate_watchlist(
+        self, conn: sqlite3.Connection, watchlist_items: List[Dict[str, Any]]
+    ):
         """Populate watchlist table with demo data."""
         cursor = conn.cursor()
 
         for item in watchlist_items:
             # Separate public and sensitive data
-            symbol = item['symbol']
-            added_date = int(item['added_date'].timestamp())
-            last_price_update = int(item['last_price_update'].timestamp()) if item.get('last_price_update') else None
-            is_demo = item.get('is_demo', True)
+            symbol = item["symbol"]
+            added_date = int(item["added_date"].timestamp())
+            last_price_update = (
+                int(item["last_price_update"].timestamp())
+                if item.get("last_price_update")
+                else None
+            )
+            is_demo = item.get("is_demo", True)
 
             # Encrypt sensitive data (notes, price data)
-            sensitive_data = {k: v for k, v in item.items()
-                             if k not in ['id', 'symbol', 'added_date', 'last_price_update', 'is_demo']}
+            sensitive_data = {
+                k: v
+                for k, v in item.items()
+                if k
+                not in ["id", "symbol", "added_date", "last_price_update", "is_demo"]
+            }
 
-            encrypted_data = self.encryption_service.encrypt(json.dumps(sensitive_data, default=str))
+            encrypted_data = self.encryption_service.encrypt(
+                json.dumps(sensitive_data, default=str)
+            )
 
-            cursor.execute('''
+            cursor.execute(
+                """
                 INSERT INTO watchlist (id, symbol, encrypted_data, added_date, last_price_update, is_demo)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
-                item['id'],
-                symbol,
-                encrypted_data,
-                added_date,
-                last_price_update,
-                is_demo
-            ))
+            """,
+                (
+                    item["id"],
+                    symbol,
+                    encrypted_data,
+                    added_date,
+                    last_price_update,
+                    is_demo,
+                ),
+            )
 
     def _set_demo_settings(self, conn: sqlite3.Connection):
         """Set demo-specific application settings."""
         cursor = conn.cursor()
 
         # Set schema version
-        schema_version_encrypted = self.encryption_service.encrypt(str(self.SCHEMA_VERSION))
-        cursor.execute('''
+        schema_version_encrypted = self.encryption_service.encrypt(
+            str(self.SCHEMA_VERSION)
+        )
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO app_settings (key, encrypted_value)
             VALUES (?, ?)
-        ''', ('schema_version', schema_version_encrypted))
+        """,
+            ("schema_version", schema_version_encrypted),
+        )
 
         # Set demo database marker
-        demo_marker_encrypted = self.encryption_service.encrypt('true')
-        cursor.execute('''
+        demo_marker_encrypted = self.encryption_service.encrypt("true")
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO app_settings (key, encrypted_value)
             VALUES (?, ?)
-        ''', ('is_demo_database', demo_marker_encrypted))
+        """,
+            ("is_demo_database", demo_marker_encrypted),
+        )
 
     def _print_database_summary(self):
         """Print summary of created demo database."""
@@ -730,24 +869,24 @@ class DemoDatabaseCreator:
             cursor = conn.cursor()
 
             # Count accounts by type
-            cursor.execute('''
+            cursor.execute("""
                 SELECT type, COUNT(*) as count
                 FROM accounts
                 WHERE is_demo = 1
                 GROUP BY type
-            ''')
+            """)
 
             print("Account types:")
             for row in cursor.fetchall():
                 print(f"  {row[0]}: {row[1]} accounts")
 
             # Count historical snapshots
-            cursor.execute('SELECT COUNT(*) FROM historical_snapshots')
+            cursor.execute("SELECT COUNT(*) FROM historical_snapshots")
             snapshot_count = cursor.fetchone()[0]
             print(f"Historical snapshots: {snapshot_count}")
 
             # Count stock positions
-            cursor.execute('SELECT COUNT(*) FROM stock_positions')
+            cursor.execute("SELECT COUNT(*) FROM stock_positions")
             position_count = cursor.fetchone()[0]
             print(f"Stock positions: {position_count}")
 

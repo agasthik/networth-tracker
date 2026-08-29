@@ -14,6 +14,7 @@ import uuid
 @dataclass
 class WatchlistItem:
     """Individual stock item in the watchlist."""
+
     id: str
     symbol: str
     notes: Optional[str] = None
@@ -34,10 +35,12 @@ class WatchlistItem:
         self.symbol = self.symbol.upper().strip()
 
         # Validate symbol format (basic check for common patterns)
-        if not self.symbol.replace('.', '').replace('-', '').isalnum():
+        if not self.symbol.replace(".", "").replace("-", "").isalnum():
             raise ValueError("Stock symbol contains invalid characters")
 
-        if len(self.symbol) > 10:  # Most stock symbols are 1-5 characters, some can be longer
+        if (
+            len(self.symbol) > 10
+        ):  # Most stock symbols are 1-5 characters, some can be longer
             raise ValueError("Stock symbol is too long")
 
         if self.added_date is None:
@@ -48,7 +51,10 @@ class WatchlistItem:
         if self.current_price is not None and self.current_price < 0:
             raise ValueError("Current price cannot be negative")
 
-        if self.last_price_update is not None and self.last_price_update > datetime.now():
+        if (
+            self.last_price_update is not None
+            and self.last_price_update > datetime.now()
+        ):
             raise ValueError("Last price update cannot be in the future")
 
         # Validate daily change values are consistent
@@ -66,33 +72,36 @@ class WatchlistItem:
         data = asdict(self)
         # Convert datetime objects to ISO format strings
         if self.added_date:
-            data['added_date'] = self.added_date.isoformat()
+            data["added_date"] = self.added_date.isoformat()
         if self.last_price_update:
-            data['last_price_update'] = self.last_price_update.isoformat()
+            data["last_price_update"] = self.last_price_update.isoformat()
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'WatchlistItem':
+    def from_dict(cls, data: Dict[str, Any]) -> "WatchlistItem":
         """Create watchlist item instance from dictionary."""
         # Convert ISO format strings back to datetime objects
-        if data.get('added_date'):
-            data['added_date'] = datetime.fromisoformat(data['added_date'])
-        if data.get('last_price_update'):
-            data['last_price_update'] = datetime.fromisoformat(data['last_price_update'])
+        if data.get("added_date"):
+            data["added_date"] = datetime.fromisoformat(data["added_date"])
+        if data.get("last_price_update"):
+            data["last_price_update"] = datetime.fromisoformat(
+                data["last_price_update"]
+            )
         return cls(**data)
 
     @classmethod
-    def create_new(cls, symbol: str, notes: Optional[str] = None) -> 'WatchlistItem':
+    def create_new(cls, symbol: str, notes: Optional[str] = None) -> "WatchlistItem":
         """Create a new watchlist item with generated ID and current timestamp."""
         return cls(
-            id=str(uuid.uuid4()),
-            symbol=symbol,
-            notes=notes,
-            added_date=datetime.now()
+            id=str(uuid.uuid4()), symbol=symbol, notes=notes, added_date=datetime.now()
         )
 
-    def update_price(self, current_price: float, daily_change: Optional[float] = None,
-                    daily_change_percent: Optional[float] = None) -> None:
+    def update_price(
+        self,
+        current_price: float,
+        daily_change: Optional[float] = None,
+        daily_change_percent: Optional[float] = None,
+    ) -> None:
         """Update price information for the watchlist item."""
         if current_price < 0:
             raise ValueError("Current price cannot be negative")

@@ -232,8 +232,11 @@
                     // Auto-update prices if they're stale (older than 1 hour) or missing
                     checkAndUpdateStalePrices();
                 } else {
-                    console.error('Failed to load watchlist:', data.error);
-                    showAlert('Failed to load watchlist: ' + data.error, 'danger');
+                    console.error('Failed to load watchlist:', data.message);
+                    showAlert(
+                        'Failed to load watchlist: ' + (data.message || 'Unknown error'),
+                        'danger'
+                    );
                 }
             })
             .catch(error => {
@@ -286,7 +289,7 @@
                                 });
                         }, 1000);
                     } else {
-                        console.error('Failed to update prices:', data.error);
+                        console.error('Failed to update prices:', data.message);
                     }
                 })
                 .catch(error => {
@@ -515,11 +518,12 @@
                     showAlert(`${symbol} added to watchlist successfully!`, 'success');
                     loadWatchlist(); // Reload the watchlist
                 } else {
-                    if (data.error.includes('Invalid stock symbol')) {
+                    const errorMessage = data.message || 'Unknown error';
+                    if (errorMessage.includes('Invalid stock symbol')) {
                         document.getElementById('stockSymbol').classList.add('is-invalid');
                         document.getElementById('symbolValidation').textContent = 'Invalid stock symbol';
                     } else {
-                        showAlert('Failed to add stock: ' + data.error, 'danger');
+                        showAlert('Failed to add stock: ' + errorMessage, 'danger');
                     }
                 }
             })
@@ -553,7 +557,10 @@
                     showAlert(`${stockToRemove} removed from watchlist`, 'success');
                     loadWatchlist(); // Reload the watchlist
                 } else {
-                    showAlert('Failed to remove stock: ' + data.error, 'danger');
+                    showAlert(
+                        'Failed to remove stock: ' + (data.message || 'Unknown error'),
+                        'danger'
+                    );
                 }
             })
             .catch(error => {
@@ -615,7 +622,7 @@
                         showAlert(message, failed > 0 ? 'warning' : 'success');
                         loadWatchlist(); // Reload to show updated prices
                     } else {
-                        showAlert('Failed to update prices: ' + (data.error || 'Unknown error'), 'danger');
+                        showAlert('Failed to update prices: ' + (data.message || 'Unknown error'), 'danger');
                     }
                 }, 500);
             })
@@ -648,7 +655,10 @@
                     showAlert(`${symbol} price updated`, 'success');
                     loadWatchlist(); // Reload to show updated price
                 } else {
-                    showAlert('Failed to update price: ' + data.error, 'danger');
+                    showAlert(
+                        'Failed to update price: ' + (data.message || 'Unknown error'),
+                        'danger'
+                    );
                 }
             })
             .catch(error => {
@@ -675,10 +685,15 @@
     function showAlert(message, type, timeout = 5000) {
         const alertDiv = document.createElement('div');
         alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
+        const messageSpan = document.createElement('span');
+        messageSpan.textContent = message;
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'btn-close';
+        closeButton.setAttribute('data-bs-dismiss', 'alert');
+        closeButton.setAttribute('aria-label', 'Close');
+        alertDiv.appendChild(messageSpan);
+        alertDiv.appendChild(closeButton);
 
         const container = document.querySelector('.container');
         container.insertBefore(alertDiv, container.firstChild);

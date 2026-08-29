@@ -126,9 +126,9 @@ install -m 600 "$DATABASE_PATH" "/secure/backup/pre-update.db"
 ./venv/bin/python scripts/start.py --env production
 ```
 
-Database migrations run on connection. Inspect logs after startup. If a
-migration fails, stop the application and restore the pre-update full database
-before further writes.
+Database migrations run on connection and startup fails closed when a migration
+does not complete. Inspect logs, repair the migration issue or restore the
+pre-update full database, and do not bypass the failure to continue writing.
 
 ## Portable Copies
 
@@ -146,7 +146,7 @@ database preserves its salt and encrypted records.
 - Daemon mode has unreliable PID and relative-path behavior.
 - Configuration validation does not test database access or schema integrity.
 - No automatic database-backup retention is implemented.
-- No application-level CSRF token, login throttling, or upload-size limit is
-  implemented.
+- Login throttling is process-local rather than shared across processes.
+- Concurrent authenticated sessions are not restricted.
 - SQLite performance pragmas and application caches shown in older versions of
   this guide are not configured by the current code.

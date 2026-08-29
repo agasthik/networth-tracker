@@ -23,9 +23,7 @@ built-in server into a production WSGI server.
 Development mode currently conflicts with startup PID handling when Flask's
 reloader starts a child process. Use production mode for normal local use.
 
-`AuthenticationManager` separately enforces a hard-coded two-hour inactivity
-timeout in every environment. The eight-hour development and 30-minute testing
-cookie lifetimes therefore do not describe the effective authentication
+`AuthenticationManager` uses the configured cookie lifetime as its inactivity
 timeout.
 
 ## Supported Environment Variables
@@ -45,6 +43,10 @@ timeout.
 | `LOG_BACKUP_COUNT` | `5` | Loaded but not passed to the application logger |
 | `BACKUP_DIR` | `backups` | Directory whose files receive backup permissions |
 | `MAX_BACKUP_FILES` | `10` | Defined but not currently used for cleanup |
+| `MAX_CONTENT_LENGTH` | `16777216` | Maximum total HTTP request size in bytes |
+| `MAX_BACKUP_SIZE` | `10485760` | Maximum encrypted `.nwb` upload size in bytes |
+| `LOGIN_MAX_ATTEMPTS` | `5` | Failed login attempts allowed per client address |
+| `LOGIN_ATTEMPT_WINDOW` | `300` | Rolling login-attempt window in seconds |
 
 `STOCK_API_RATE_LIMIT` and `STOCK_API_TIMEOUT` are present in `config.py`, but
 current `StockPriceService` construction does not consume them. The effective

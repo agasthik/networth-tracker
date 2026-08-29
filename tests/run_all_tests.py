@@ -5,7 +5,6 @@ Comprehensive test runner for the Networth Tracker application.
 This script runs all test suites and generates coverage reports.
 """
 
-import os
 import sys
 import subprocess
 import unittest
@@ -23,21 +22,21 @@ def run_unit_tests():
     print("=" * 60)
 
     unit_test_files = [
-        'test_accounts.py',
-        'test_database.py',
-        'test_encryption.py',
-        'test_stock_prices.py',
-        'test_historical.py',
-        'test_export_import.py',
-        'test_migration.py',
-        'test_auth.py'
+        "test_accounts.py",
+        "test_database.py",
+        "test_encryption.py",
+        "test_stock_prices.py",
+        "test_historical.py",
+        "test_export_import.py",
+        "test_migration.py",
+        "test_auth.py",
     ]
 
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
 
     for test_file in unit_test_files:
-        test_path = f'tests.{test_file[:-3]}'  # Remove .py extension
+        test_path = f"tests.{test_file[:-3]}"  # Remove .py extension
         try:
             module_suite = loader.loadTestsFromName(test_path)
             suite.addTest(module_suite)
@@ -57,16 +56,13 @@ def run_integration_tests():
     print("RUNNING INTEGRATION TESTS")
     print("=" * 60)
 
-    integration_test_files = [
-        'test_integration.py',
-        'test_end_to_end.py'
-    ]
+    integration_test_files = ["test_integration.py", "test_end_to_end.py"]
 
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
 
     for test_file in integration_test_files:
-        test_path = f'tests.{test_file[:-3]}'
+        test_path = f"tests.{test_file[:-3]}"
         try:
             module_suite = loader.loadTestsFromName(test_path)
             suite.addTest(module_suite)
@@ -87,7 +83,7 @@ def run_security_tests():
     print("=" * 60)
 
     loader = unittest.TestLoader()
-    suite = loader.loadTestsFromName('tests.test_security')
+    suite = loader.loadTestsFromName("tests.test_security")
 
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
@@ -102,17 +98,17 @@ def run_flask_tests():
     print("=" * 60)
 
     flask_test_files = [
-        'test_flask_routes.py',
-        'test_account_api.py',
-        'test_stock_position_api.py',
-        'test_export_import_routes.py'
+        "test_flask_routes.py",
+        "test_account_api.py",
+        "test_stock_position_api.py",
+        "test_export_import_routes.py",
     ]
 
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
 
     for test_file in flask_test_files:
-        test_path = f'tests.{test_file[:-3]}'
+        test_path = f"tests.{test_file[:-3]}"
         try:
             module_suite = loader.loadTestsFromName(test_path)
             suite.addTest(module_suite)
@@ -138,13 +134,15 @@ def run_coverage_report():
     try:
         # Run pytest with coverage
         cmd = [
-            sys.executable, '-m', 'pytest',
-            'tests/',
-            '--cov=services',
-            '--cov=models',
-            '--cov-report=term-missing',
-            '--cov-report=html:htmlcov',
-            '-v'
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/",
+            "--cov=services",
+            "--cov=models",
+            "--cov-report=term-missing",
+            "--cov-report=html:htmlcov",
+            "-v",
         ]
 
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -165,15 +163,15 @@ def run_coverage_report():
 
 def run_specific_test_category(category):
     """Run specific category of tests."""
-    if category == 'unit':
+    if category == "unit":
         return run_unit_tests()
-    elif category == 'integration':
+    elif category == "integration":
         return run_integration_tests()
-    elif category == 'security':
+    elif category == "security":
         return run_security_tests()
-    elif category == 'flask':
+    elif category == "flask":
         return run_flask_tests()
-    elif category == 'coverage':
+    elif category == "coverage":
         return run_coverage_report()
     else:
         print(f"Unknown test category: {category}")
@@ -195,19 +193,19 @@ def main():
     results = []
 
     # 1. Unit Tests
-    results.append(('Unit Tests', run_unit_tests()))
+    results.append(("Unit Tests", run_unit_tests()))
 
     # 2. Integration Tests
-    results.append(('Integration Tests', run_integration_tests()))
+    results.append(("Integration Tests", run_integration_tests()))
 
     # 3. Security Tests
-    results.append(('Security Tests', run_security_tests()))
+    results.append(("Security Tests", run_security_tests()))
 
     # 4. Flask Tests (may fail due to config issues)
-    results.append(('Flask Tests', run_flask_tests()))
+    results.append(("Flask Tests", run_flask_tests()))
 
     # 5. Coverage Report
-    results.append(('Coverage Report', run_coverage_report()))
+    results.append(("Coverage Report", run_coverage_report()))
 
     # Print summary
     print("\n" + "=" * 60)
@@ -234,5 +232,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -17,12 +17,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from services.encryption import EncryptionService
-from services.export_import import ExportImportService
 
 
-def create_demo_backup(demo_db_path: str = "networth_demo.db",
-                      backup_path: str = "demo_backup.enc",
-                      demo_password: str = "demo123"):
+def create_demo_backup(
+    demo_db_path: str = "networth_demo.db",
+    backup_path: str = "demo_backup.enc",
+    demo_password: str = "demo123",
+):
     """
     Create encrypted backup file from demo database.
 
@@ -41,7 +42,7 @@ def create_demo_backup(demo_db_path: str = "networth_demo.db",
 
         # Initialize encryption service with demo password
         encryption_service = EncryptionService()
-        demo_salt = b'demo_salt_123456'  # Same salt used in demo generation
+        demo_salt = b"demo_salt_123456"  # Same salt used in demo generation
         encryption_service.derive_key(demo_password, demo_salt)
 
         # Connect to demo database
@@ -50,31 +51,35 @@ def create_demo_backup(demo_db_path: str = "networth_demo.db",
 
         # Read accounts data
         cursor = conn.cursor()
-        cursor.execute('''
+        cursor.execute("""
             SELECT id, name, institution, type, encrypted_data,
                    created_date, last_updated, is_demo
             FROM accounts
             WHERE is_demo = 1
-        ''')
+        """)
 
         accounts_data = []
         for row in cursor.fetchall():
             # Decrypt account data
             try:
-                decrypted_data = encryption_service.decrypt(row['encrypted_data'])
+                decrypted_data = encryption_service.decrypt(row["encrypted_data"])
                 account_dict = json.loads(decrypted_data)
 
                 # Add public fields
-                account_dict['id'] = row['id']
-                account_dict['name'] = row['name']
-                account_dict['institution'] = row['institution']
-                account_dict['type'] = row['type']
-                account_dict['account_type'] = row['type']  # For compatibility
-                account_dict['created_date'] = datetime.fromtimestamp(row['created_date']).isoformat()
-                account_dict['last_updated'] = datetime.fromtimestamp(row['last_updated']).isoformat()
+                account_dict["id"] = row["id"]
+                account_dict["name"] = row["name"]
+                account_dict["institution"] = row["institution"]
+                account_dict["type"] = row["type"]
+                account_dict["account_type"] = row["type"]  # For compatibility
+                account_dict["created_date"] = datetime.fromtimestamp(
+                    row["created_date"]
+                ).isoformat()
+                account_dict["last_updated"] = datetime.fromtimestamp(
+                    row["last_updated"]
+                ).isoformat()
 
                 # Mark as demo account for UI purposes (not part of account model)
-                account_dict['is_demo'] = True
+                account_dict["is_demo"] = True
 
                 accounts_data.append(account_dict)
 
@@ -85,76 +90,88 @@ def create_demo_backup(demo_db_path: str = "networth_demo.db",
         print(f"Found {len(accounts_data)} demo accounts")
 
         # Read stock positions
-        cursor.execute('''
+        cursor.execute("""
             SELECT sp.*, a.id as account_id
             FROM stock_positions sp
             JOIN accounts a ON sp.trading_account_id = a.id
             WHERE a.is_demo = 1
-        ''')
+        """)
 
         stock_positions = {}
         for row in cursor.fetchall():
-            account_id = row['account_id']
+            account_id = row["account_id"]
             if account_id not in stock_positions:
                 stock_positions[account_id] = []
 
             position_data = {
-                'id': row['id'],
-                'symbol': row['symbol'],
-                'shares': row['shares'],
-                'purchase_price': row['purchase_price'],
-                'purchase_date': datetime.fromtimestamp(row['purchase_date']).isoformat() if row['purchase_date'] else None,
-                'current_price': row['current_price'],
-                'last_price_update': datetime.fromtimestamp(row['last_price_update']).isoformat() if row['last_price_update'] else None
+                "id": row["id"],
+                "symbol": row["symbol"],
+                "shares": row["shares"],
+                "purchase_price": row["purchase_price"],
+                "purchase_date": datetime.fromtimestamp(
+                    row["purchase_date"]
+                ).isoformat()
+                if row["purchase_date"]
+                else None,
+                "current_price": row["current_price"],
+                "last_price_update": datetime.fromtimestamp(
+                    row["last_price_update"]
+                ).isoformat()
+                if row["last_price_update"]
+                else None,
             }
             stock_positions[account_id].append(position_data)
 
         print(f"Found stock positions for {len(stock_positions)} trading accounts")
 
         # Read historical snapshots
-        cursor.execute('''
+        cursor.execute("""
             SELECT hs.*, a.id as account_id
             FROM historical_snapshots hs
             JOIN accounts a ON hs.account_id = a.id
             WHERE a.is_demo = 1
-        ''')
+        """)
 
         historical_snapshots = {}
         for row in cursor.fetchall():
-            account_id = row['account_id']
+            account_id = row["account_id"]
             if account_id not in historical_snapshots:
                 historical_snapshots[account_id] = []
 
             # Decrypt metadata if present
             metadata = None
-            if row['encrypted_metadata']:
+            if row["encrypted_metadata"]:
                 try:
-                    decrypted_metadata = encryption_service.decrypt(row['encrypted_metadata'])
+                    decrypted_metadata = encryption_service.decrypt(
+                        row["encrypted_metadata"]
+                    )
                     metadata = json.loads(decrypted_metadata)
                 except Exception:
                     metadata = None
 
             snapshot_data = {
-                'id': row['id'],
-                'account_id': account_id,
-                'timestamp': datetime.fromtimestamp(row['timestamp']).isoformat(),
-                'value': row['value'],
-                'change_type': row['change_type'],
-                'metadata': metadata
+                "id": row["id"],
+                "account_id": account_id,
+                "timestamp": datetime.fromtimestamp(row["timestamp"]).isoformat(),
+                "value": row["value"],
+                "change_type": row["change_type"],
+                "metadata": metadata,
             }
             historical_snapshots[account_id].append(snapshot_data)
 
-        total_snapshots = sum(len(snapshots) for snapshots in historical_snapshots.values())
+        total_snapshots = sum(
+            len(snapshots) for snapshots in historical_snapshots.values()
+        )
         print(f"Found {total_snapshots} historical snapshots")
 
         # Read app settings
-        cursor.execute('SELECT key, encrypted_value FROM app_settings')
+        cursor.execute("SELECT key, encrypted_value FROM app_settings")
         app_settings = {}
         for row in cursor.fetchall():
-            if row['encrypted_value']:
+            if row["encrypted_value"]:
                 try:
-                    decrypted_value = encryption_service.decrypt(row['encrypted_value'])
-                    app_settings[row['key']] = decrypted_value
+                    decrypted_value = encryption_service.decrypt(row["encrypted_value"])
+                    app_settings[row["key"]] = decrypted_value
                 except Exception:
                     continue
 
@@ -162,20 +179,20 @@ def create_demo_backup(demo_db_path: str = "networth_demo.db",
 
         # Create backup data structure
         backup_data = {
-            'backup_metadata': {
-                'backup_id': 'demo-backup-001',
-                'export_timestamp': datetime.now().isoformat(),
-                'backup_version': '1.0',
-                'format_version': 1,
-                'include_historical': True,
-                'accounts_count': len(accounts_data),
-                'historical_accounts_count': len(historical_snapshots),
-                'source': 'demo_database'
+            "backup_metadata": {
+                "backup_id": "demo-backup-001",
+                "export_timestamp": datetime.now().isoformat(),
+                "backup_version": "1.0",
+                "format_version": 1,
+                "include_historical": True,
+                "accounts_count": len(accounts_data),
+                "historical_accounts_count": len(historical_snapshots),
+                "source": "demo_database",
             },
-            'accounts': accounts_data,
-            'stock_positions': stock_positions,
-            'historical_snapshots': historical_snapshots,
-            'app_settings': app_settings
+            "accounts": accounts_data,
+            "stock_positions": stock_positions,
+            "historical_snapshots": historical_snapshots,
+            "app_settings": app_settings,
         }
 
         # Create encrypted backup
@@ -183,17 +200,19 @@ def create_demo_backup(demo_db_path: str = "networth_demo.db",
         encrypted_backup = encryption_service.encrypt(json_data)
 
         # Write backup file
-        with open(backup_path, 'wb') as f:
+        with open(backup_path, "wb") as f:
             f.write(encrypted_backup)
 
         print(f"Encrypted backup created successfully: {backup_path}")
-        print(f"Backup contains:")
+        print("Backup contains:")
         print(f"  - {len(accounts_data)} accounts")
-        print(f"  - {sum(len(positions) for positions in stock_positions.values())} stock positions")
+        print(
+            f"  - {sum(len(positions) for positions in stock_positions.values())} stock positions"
+        )
         print(f"  - {total_snapshots} historical snapshots")
         print(f"  - {len(app_settings)} app settings")
-        print(f"\nTo import this backup:")
-        print(f"1. Use the import functionality in the application")
+        print("\nTo import this backup:")
+        print("1. Use the import functionality in the application")
         print(f"2. Select the file: {backup_path}")
         print(f"3. Use password: {demo_password}")
 
@@ -202,6 +221,7 @@ def create_demo_backup(demo_db_path: str = "networth_demo.db",
     except Exception as e:
         print(f"Error creating demo backup: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

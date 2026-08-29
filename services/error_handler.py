@@ -4,7 +4,6 @@ Provides custom exception classes, structured error responses, and logging confi
 """
 
 import logging
-import traceback
 import os
 from enum import Enum
 from dataclasses import dataclass
@@ -15,6 +14,7 @@ from datetime import datetime
 
 class ErrorType(Enum):
     """Categories of application errors."""
+
     AUTHENTICATION = "AUTHENTICATION"
     DATABASE = "DATABASE"
     NETWORK = "NETWORK"
@@ -28,6 +28,7 @@ class ErrorType(Enum):
 
 class ErrorSeverity(Enum):
     """Error severity levels."""
+
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
@@ -37,6 +38,7 @@ class ErrorSeverity(Enum):
 @dataclass
 class ErrorContext:
     """Additional context information for errors."""
+
     user_id: Optional[str] = None
     account_id: Optional[str] = None
     operation: Optional[str] = None
@@ -58,7 +60,7 @@ class AppError(Exception):
         user_action: Optional[str] = None,
         technical_details: Optional[str] = None,
         context: Optional[ErrorContext] = None,
-        original_exception: Optional[Exception] = None
+        original_exception: Optional[Exception] = None,
     ):
         """
         Initialize application error.
@@ -89,30 +91,34 @@ class AppError(Exception):
     def to_dict(self) -> Dict[str, Any]:
         """Convert error to dictionary for JSON responses."""
         error_dict = {
-            'error': True,
-            'type': self.error_type.value,
-            'message': self.message,
-            'code': self.code,
-            'severity': self.severity.value,
-            'recoverable': self.recoverable,
-            'timestamp': self.timestamp.isoformat()
+            "error": True,
+            "type": self.error_type.value,
+            "message": self.message,
+            "code": self.code,
+            "severity": self.severity.value,
+            "recoverable": self.recoverable,
+            "timestamp": self.timestamp.isoformat(),
         }
 
         if self.user_action:
-            error_dict['user_action'] = self.user_action
+            error_dict["user_action"] = self.user_action
 
         # Only include technical details if in debug mode and Flask context is available
         try:
             from flask import current_app
+
             if self.technical_details and current_app.debug:
-                error_dict['technical_details'] = self.technical_details
+                error_dict["technical_details"] = self.technical_details
         except RuntimeError:
             # Flask context not available, include technical details in non-production environments
-            if self.technical_details and os.environ.get('FLASK_DEBUG', 'False').lower() == 'true':
-                error_dict['technical_details'] = self.technical_details
+            if (
+                self.technical_details
+                and os.environ.get("FLASK_DEBUG", "False").lower() == "true"
+            ):
+                error_dict["technical_details"] = self.technical_details
 
         if self.context and self.context.additional_data:
-            error_dict['context'] = self.context.additional_data
+            error_dict["context"] = self.context.additional_data
 
         return error_dict
 
@@ -127,7 +133,7 @@ class AuthenticationError(AppError):
             message,
             code,
             severity=ErrorSeverity.HIGH,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -139,7 +145,7 @@ class InvalidPasswordError(AuthenticationError):
             message="Invalid password provided",
             code="AUTH_002",
             user_action="Please check your password and try again",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -151,7 +157,7 @@ class SessionExpiredError(AuthenticationError):
             message="Your session has expired",
             code="AUTH_003",
             user_action="Please log in again to continue",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -163,7 +169,7 @@ class SetupRequiredError(AuthenticationError):
             message="Initial setup is required",
             code="AUTH_004",
             user_action="Please complete the initial setup to continue",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -178,7 +184,7 @@ class DatabaseError(AppError):
             code,
             severity=ErrorSeverity.HIGH,
             recoverable=False,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -190,7 +196,7 @@ class DatabaseConnectionError(DatabaseError):
             message="Unable to connect to database",
             code="DB_002",
             user_action="Please check if the application has proper file permissions",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -203,7 +209,7 @@ class DatabaseCorruptionError(DatabaseError):
             code="DB_003",
             severity=ErrorSeverity.CRITICAL,
             user_action="Please restore from a backup or contact support",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -221,23 +227,34 @@ class RecordNotFoundError(DatabaseError):
             severity=ErrorSeverity.MEDIUM,
             recoverable=True,
             user_action="Please verify the resource exists and try again",
-            **kwargs
+            **kwargs,
         )
 
 
 class DatabaseMigrationError(DatabaseError):
     """Database migration error."""
 
-    def __init__(self, message: str = "Database migration failed", code: str = "DB_005", **kwargs):
-        kwargs.setdefault('user_action', "Please restore from backup or contact support")
+    def __init__(
+        self, message: str = "Database migration failed", code: str = "DB_005", **kwargs
+    ):
+        kwargs.setdefault(
+            "user_action", "Please restore from backup or contact support"
+        )
         super().__init__(message=message, code=code, **kwargs)
 
 
 class DataIntegrityError(DatabaseError):
     """Data integrity error."""
 
-    def __init__(self, message: str = "Data integrity check failed", code: str = "DB_006", **kwargs):
-        kwargs.setdefault('user_action', "Please restore from backup or contact support")
+    def __init__(
+        self,
+        message: str = "Data integrity check failed",
+        code: str = "DB_006",
+        **kwargs,
+    ):
+        kwargs.setdefault(
+            "user_action", "Please restore from backup or contact support"
+        )
         super().__init__(message=message, code=code, **kwargs)
 
 
@@ -247,11 +264,7 @@ class ValidationError(AppError):
 
     def __init__(self, message: str, code: str = "VAL_001", **kwargs):
         super().__init__(
-            ErrorType.VALIDATION,
-            message,
-            code,
-            severity=ErrorSeverity.MEDIUM,
-            **kwargs
+            ErrorType.VALIDATION, message, code, severity=ErrorSeverity.MEDIUM, **kwargs
         )
 
 
@@ -269,7 +282,7 @@ class MissingFieldError(ValidationError):
             message=message,
             code="VAL_002",
             user_action="Please provide all required fields",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -287,7 +300,7 @@ class InvalidValueError(ValidationError):
             message=message,
             code="VAL_003",
             user_action=f"Please provide a valid value for {field}",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -299,7 +312,7 @@ class InvalidDateError(ValidationError):
             message=f"Invalid date format for field '{field}'",
             code="VAL_004",
             user_action="Please use YYYY-MM-DD format for dates",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -314,7 +327,7 @@ class EncryptionError(AppError):
             code,
             severity=ErrorSeverity.HIGH,
             recoverable=False,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -326,7 +339,7 @@ class DecryptionError(EncryptionError):
             message="Failed to decrypt data",
             code="ENC_002",
             user_action="Please verify your password is correct",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -338,7 +351,7 @@ class KeyDerivationError(EncryptionError):
             message="Failed to derive encryption key",
             code="ENC_003",
             user_action="Please try logging in again",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -348,11 +361,7 @@ class NetworkError(AppError):
 
     def __init__(self, message: str, code: str = "NET_001", **kwargs):
         super().__init__(
-            ErrorType.NETWORK,
-            message,
-            code,
-            severity=ErrorSeverity.MEDIUM,
-            **kwargs
+            ErrorType.NETWORK, message, code, severity=ErrorSeverity.MEDIUM, **kwargs
         )
 
 
@@ -361,11 +370,7 @@ class StockAPIError(AppError):
 
     def __init__(self, message: str, code: str = "STOCK_001", **kwargs):
         super().__init__(
-            ErrorType.STOCK_API,
-            message,
-            code,
-            severity=ErrorSeverity.LOW,
-            **kwargs
+            ErrorType.STOCK_API, message, code, severity=ErrorSeverity.LOW, **kwargs
         )
 
 
@@ -377,7 +382,7 @@ class StockAPIRateLimitError(StockAPIError):
             message="Stock price API rate limit exceeded",
             code="STOCK_002",
             user_action="Please wait a moment before updating stock prices again",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -389,7 +394,7 @@ class StockNotFoundError(StockAPIError):
             message=f"Stock symbol '{symbol}' not found",
             code="STOCK_003",
             user_action="Please verify the stock symbol is correct",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -401,7 +406,7 @@ class StockPriceUnavailableError(StockAPIError):
             message=f"Stock price for '{symbol}' is temporarily unavailable",
             code="STOCK_004",
             user_action="Please try again later or check if the market is open",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -417,7 +422,7 @@ class StockValidationError(StockAPIError):
             message=message,
             code="STOCK_005",
             user_action="Please provide a valid stock ticker symbol",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -431,7 +436,7 @@ class WatchlistError(AppError):
             message,
             code,
             severity=ErrorSeverity.MEDIUM,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -443,7 +448,7 @@ class WatchlistDuplicateError(WatchlistError):
             message=f"Stock '{symbol}' is already in your watchlist",
             code="WATCH_002",
             user_action="Stock is already being tracked in your watchlist",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -455,7 +460,7 @@ class WatchlistNotFoundError(WatchlistError):
             message=f"Stock '{symbol}' not found in watchlist",
             code="WATCH_003",
             user_action="Please verify the stock symbol exists in your watchlist",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -467,7 +472,7 @@ class WatchlistLimitExceededError(WatchlistError):
             message=f"Watchlist limit of {limit} stocks exceeded",
             code="WATCH_004",
             user_action="Please remove some stocks before adding new ones",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -486,7 +491,7 @@ class WatchlistPriceUpdateError(WatchlistError):
             code="WATCH_005",
             user_action="Some stock prices could not be updated. Please try again later",
             severity=ErrorSeverity.LOW,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -496,11 +501,7 @@ class HSAError(AppError):
 
     def __init__(self, message: str, code: str = "HSA_001", **kwargs):
         super().__init__(
-            ErrorType.VALIDATION,
-            message,
-            code,
-            severity=ErrorSeverity.MEDIUM,
-            **kwargs
+            ErrorType.VALIDATION, message, code, severity=ErrorSeverity.MEDIUM, **kwargs
         )
 
 
@@ -512,7 +513,7 @@ class HSAContributionLimitError(HSAError):
             message=f"Contribution of ${attempted_amount:.2f} exceeds remaining capacity of ${remaining_capacity:.2f}",
             code="HSA_002",
             user_action=f"Maximum additional contribution allowed is ${remaining_capacity:.2f}",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -524,19 +525,25 @@ class HSABalanceValidationError(HSAError):
             message=f"Invalid {field}: ${value:.2f}. HSA balances cannot be negative",
             code="HSA_003",
             user_action=f"Please enter a valid positive amount for {field}",
-            **kwargs
+            **kwargs,
         )
 
 
 class HSABalanceMismatchError(HSAError):
     """HSA balance components don't match total error."""
 
-    def __init__(self, total_balance: float, cash_balance: float, investment_balance: float, **kwargs):
+    def __init__(
+        self,
+        total_balance: float,
+        cash_balance: float,
+        investment_balance: float,
+        **kwargs,
+    ):
         super().__init__(
             message=f"Balance mismatch: Total (${total_balance:.2f}) ≠ Cash (${cash_balance:.2f}) + Investment (${investment_balance:.2f})",
             code="HSA_004",
             user_action="Please ensure cash balance plus investment balance equals total balance",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -548,7 +555,7 @@ class HSAContributionValidationError(HSAError):
             message=f"Current year contributions (${current_contributions:.2f}) exceed annual limit (${annual_limit:.2f})",
             code="HSA_005",
             user_action="Please verify your contribution amounts and annual limit",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -562,7 +569,7 @@ class ExportImportError(AppError):
             message,
             code,
             severity=ErrorSeverity.MEDIUM,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -574,7 +581,7 @@ class InvalidBackupFileError(ExportImportError):
             message="Invalid or corrupted backup file",
             code="EXP_002",
             user_action="Please select a valid backup file",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -584,11 +591,7 @@ class DemoModeError(AppError):
 
     def __init__(self, message: str, code: str = "DEMO_001", **kwargs):
         super().__init__(
-            ErrorType.DEMO_MODE,
-            message,
-            code,
-            severity=ErrorSeverity.LOW,
-            **kwargs
+            ErrorType.DEMO_MODE, message, code, severity=ErrorSeverity.LOW, **kwargs
         )
 
 
@@ -603,7 +606,7 @@ class SystemError(AppError):
             code,
             severity=ErrorSeverity.HIGH,
             recoverable=False,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -615,7 +618,7 @@ class FilePermissionError(SystemError):
             message=f"Insufficient permissions to access file: {file_path}",
             code="SYS_002",
             user_action="Please check file permissions and try again",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -627,7 +630,7 @@ class DiskSpaceError(SystemError):
             message="Insufficient disk space",
             code="SYS_003",
             user_action="Please free up disk space and try again",
-            **kwargs
+            **kwargs,
         )
 
 
@@ -643,7 +646,9 @@ class ErrorHandler:
         """
         self.logger = logger or logging.getLogger(__name__)
 
-    def handle_error(self, error: Union[AppError, Exception], context: Optional[ErrorContext] = None) -> Dict[str, Any]:
+    def handle_error(
+        self, error: Union[AppError, Exception], context: Optional[ErrorContext] = None
+    ) -> Dict[str, Any]:
         """
         Handle application errors and return structured response.
 
@@ -665,7 +670,7 @@ class ErrorHandler:
                 code="SYS_999",
                 technical_details=str(error),
                 original_exception=error,
-                context=context
+                context=context,
             )
 
         # Log the error
@@ -716,7 +721,9 @@ class ErrorHandler:
         else:  # LOW severity
             self.logger.info(log_message)
 
-    def create_json_response(self, error: Union[AppError, Exception], status_code: int = 500) -> tuple:
+    def create_json_response(
+        self, error: Union[AppError, Exception], status_code: int = 500
+    ) -> tuple:
         """
         Create Flask JSON response for an error.
 
@@ -735,7 +742,9 @@ class ErrorHandler:
 error_handler = ErrorHandler()
 
 
-def handle_error(error: Union[AppError, Exception], context: Optional[ErrorContext] = None) -> Dict[str, Any]:
+def handle_error(
+    error: Union[AppError, Exception], context: Optional[ErrorContext] = None
+) -> Dict[str, Any]:
     """
     Convenience function to handle errors using the global error handler.
 
@@ -749,7 +758,9 @@ def handle_error(error: Union[AppError, Exception], context: Optional[ErrorConte
     return error_handler.handle_error(error, context)
 
 
-def create_json_error_response(error: Union[AppError, Exception], status_code: int = 500) -> tuple:
+def create_json_error_response(
+    error: Union[AppError, Exception], status_code: int = 500
+) -> tuple:
     """
     Convenience function to create JSON error response.
 

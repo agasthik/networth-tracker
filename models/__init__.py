@@ -12,25 +12,23 @@ from .accounts import (
     HSAAccount,
     StockPosition,
     HistoricalSnapshot,
-    AccountFactory
+    AccountFactory,
 )
 
-from .watchlist import (
-    WatchlistItem
-)
+from .watchlist import WatchlistItem
 
 __all__ = [
-    'AccountType',
-    'ChangeType',
-    'BaseAccount',
-    'CDAccount',
-    'SavingsAccount',
-    'Account401k',
-    'TradingAccount',
-    'IBondsAccount',
-    'HSAAccount',
-    'StockPosition',
-    'HistoricalSnapshot',
-    'AccountFactory',
-    'WatchlistItem'
+    "AccountType",
+    "ChangeType",
+    "BaseAccount",
+    "CDAccount",
+    "SavingsAccount",
+    "Account401k",
+    "TradingAccount",
+    "IBondsAccount",
+    "HSAAccount",
+    "StockPosition",
+    "HistoricalSnapshot",
+    "AccountFactory",
+    "WatchlistItem",
 ]

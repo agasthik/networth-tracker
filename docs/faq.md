@@ -68,17 +68,19 @@ payloads.
 
 ## Does logout erase the encryption key from memory?
 
-No. Logout clears the Flask session and closes the database service, but the
-process retains its `EncryptionService` object. Stop the application when
-finished on an untrusted machine.
+Logout clears the Flask session, closes the database service, and drops active
+references to the derived key, salt, and Fernet object. Python does not
+guarantee physical memory zeroization, so stop the application when finished
+on an untrusted machine.
 
 ## How are sessions protected?
 
 Sessions expire after two hours of inactivity and use `HttpOnly` and
 `SameSite=Lax` cookies. HTTPS-only cookies are disabled for the local HTTP URL.
 
-The current application does not restrict concurrent sessions, rate-limit
-login attempts, or use CSRF tokens.
+State-changing requests require CSRF tokens and same-origin checks. Login
+failures are limited per client address in an in-process rolling window.
+Concurrent sessions are not restricted.
 
 ## Which currencies are supported?
 
@@ -90,9 +92,10 @@ conversion. Enter all values in the same currency.
 Snapshots are created on initial entry, meaningful account value changes, and
 successful stock-price updates. They are sparse and event-driven.
 
-Displayed changes compare stored values. They are not investment returns
-because contributions, withdrawals, transfers, fees, and income are not
-separated from market gains.
+Displayed value changes remain net-worth changes. When an account update is
+explicitly labeled as a contribution, withdrawal, transfer, fee, or income and
+includes its cash-flow amount, the API also reports a flow-adjusted gain and
+return. This is not a time-weighted, money-weighted, or annualized return.
 
 ## Are stock prices real time?
 
@@ -132,7 +135,9 @@ Periodically test the copied file with a separate `DATABASE_PATH`.
 Identity is based on record IDs. Existing account IDs are skipped unless
 Overwrite existing accounts is selected. Import merges data and does not
 automatically identify semantic duplicates based on account name or
-institution.
+institution. The full import is atomic: one invalid record rolls back all
+changes from that import. Original IDs, timestamps, relationships, and demo
+markers are retained.
 
 ## How do I use demo data?
 

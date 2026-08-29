@@ -24,10 +24,10 @@ import app as app_module
 # Config keys that individual tests overwrite in their setup and that must be
 # restored so later tests see the app's original configuration.
 _MUTATED_CONFIG_KEYS = (
-    'TESTING',
-    'DATABASE_PATH',
-    'SECRET_KEY',
-    'WTF_CSRF_ENABLED',
+    "TESTING",
+    "DATABASE_PATH",
+    "SECRET_KEY",
+    "WTF_CSRF_ENABLED",
 )
 
 
@@ -35,13 +35,14 @@ _MUTATED_CONFIG_KEYS = (
 def _isolate_global_state():
     """Restore the shared ``auth_manager`` singleton and config after each test."""
     original_auth = app_module.auth_manager
-    original_app_auth = getattr(app_module.app, 'auth_manager', original_auth)
-    saved_config = {
-        key: app_module.app.config.get(key) for key in _MUTATED_CONFIG_KEYS
-    }
-    config_present = {
-        key: key in app_module.app.config for key in _MUTATED_CONFIG_KEYS
-    }
+    original_app_auth = getattr(app_module.app, "auth_manager", original_auth)
+    saved_config = {key: app_module.app.config.get(key) for key in _MUTATED_CONFIG_KEYS}
+    config_present = {key: key in app_module.app.config for key in _MUTATED_CONFIG_KEYS}
+
+    # Existing route tests focus on their route contract rather than CSRF.
+    # Security-specific tests explicitly re-enable it when exercising the
+    # middleware.
+    app_module.app.config["WTF_CSRF_ENABLED"] = False
 
     yield
 

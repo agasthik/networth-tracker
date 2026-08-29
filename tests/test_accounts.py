@@ -26,7 +26,7 @@ from models.accounts import (
     HSAAccount,
     StockPosition,
     HistoricalSnapshot,
-    AccountFactory
+    AccountFactory,
 )
 from services.error_handler import (
     HSABalanceValidationError,
@@ -70,7 +70,7 @@ class TestBaseAccount:
             institution="Test Bank",
             account_type=AccountType.SAVINGS,
             created_date=now,
-            last_updated=now
+            last_updated=now,
         )
 
         assert account.id == "test-1"
@@ -92,7 +92,7 @@ class TestBaseAccount:
             account_type=AccountType.SAVINGS,
             created_date=now,
             last_updated=now,
-            metadata=metadata
+            metadata=metadata,
         )
 
         assert account.metadata == metadata
@@ -106,29 +106,29 @@ class TestBaseAccount:
             institution="Test Bank",
             account_type=AccountType.SAVINGS,
             created_date=now,
-            last_updated=now
+            last_updated=now,
         )
 
         data = account.to_dict()
-        assert data['id'] == "test-1"
-        assert data['name'] == "Test Account"
-        assert data['institution'] == "Test Bank"
-        assert data['account_type'] == "SAVINGS"
-        assert data['created_date'] == now.isoformat()
-        assert data['last_updated'] == now.isoformat()
-        assert data['metadata'] is None
+        assert data["id"] == "test-1"
+        assert data["name"] == "Test Account"
+        assert data["institution"] == "Test Bank"
+        assert data["account_type"] == "SAVINGS"
+        assert data["created_date"] == now.isoformat()
+        assert data["last_updated"] == now.isoformat()
+        assert data["metadata"] is None
 
     def test_base_account_from_dict(self):
         """Test BaseAccount deserialization from dictionary."""
         now = datetime.now()
         data = {
-            'id': "test-1",
-            'name': "Test Account",
-            'institution': "Test Bank",
-            'account_type': "SAVINGS",
-            'created_date': now.isoformat(),
-            'last_updated': now.isoformat(),
-            'metadata': None
+            "id": "test-1",
+            "name": "Test Account",
+            "institution": "Test Bank",
+            "account_type": "SAVINGS",
+            "created_date": now.isoformat(),
+            "last_updated": now.isoformat(),
+            "metadata": None,
         }
 
         account = BaseAccount.from_dict(data)
@@ -149,7 +149,7 @@ class TestBaseAccount:
             institution="Test Bank",
             account_type=AccountType.SAVINGS,
             created_date=now,
-            last_updated=now
+            last_updated=now,
         )
 
         with pytest.raises(NotImplementedError):
@@ -174,7 +174,7 @@ class TestCDAccount:
             principal_amount=10000.0,
             interest_rate=2.5,
             maturity_date=maturity_date,
-            current_value=10250.0
+            current_value=10250.0,
         )
 
         assert cd.principal_amount == 10000.0
@@ -199,7 +199,7 @@ class TestCDAccount:
                 principal_amount=-1000.0,
                 interest_rate=2.5,
                 maturity_date=maturity_date,
-                current_value=10250.0
+                current_value=10250.0,
             )
 
     def test_cd_account_validation_negative_interest_rate(self):
@@ -218,7 +218,7 @@ class TestCDAccount:
                 principal_amount=10000.0,
                 interest_rate=-2.5,
                 maturity_date=maturity_date,
-                current_value=10250.0
+                current_value=10250.0,
             )
 
     def test_cd_account_validation_past_maturity_date(self):
@@ -237,7 +237,7 @@ class TestCDAccount:
                 principal_amount=10000.0,
                 interest_rate=2.5,
                 maturity_date=past_date,
-                current_value=10250.0
+                current_value=10250.0,
             )
 
     def test_cd_account_validation_negative_current_value(self):
@@ -256,7 +256,7 @@ class TestCDAccount:
                 principal_amount=10000.0,
                 interest_rate=2.5,
                 maturity_date=maturity_date,
-                current_value=-100.0
+                current_value=-100.0,
             )
 
     def test_cd_account_serialization(self):
@@ -274,12 +274,12 @@ class TestCDAccount:
             principal_amount=10000.0,
             interest_rate=2.5,
             maturity_date=maturity_date,
-            current_value=10250.0
+            current_value=10250.0,
         )
 
         data = cd.to_dict()
-        assert data['maturity_date'] == maturity_date.isoformat()
-        assert data['principal_amount'] == 10000.0
+        assert data["maturity_date"] == maturity_date.isoformat()
+        assert data["principal_amount"] == 10000.0
 
         cd_restored = CDAccount.from_dict(data)
         assert cd_restored.maturity_date == maturity_date
@@ -302,7 +302,7 @@ class TestSavingsAccount:
             created_date=now,
             last_updated=now,
             current_balance=5000.0,
-            interest_rate=1.5
+            interest_rate=1.5,
         )
 
         assert savings.current_balance == 5000.0
@@ -322,7 +322,7 @@ class TestSavingsAccount:
                 created_date=now,
                 last_updated=now,
                 current_balance=-1000.0,
-                interest_rate=1.5
+                interest_rate=1.5,
             )
 
     def test_savings_account_validation_negative_interest_rate(self):
@@ -338,7 +338,7 @@ class TestSavingsAccount:
                 created_date=now,
                 last_updated=now,
                 current_balance=5000.0,
-                interest_rate=-1.5
+                interest_rate=-1.5,
             )
 
 
@@ -359,7 +359,7 @@ class TestAccount401k:
             current_balance=50000.0,
             employer_match=0.05,
             contribution_limit=22500.0,
-            employer_contribution=2500.0
+            employer_contribution=2500.0,
         )
 
         assert account_401k.current_balance == 50000.0
@@ -383,7 +383,7 @@ class TestAccount401k:
                 current_balance=-1000.0,
                 employer_match=0.05,
                 contribution_limit=22500.0,
-                employer_contribution=2500.0
+                employer_contribution=2500.0,
             )
 
     def test_401k_account_validation_negative_employer_match(self):
@@ -401,7 +401,7 @@ class TestAccount401k:
                 current_balance=50000.0,
                 employer_match=-0.05,
                 contribution_limit=22500.0,
-                employer_contribution=2500.0
+                employer_contribution=2500.0,
             )
 
     def test_401k_account_validation_zero_contribution_limit(self):
@@ -419,14 +419,16 @@ class TestAccount401k:
                 current_balance=50000.0,
                 employer_match=0.05,
                 contribution_limit=0.0,
-                employer_contribution=2500.0
+                employer_contribution=2500.0,
             )
 
     def test_401k_account_validation_negative_employer_contribution(self):
         """Test Account401k validation for negative employer contribution."""
         now = datetime.now()
 
-        with pytest.raises(ValueError, match="Employer contribution cannot be negative"):
+        with pytest.raises(
+            ValueError, match="Employer contribution cannot be negative"
+        ):
             Account401k(
                 id="401k-1",
                 name="Test 401k",
@@ -437,7 +439,7 @@ class TestAccount401k:
                 current_balance=50000.0,
                 employer_match=0.05,
                 contribution_limit=22500.0,
-                employer_contribution=-2500.0
+                employer_contribution=-2500.0,
             )
 
 
@@ -455,7 +457,7 @@ class TestStockPosition:
             purchase_price=150.0,
             purchase_date=purchase_date,
             current_price=160.0,
-            last_updated=now
+            last_updated=now,
         )
 
         assert position.symbol == "AAPL"
@@ -473,7 +475,7 @@ class TestStockPosition:
             symbol="AAPL",
             shares=100.0,
             purchase_price=150.0,
-            purchase_date=purchase_date
+            purchase_date=purchase_date,
         )
 
         assert position.current_price is None
@@ -489,7 +491,7 @@ class TestStockPosition:
             shares=100.0,
             purchase_price=150.0,
             purchase_date=purchase_date,
-            current_price=160.0
+            current_price=160.0,
         )
         assert position.get_current_value() == 16000.0
 
@@ -498,7 +500,7 @@ class TestStockPosition:
             symbol="AAPL",
             shares=100.0,
             purchase_price=150.0,
-            purchase_date=purchase_date
+            purchase_date=purchase_date,
         )
         assert position_no_current.get_current_value() == 15000.0
 
@@ -511,11 +513,13 @@ class TestStockPosition:
             shares=100.0,
             purchase_price=150.0,
             purchase_date=purchase_date,
-            current_price=160.0
+            current_price=160.0,
         )
 
         assert position.get_unrealized_gain_loss() == 1000.0  # (160-150) * 100
-        assert position.get_unrealized_gain_loss_percentage() == pytest.approx(6.67, rel=1e-2)
+        assert position.get_unrealized_gain_loss_percentage() == pytest.approx(
+            6.67, rel=1e-2
+        )
 
         # Test with loss
         position_loss = StockPosition(
@@ -523,18 +527,20 @@ class TestStockPosition:
             shares=100.0,
             purchase_price=150.0,
             purchase_date=purchase_date,
-            current_price=140.0
+            current_price=140.0,
         )
 
         assert position_loss.get_unrealized_gain_loss() == -1000.0
-        assert position_loss.get_unrealized_gain_loss_percentage() == pytest.approx(-6.67, rel=1e-2)
+        assert position_loss.get_unrealized_gain_loss_percentage() == pytest.approx(
+            -6.67, rel=1e-2
+        )
 
         # Test without current price
         position_no_current = StockPosition(
             symbol="AAPL",
             shares=100.0,
             purchase_price=150.0,
-            purchase_date=purchase_date
+            purchase_date=purchase_date,
         )
 
         assert position_no_current.get_unrealized_gain_loss() == 0.0
@@ -549,7 +555,7 @@ class TestStockPosition:
                 symbol="",
                 shares=100.0,
                 purchase_price=150.0,
-                purchase_date=purchase_date
+                purchase_date=purchase_date,
             )
 
     def test_stock_position_validation_zero_shares(self):
@@ -561,7 +567,7 @@ class TestStockPosition:
                 symbol="AAPL",
                 shares=0.0,
                 purchase_price=150.0,
-                purchase_date=purchase_date
+                purchase_date=purchase_date,
             )
 
     def test_stock_position_validation_zero_purchase_price(self):
@@ -573,7 +579,7 @@ class TestStockPosition:
                 symbol="AAPL",
                 shares=100.0,
                 purchase_price=0.0,
-                purchase_date=purchase_date
+                purchase_date=purchase_date,
             )
 
     def test_stock_position_validation_future_purchase_date(self):
@@ -585,7 +591,7 @@ class TestStockPosition:
                 symbol="AAPL",
                 shares=100.0,
                 purchase_price=150.0,
-                purchase_date=future_date
+                purchase_date=future_date,
             )
 
     def test_stock_position_validation_zero_current_price(self):
@@ -598,7 +604,7 @@ class TestStockPosition:
                 shares=100.0,
                 purchase_price=150.0,
                 purchase_date=purchase_date,
-                current_price=0.0
+                current_price=0.0,
             )
 
     def test_stock_position_serialization(self):
@@ -612,12 +618,12 @@ class TestStockPosition:
             purchase_price=150.0,
             purchase_date=purchase_date,
             current_price=160.0,
-            last_updated=now
+            last_updated=now,
         )
 
         data = position.to_dict()
-        assert data['purchase_date'] == purchase_date.isoformat()
-        assert data['last_updated'] == now.isoformat()
+        assert data["purchase_date"] == purchase_date.isoformat()
+        assert data["last_updated"] == now.isoformat()
 
         position_restored = StockPosition.from_dict(data)
         assert position_restored.purchase_date == purchase_date
@@ -638,7 +644,7 @@ class TestTradingAccount:
             shares=100.0,
             purchase_price=150.0,
             purchase_date=purchase_date,
-            current_price=160.0
+            current_price=160.0,
         )
 
         trading = TradingAccount(
@@ -650,7 +656,7 @@ class TestTradingAccount:
             last_updated=now,
             broker_name="Test Broker",
             cash_balance=5000.0,
-            positions=[position]
+            positions=[position],
         )
 
         assert trading.broker_name == "Test Broker"
@@ -672,7 +678,7 @@ class TestTradingAccount:
             last_updated=now,
             broker_name="Test Broker",
             cash_balance=5000.0,
-            positions=[]
+            positions=[],
         )
 
         assert len(trading.positions) == 0
@@ -693,7 +699,7 @@ class TestTradingAccount:
             last_updated=now,
             broker_name="Test Broker",
             cash_balance=5000.0,
-            positions=[]
+            positions=[],
         )
 
         # Add position
@@ -702,7 +708,7 @@ class TestTradingAccount:
             shares=100.0,
             purchase_price=150.0,
             purchase_date=purchase_date,
-            current_price=160.0
+            current_price=160.0,
         )
         trading.add_position(position)
         assert len(trading.positions) == 1
@@ -735,7 +741,7 @@ class TestTradingAccount:
             shares=100.0,
             purchase_price=150.0,
             purchase_date=purchase_date,
-            current_price=160.0  # +1000 gain
+            current_price=160.0,  # +1000 gain
         )
 
         position2 = StockPosition(
@@ -743,7 +749,7 @@ class TestTradingAccount:
             shares=10.0,
             purchase_price=2500.0,
             purchase_date=purchase_date,
-            current_price=2400.0  # -1000 loss
+            current_price=2400.0,  # -1000 loss
         )
 
         trading = TradingAccount(
@@ -755,7 +761,7 @@ class TestTradingAccount:
             last_updated=now,
             broker_name="Test Broker",
             cash_balance=5000.0,
-            positions=[position1, position2]
+            positions=[position1, position2],
         )
 
         assert trading.get_total_unrealized_gain_loss() == 0.0  # +1000 - 1000
@@ -774,7 +780,7 @@ class TestTradingAccount:
                 last_updated=now,
                 broker_name="",
                 cash_balance=5000.0,
-                positions=[]
+                positions=[],
             )
 
     def test_trading_account_validation_negative_cash_balance(self):
@@ -791,7 +797,7 @@ class TestTradingAccount:
                 last_updated=now,
                 broker_name="Test Broker",
                 cash_balance=-1000.0,
-                positions=[]
+                positions=[],
             )
 
     def test_trading_account_validation_invalid_positions_type(self):
@@ -808,7 +814,7 @@ class TestTradingAccount:
                 last_updated=now,
                 broker_name="Test Broker",
                 cash_balance=5000.0,
-                positions="not a list"
+                positions="not a list",
             )
 
     def test_trading_account_add_invalid_position(self):
@@ -824,10 +830,12 @@ class TestTradingAccount:
             last_updated=now,
             broker_name="Test Broker",
             cash_balance=5000.0,
-            positions=[]
+            positions=[],
         )
 
-        with pytest.raises(ValueError, match="Position must be a StockPosition instance"):
+        with pytest.raises(
+            ValueError, match="Position must be a StockPosition instance"
+        ):
             trading.add_position("not a position")
 
     def test_trading_account_serialization(self):
@@ -840,7 +848,7 @@ class TestTradingAccount:
             shares=100.0,
             purchase_price=150.0,
             purchase_date=purchase_date,
-            current_price=160.0
+            current_price=160.0,
         )
 
         trading = TradingAccount(
@@ -852,14 +860,14 @@ class TestTradingAccount:
             last_updated=now,
             broker_name="Test Broker",
             cash_balance=5000.0,
-            positions=[position]
+            positions=[position],
         )
 
         data = trading.to_dict()
-        assert data['broker_name'] == "Test Broker"
-        assert data['cash_balance'] == 5000.0
-        assert len(data['positions']) == 1
-        assert data['positions'][0]['symbol'] == "AAPL"
+        assert data["broker_name"] == "Test Broker"
+        assert data["cash_balance"] == 5000.0
+        assert len(data["positions"]) == 1
+        assert data["positions"][0]["symbol"] == "AAPL"
 
         trading_restored = TradingAccount.from_dict(data)
         assert trading_restored.broker_name == "Test Broker"
@@ -875,7 +883,7 @@ class TestIBondsAccount:
         """Test IBondsAccount creation with valid data."""
         now = datetime.now()
         purchase_date = date.today() - timedelta(days=365)
-        maturity_date = purchase_date + timedelta(days=365*30)  # 30 years
+        maturity_date = purchase_date + timedelta(days=365 * 30)  # 30 years
 
         ibonds = IBondsAccount(
             id="ibonds-1",
@@ -889,7 +897,7 @@ class TestIBondsAccount:
             current_value=10500.0,
             fixed_rate=0.5,
             inflation_rate=3.2,
-            maturity_date=maturity_date
+            maturity_date=maturity_date,
         )
 
         assert ibonds.purchase_amount == 10000.0
@@ -904,7 +912,7 @@ class TestIBondsAccount:
         """Test IBondsAccount validation for negative purchase amount."""
         now = datetime.now()
         purchase_date = date.today() - timedelta(days=365)
-        maturity_date = purchase_date + timedelta(days=365*30)
+        maturity_date = purchase_date + timedelta(days=365 * 30)
 
         with pytest.raises(ValueError, match="Purchase amount must be positive"):
             IBondsAccount(
@@ -919,14 +927,14 @@ class TestIBondsAccount:
                 current_value=10500.0,
                 fixed_rate=0.5,
                 inflation_rate=3.2,
-                maturity_date=maturity_date
+                maturity_date=maturity_date,
             )
 
     def test_ibonds_account_validation_future_purchase_date(self):
         """Test IBondsAccount validation for future purchase date."""
         now = datetime.now()
         future_date = date.today() + timedelta(days=1)
-        maturity_date = future_date + timedelta(days=365*30)
+        maturity_date = future_date + timedelta(days=365 * 30)
 
         with pytest.raises(ValueError, match="Purchase date cannot be in the future"):
             IBondsAccount(
@@ -941,14 +949,14 @@ class TestIBondsAccount:
                 current_value=10500.0,
                 fixed_rate=0.5,
                 inflation_rate=3.2,
-                maturity_date=maturity_date
+                maturity_date=maturity_date,
             )
 
     def test_ibonds_account_validation_negative_current_value(self):
         """Test IBondsAccount validation for negative current value."""
         now = datetime.now()
         purchase_date = date.today() - timedelta(days=365)
-        maturity_date = purchase_date + timedelta(days=365*30)
+        maturity_date = purchase_date + timedelta(days=365 * 30)
 
         with pytest.raises(ValueError, match="Current value cannot be negative"):
             IBondsAccount(
@@ -963,14 +971,14 @@ class TestIBondsAccount:
                 current_value=-100.0,
                 fixed_rate=0.5,
                 inflation_rate=3.2,
-                maturity_date=maturity_date
+                maturity_date=maturity_date,
             )
 
     def test_ibonds_account_validation_negative_fixed_rate(self):
         """Test IBondsAccount validation for negative fixed rate."""
         now = datetime.now()
         purchase_date = date.today() - timedelta(days=365)
-        maturity_date = purchase_date + timedelta(days=365*30)
+        maturity_date = purchase_date + timedelta(days=365 * 30)
 
         with pytest.raises(ValueError, match="Fixed rate cannot be negative"):
             IBondsAccount(
@@ -985,7 +993,7 @@ class TestIBondsAccount:
                 current_value=10500.0,
                 fixed_rate=-0.5,
                 inflation_rate=3.2,
-                maturity_date=maturity_date
+                maturity_date=maturity_date,
             )
 
     def test_ibonds_account_validation_maturity_before_purchase(self):
@@ -994,7 +1002,9 @@ class TestIBondsAccount:
         purchase_date = date.today() - timedelta(days=365)
         maturity_date = purchase_date - timedelta(days=1)
 
-        with pytest.raises(ValueError, match="Maturity date must be after purchase date"):
+        with pytest.raises(
+            ValueError, match="Maturity date must be after purchase date"
+        ):
             IBondsAccount(
                 id="ibonds-1",
                 name="Test I-bonds",
@@ -1007,14 +1017,14 @@ class TestIBondsAccount:
                 current_value=10500.0,
                 fixed_rate=0.5,
                 inflation_rate=3.2,
-                maturity_date=maturity_date
+                maturity_date=maturity_date,
             )
 
     def test_ibonds_account_negative_inflation_rate_allowed(self):
         """Test IBondsAccount allows negative inflation rate (deflation)."""
         now = datetime.now()
         purchase_date = date.today() - timedelta(days=365)
-        maturity_date = purchase_date + timedelta(days=365*30)
+        maturity_date = purchase_date + timedelta(days=365 * 30)
 
         # Should not raise an exception
         ibonds = IBondsAccount(
@@ -1029,7 +1039,7 @@ class TestIBondsAccount:
             current_value=10500.0,
             fixed_rate=0.5,
             inflation_rate=-1.0,  # Negative inflation (deflation)
-            maturity_date=maturity_date
+            maturity_date=maturity_date,
         )
 
         assert ibonds.inflation_rate == -1.0
@@ -1038,7 +1048,7 @@ class TestIBondsAccount:
         """Test IBondsAccount to_dict and from_dict methods."""
         now = datetime.now()
         purchase_date = date.today() - timedelta(days=365)
-        maturity_date = purchase_date + timedelta(days=365*30)
+        maturity_date = purchase_date + timedelta(days=365 * 30)
 
         ibonds = IBondsAccount(
             id="ibonds-1",
@@ -1052,12 +1062,12 @@ class TestIBondsAccount:
             current_value=10500.0,
             fixed_rate=0.5,
             inflation_rate=3.2,
-            maturity_date=maturity_date
+            maturity_date=maturity_date,
         )
 
         data = ibonds.to_dict()
-        assert data['purchase_date'] == purchase_date.isoformat()
-        assert data['maturity_date'] == maturity_date.isoformat()
+        assert data["purchase_date"] == purchase_date.isoformat()
+        assert data["maturity_date"] == maturity_date.isoformat()
 
         ibonds_restored = IBondsAccount.from_dict(data)
         assert ibonds_restored.purchase_date == purchase_date
@@ -1084,7 +1094,7 @@ class TestHSAAccount:
             current_year_contributions=2000.0,
             employer_contributions=500.0,
             investment_balance=3000.0,
-            cash_balance=2000.0
+            cash_balance=2000.0,
         )
 
         assert hsa.current_balance == 5000.0
@@ -1111,14 +1121,16 @@ class TestHSAAccount:
             current_year_contributions=2000.0,
             employer_contributions=500.0,
             investment_balance=3000.0,
-            cash_balance=2000.0
+            cash_balance=2000.0,
         )
 
         # Test remaining contribution capacity
         assert hsa.get_remaining_contribution_capacity() == 1650.0  # 3650 - 2000
 
         # Test contribution progress percentage
-        assert hsa.get_contribution_progress_percentage() == pytest.approx(54.79, rel=1e-2)  # 2000/3650 * 100
+        assert hsa.get_contribution_progress_percentage() == pytest.approx(
+            54.79, rel=1e-2
+        )  # 2000/3650 * 100
 
         # Test can_contribute method
         assert hsa.can_contribute(1000.0) is True
@@ -1140,7 +1152,7 @@ class TestHSAAccount:
             current_year_contributions=0.0,
             employer_contributions=0.0,
             investment_balance=500.0,
-            cash_balance=500.0
+            cash_balance=500.0,
         )
 
         assert hsa.get_contribution_progress_percentage() == 0.0
@@ -1164,14 +1176,16 @@ class TestHSAAccount:
                 current_year_contributions=2000.0,
                 employer_contributions=500.0,
                 investment_balance=0.0,
-                cash_balance=0.0
+                cash_balance=0.0,
             )
 
     def test_hsa_account_validation_negative_contribution_limit(self):
         """Test HSAAccount validation for negative annual contribution limit."""
         now = datetime.now()
 
-        with pytest.raises(HSABalanceValidationError, match="Invalid annual_contribution_limit"):
+        with pytest.raises(
+            HSABalanceValidationError, match="Invalid annual_contribution_limit"
+        ):
             HSAAccount(
                 id="hsa-1",
                 name="Test HSA",
@@ -1184,14 +1198,16 @@ class TestHSAAccount:
                 current_year_contributions=2000.0,
                 employer_contributions=500.0,
                 investment_balance=3000.0,
-                cash_balance=2000.0
+                cash_balance=2000.0,
             )
 
     def test_hsa_account_validation_negative_current_year_contributions(self):
         """Test HSAAccount validation for negative current year contributions."""
         now = datetime.now()
 
-        with pytest.raises(HSABalanceValidationError, match="Invalid current_year_contributions"):
+        with pytest.raises(
+            HSABalanceValidationError, match="Invalid current_year_contributions"
+        ):
             HSAAccount(
                 id="hsa-1",
                 name="Test HSA",
@@ -1204,14 +1220,16 @@ class TestHSAAccount:
                 current_year_contributions=-2000.0,
                 employer_contributions=500.0,
                 investment_balance=3000.0,
-                cash_balance=2000.0
+                cash_balance=2000.0,
             )
 
     def test_hsa_account_validation_negative_employer_contributions(self):
         """Test HSAAccount validation for negative employer contributions."""
         now = datetime.now()
 
-        with pytest.raises(HSABalanceValidationError, match="Invalid employer_contributions"):
+        with pytest.raises(
+            HSABalanceValidationError, match="Invalid employer_contributions"
+        ):
             HSAAccount(
                 id="hsa-1",
                 name="Test HSA",
@@ -1224,14 +1242,16 @@ class TestHSAAccount:
                 current_year_contributions=2000.0,
                 employer_contributions=-500.0,
                 investment_balance=3000.0,
-                cash_balance=2000.0
+                cash_balance=2000.0,
             )
 
     def test_hsa_account_validation_negative_investment_balance(self):
         """Test HSAAccount validation for negative investment balance."""
         now = datetime.now()
 
-        with pytest.raises(HSABalanceValidationError, match="Invalid investment_balance"):
+        with pytest.raises(
+            HSABalanceValidationError, match="Invalid investment_balance"
+        ):
             HSAAccount(
                 id="hsa-1",
                 name="Test HSA",
@@ -1244,7 +1264,7 @@ class TestHSAAccount:
                 current_year_contributions=2000.0,
                 employer_contributions=500.0,
                 investment_balance=-3000.0,
-                cash_balance=8000.0
+                cash_balance=8000.0,
             )
 
     def test_hsa_account_validation_negative_cash_balance(self):
@@ -1264,7 +1284,7 @@ class TestHSAAccount:
                 current_year_contributions=2000.0,
                 employer_contributions=500.0,
                 investment_balance=8000.0,
-                cash_balance=-3000.0
+                cash_balance=-3000.0,
             )
 
     def test_hsa_account_validation_balance_mismatch(self):
@@ -1284,7 +1304,7 @@ class TestHSAAccount:
                 current_year_contributions=2000.0,
                 employer_contributions=500.0,
                 investment_balance=3000.0,
-                cash_balance=1000.0  # 3000 + 1000 = 4000, not 5000
+                cash_balance=1000.0,  # 3000 + 1000 = 4000, not 5000
             )
 
     def test_hsa_account_validation_contributions_exceed_limit(self):
@@ -1304,7 +1324,7 @@ class TestHSAAccount:
                 current_year_contributions=4000.0,  # Exceeds limit
                 employer_contributions=500.0,
                 investment_balance=3000.0,
-                cash_balance=2000.0
+                cash_balance=2000.0,
             )
 
     def test_hsa_account_balance_tolerance(self):
@@ -1324,7 +1344,7 @@ class TestHSAAccount:
             current_year_contributions=2000.0,
             employer_contributions=500.0,
             investment_balance=3000.0,
-            cash_balance=2000.005  # Small difference within tolerance
+            cash_balance=2000.005,  # Small difference within tolerance
         )
 
         assert hsa.current_balance == 5000.0
@@ -1345,17 +1365,17 @@ class TestHSAAccount:
             current_year_contributions=2000.0,
             employer_contributions=500.0,
             investment_balance=3000.0,
-            cash_balance=2000.0
+            cash_balance=2000.0,
         )
 
         data = hsa.to_dict()
-        assert data['account_type'] == "HSA"
-        assert data['current_balance'] == 5000.0
-        assert data['annual_contribution_limit'] == 3650.0
-        assert data['current_year_contributions'] == 2000.0
-        assert data['employer_contributions'] == 500.0
-        assert data['investment_balance'] == 3000.0
-        assert data['cash_balance'] == 2000.0
+        assert data["account_type"] == "HSA"
+        assert data["current_balance"] == 5000.0
+        assert data["annual_contribution_limit"] == 3650.0
+        assert data["current_year_contributions"] == 2000.0
+        assert data["employer_contributions"] == 500.0
+        assert data["investment_balance"] == 3000.0
+        assert data["cash_balance"] == 2000.0
 
         hsa_restored = HSAAccount.from_dict(data)
         assert hsa_restored.account_type == AccountType.HSA
@@ -1379,7 +1399,7 @@ class TestHistoricalSnapshot:
             account_id="account-1",
             timestamp=now,
             value=10000.0,
-            change_type=ChangeType.MANUAL_UPDATE
+            change_type=ChangeType.MANUAL_UPDATE,
         )
 
         assert snapshot.id == "snapshot-1"
@@ -1400,7 +1420,7 @@ class TestHistoricalSnapshot:
             timestamp=now,
             value=10000.0,
             change_type=ChangeType.MANUAL_UPDATE,
-            metadata=metadata
+            metadata=metadata,
         )
 
         assert snapshot.metadata == metadata
@@ -1415,7 +1435,7 @@ class TestHistoricalSnapshot:
                 account_id="account-1",
                 timestamp=now,
                 value=10000.0,
-                change_type=ChangeType.MANUAL_UPDATE
+                change_type=ChangeType.MANUAL_UPDATE,
             )
 
     def test_historical_snapshot_validation_empty_account_id(self):
@@ -1428,7 +1448,7 @@ class TestHistoricalSnapshot:
                 account_id="",
                 timestamp=now,
                 value=10000.0,
-                change_type=ChangeType.MANUAL_UPDATE
+                change_type=ChangeType.MANUAL_UPDATE,
             )
 
     def test_historical_snapshot_validation_future_timestamp(self):
@@ -1441,7 +1461,7 @@ class TestHistoricalSnapshot:
                 account_id="account-1",
                 timestamp=future_time,
                 value=10000.0,
-                change_type=ChangeType.MANUAL_UPDATE
+                change_type=ChangeType.MANUAL_UPDATE,
             )
 
     def test_historical_snapshot_validation_negative_value(self):
@@ -1454,7 +1474,7 @@ class TestHistoricalSnapshot:
                 account_id="account-1",
                 timestamp=now,
                 value=-1000.0,
-                change_type=ChangeType.MANUAL_UPDATE
+                change_type=ChangeType.MANUAL_UPDATE,
             )
 
     def test_historical_snapshot_serialization(self):
@@ -1468,13 +1488,13 @@ class TestHistoricalSnapshot:
             timestamp=now,
             value=10000.0,
             change_type=ChangeType.MANUAL_UPDATE,
-            metadata=metadata
+            metadata=metadata,
         )
 
         data = snapshot.to_dict()
-        assert data['change_type'] == "MANUAL_UPDATE"
-        assert data['timestamp'] == now.isoformat()
-        assert data['metadata'] == metadata
+        assert data["change_type"] == "MANUAL_UPDATE"
+        assert data["timestamp"] == now.isoformat()
+        assert data["metadata"] == metadata
 
         snapshot_restored = HistoricalSnapshot.from_dict(data)
         assert snapshot_restored.change_type == ChangeType.MANUAL_UPDATE
@@ -1507,7 +1527,7 @@ class TestAccountFactory:
             principal_amount=10000.0,
             interest_rate=2.5,
             maturity_date=maturity_date,
-            current_value=10250.0
+            current_value=10250.0,
         )
 
         assert isinstance(cd, CDAccount)
@@ -1530,7 +1550,7 @@ class TestAccountFactory:
             name="Test Savings",
             institution="Test Bank",
             current_balance=5000.0,
-            interest_rate=1.5
+            interest_rate=1.5,
         )
 
         assert isinstance(savings, SavingsAccount)
@@ -1548,7 +1568,7 @@ class TestAccountFactory:
             current_balance=50000.0,
             employer_match=0.05,
             contribution_limit=22500.0,
-            employer_contribution=2500.0
+            employer_contribution=2500.0,
         )
 
         assert isinstance(account_401k, Account401k)
@@ -1564,7 +1584,7 @@ class TestAccountFactory:
             institution="Test Broker",
             broker_name="Test Broker",
             cash_balance=5000.0,
-            positions=[]
+            positions=[],
         )
 
         assert isinstance(trading, TradingAccount)
@@ -1577,7 +1597,7 @@ class TestAccountFactory:
     def test_factory_create_ibonds_account(self):
         """Test AccountFactory creates IBondsAccount correctly."""
         purchase_date = date.today() - timedelta(days=365)
-        maturity_date = purchase_date + timedelta(days=365*30)
+        maturity_date = purchase_date + timedelta(days=365 * 30)
 
         ibonds = AccountFactory.create_account(
             AccountType.I_BONDS,
@@ -1588,7 +1608,7 @@ class TestAccountFactory:
             current_value=10500.0,
             fixed_rate=0.5,
             inflation_rate=3.2,
-            maturity_date=maturity_date
+            maturity_date=maturity_date,
         )
 
         assert isinstance(ibonds, IBondsAccount)
@@ -1607,7 +1627,7 @@ class TestAccountFactory:
             current_year_contributions=2000.0,
             employer_contributions=500.0,
             investment_balance=3000.0,
-            cash_balance=2000.0
+            cash_balance=2000.0,
         )
 
         assert isinstance(hsa, HSAAccount)
@@ -1619,15 +1639,14 @@ class TestAccountFactory:
 
     def test_factory_create_unknown_account_type(self):
         """Test AccountFactory raises error for unknown account type."""
+
         # Create a new enum value that's not registered
         class UnknownAccountType(Enum):
             UNKNOWN = "UNKNOWN"
 
         with pytest.raises(ValueError, match="Unknown account type"):
             AccountFactory.create_account(
-                UnknownAccountType.UNKNOWN,
-                name="Test Unknown",
-                institution="Test Bank"
+                UnknownAccountType.UNKNOWN, name="Test Unknown", institution="Test Bank"
             )
 
     def test_factory_create_with_custom_defaults(self):
@@ -1643,7 +1662,7 @@ class TestAccountFactory:
             created_date=now,
             last_updated=now,
             current_balance=5000.0,
-            interest_rate=1.5
+            interest_rate=1.5,
         )
 
         assert savings.id == custom_id
@@ -1654,15 +1673,15 @@ class TestAccountFactory:
         """Test AccountFactory creates account from dictionary data."""
         now = datetime.now()
         data = {
-            'id': "savings-1",
-            'name': "Test Savings",
-            'institution': "Test Bank",
-            'account_type': "SAVINGS",
-            'created_date': now.isoformat(),
-            'last_updated': now.isoformat(),
-            'metadata': None,
-            'current_balance': 5000.0,
-            'interest_rate': 1.5
+            "id": "savings-1",
+            "name": "Test Savings",
+            "institution": "Test Bank",
+            "account_type": "SAVINGS",
+            "created_date": now.isoformat(),
+            "last_updated": now.isoformat(),
+            "metadata": None,
+            "current_balance": 5000.0,
+            "interest_rate": 1.5,
         }
 
         savings = AccountFactory.create_account_from_dict(data)
@@ -1676,13 +1695,13 @@ class TestAccountFactory:
         """Test AccountFactory raises error for unknown type in dictionary."""
         now = datetime.now()
         data = {
-            'id': "unknown-1",
-            'name': "Test Unknown",
-            'institution': "Test Bank",
-            'account_type': "UNKNOWN_TYPE",
-            'created_date': now.isoformat(),
-            'last_updated': now.isoformat(),
-            'metadata': None
+            "id": "unknown-1",
+            "name": "Test Unknown",
+            "institution": "Test Bank",
+            "account_type": "UNKNOWN_TYPE",
+            "created_date": now.isoformat(),
+            "last_updated": now.isoformat(),
+            "metadata": None,
         }
 
         with pytest.raises(ValueError, match="is not a valid AccountType"):
@@ -1690,6 +1709,7 @@ class TestAccountFactory:
 
     def test_factory_registration_system(self):
         """Test AccountFactory registration and unregistration system."""
+
         # Create a custom account type for testing
         class CustomAccountType(Enum):
             CUSTOM = "CUSTOM"
@@ -1713,7 +1733,7 @@ class TestAccountFactory:
             CustomAccountType.CUSTOM,
             name="Custom Account",
             institution="Custom Bank",
-            custom_field="custom_value"
+            custom_field="custom_value",
         )
 
         assert isinstance(custom_account, CustomAccount)
@@ -1731,18 +1751,21 @@ class TestAccountFactory:
             AccountFactory.create_account(
                 CustomAccountType.CUSTOM,
                 name="Custom Account",
-                institution="Custom Bank"
+                institution="Custom Bank",
             )
 
     def test_factory_registration_invalid_class(self):
         """Test AccountFactory raises error when registering invalid class."""
+
         class CustomAccountType(Enum):
             CUSTOM = "CUSTOM"
 
         class NotAnAccount:
             pass
 
-        with pytest.raises(ValueError, match="Account class must inherit from BaseAccount"):
+        with pytest.raises(
+            ValueError, match="Account class must inherit from BaseAccount"
+        ):
             AccountFactory.register_account_type(CustomAccountType.CUSTOM, NotAnAccount)
 
 

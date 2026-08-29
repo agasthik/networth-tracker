@@ -56,33 +56,35 @@ letter, lowercase letter, digit, and character from:
 ```
 
 There is no password recovery or reset workflow. The password is not stored,
-but the database stores a random salt and a salted SHA-256 verification hash.
-The same salt is used to derive the Fernet key.
+but the database stores a random salt and a PBKDF2-HMAC-SHA256 verification
+hash using 600,000 iterations. The same database salt is used to derive the
+Fernet key. Legacy salted SHA-256 verifier records are upgraded after a
+successful login.
 
-The verification hash is compared with normal string equality rather than a
-constant-time comparison. Keep the application local and treat this as a
-current implementation limitation.
+Secret verification uses constant-time comparison.
 
-The derived key remains in the application's `EncryptionService` object for the
-life of the process. Logout clears the browser session and closes the active
-database service, but it does not erase that key object from process memory.
-Stop the process when finished on a shared or untrusted computer.
+Logout clears the browser session, closes the active database service, and
+drops the application's references to the derived key, salt, and Fernet
+object. Python does not guarantee physical memory zeroization, so stop the
+process when finished on a shared or untrusted computer.
 
 ## Sessions and Browser Requests
 
 - Sessions expire after two hours of inactivity.
 - Session cookies are `HttpOnly` and `SameSite=Lax`.
 - `Secure` is false because the supported local URL uses HTTP.
-- Logout clears the Flask session.
+- State-changing requests require a session CSRF token and reject a mismatched
+  `Origin` or `Referer` when the browser supplies one.
+- Login failures are limited to five attempts per client address in a rolling
+  five-minute in-process window.
+- Backup uploads require the `.nwb` extension (or legacy `.enc`) and are limited
+  to 10 MiB. The global request limit is 16 MiB by default.
+- Logout clears the Flask session and active key references.
 
 Current limitations:
 
 - Concurrent sessions are not restricted.
-- There is no CSRF token or explicit Origin/Referer validation for
-  state-changing requests. `SameSite=Lax` reduces some cross-site request risk
-  but is not complete CSRF protection.
-- Login attempts are not rate limited or locked out.
-- Uploaded backup files do not have an explicit application-level size limit.
+- Login throttling is process-local and resets when the application restarts.
 
 Keep the application bound to `127.0.0.1`, do not browse untrusted sites while
 an authenticated session is open, and log out when finished.
@@ -133,6 +135,11 @@ Consequences:
   normal export.
 - An export cannot recover data after the master password or original database
   salt is lost.
+- Imports are transactional. Any invalid account, holding, watchlist item,
+  snapshot, relationship, or setting rolls back the complete import.
+- Successful restores preserve record IDs, account and watchlist timestamps,
+  position IDs, snapshot IDs, snapshot timestamps, relationships, and demo
+  markers.
 
 For recoverable backups, stop the application and copy the entire SQLite
 database file. That file contains the salt, password-verification data, and

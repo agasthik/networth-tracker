@@ -10,14 +10,15 @@ This test module covers edge cases and boundary conditions:
 """
 
 import pytest
-import json
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, date
+from unittest.mock import Mock, patch
+from datetime import datetime
 import sqlite3
 
 from services.error_handler import (
-    DatabaseError, NetworkError, SystemError, ValidationError,
-    HSABalanceValidationError, HSABalanceMismatchError, WatchlistError, StockValidationError
+    SystemError,
+    ValidationError,
+    HSABalanceMismatchError,
+    StockValidationError,
 )
 from models.accounts import HSAAccount, AccountType
 from models.watchlist import WatchlistItem
@@ -42,7 +43,7 @@ class TestEdgeCaseInputHandling:
             cash_balance=999999999.99,
             investment_balance=0.0,
             annual_contribution_limit=999999.0,
-            current_year_contributions=0.0
+            current_year_contributions=0.0,
         )
 
         assert hsa.get_current_value() == 999999999.99
@@ -60,7 +61,7 @@ class TestEdgeCaseInputHandling:
             cash_balance=0.0,
             investment_balance=0.0,
             annual_contribution_limit=0.0,
-            current_year_contributions=0.0
+            current_year_contributions=0.0,
         )
 
         assert hsa.get_current_value() == 0.0
@@ -91,7 +92,7 @@ class TestEdgeCaseInputHandling:
         watchlist_service._store_watchlist_item = Mock()
 
         # Test that lowercase symbol is normalized to uppercase
-        item_id = watchlist_service.add_stock("aapl", "Apple Inc.")
+        watchlist_service.add_stock("aapl", "Apple Inc.")
 
         # Verify the stock service was called with uppercase symbol
         mock_stock_service.get_current_price.assert_called_with("AAPL")
@@ -148,6 +149,7 @@ class TestConcurrencyAndRaceConditions:
 
         # Second add should fail with duplicate error
         from services.error_handler import WatchlistDuplicateError
+
         with pytest.raises(WatchlistDuplicateError):
             watchlist_service.add_stock("AAPL", "Apple Inc.")
 
@@ -164,7 +166,7 @@ class TestConcurrencyAndRaceConditions:
             cash_balance=1000.0,
             investment_balance=0.0,
             annual_contribution_limit=3000.0,
-            current_year_contributions=2000.0
+            current_year_contributions=2000.0,
         )
 
         # Should allow contribution of 1000 (at limit)
@@ -172,6 +174,7 @@ class TestConcurrencyAndRaceConditions:
 
         # Should fail if trying to contribute more than remaining
         from services.error_handler import HSAContributionLimitError
+
         with pytest.raises(HSAContributionLimitError):
             hsa.validate_contribution(1001.0)
 
@@ -186,7 +189,9 @@ class TestDatabaseErrorScenarios:
         watchlist_service = WatchlistService(mock_db_service, mock_stock_service)
 
         # Mock database connection failure
-        mock_db_service.connect.side_effect = sqlite3.OperationalError("Database is locked")
+        mock_db_service.connect.side_effect = sqlite3.OperationalError(
+            "Database is locked"
+        )
 
         with pytest.raises(WatchlistServiceError) as exc_info:
             watchlist_service.get_watchlist()
@@ -202,7 +207,9 @@ class TestDatabaseErrorScenarios:
         # Mock database corruption
         mock_connection = Mock()
         mock_cursor = Mock()
-        mock_cursor.fetchall.side_effect = sqlite3.DatabaseError("Database disk image is malformed")
+        mock_cursor.fetchall.side_effect = sqlite3.DatabaseError(
+            "Database disk image is malformed"
+        )
         mock_connection.cursor.return_value = mock_cursor
         mock_db_service.connect.return_value = mock_connection
 
@@ -222,19 +229,21 @@ class TestDatabaseErrorScenarios:
         mock_cursor = Mock()
         mock_cursor.fetchall.return_value = [
             {
-                'id': 'test-id',
-                'symbol': 'AAPL',
-                'encrypted_data': b'corrupted_data',
-                'added_date': int(datetime.now().timestamp()),
-                'last_price_update': None,
-                'is_demo': False
+                "id": "test-id",
+                "symbol": "AAPL",
+                "encrypted_data": b"corrupted_data",
+                "added_date": int(datetime.now().timestamp()),
+                "last_price_update": None,
+                "is_demo": False,
             }
         ]
         mock_connection.cursor.return_value = mock_cursor
         mock_db_service.connect.return_value = mock_connection
 
         # Mock decryption failure
-        mock_db_service.encryption_service.decrypt.side_effect = Exception("Decryption failed")
+        mock_db_service.encryption_service.decrypt.side_effect = Exception(
+            "Decryption failed"
+        )
 
         # Should return empty list and log errors (graceful degradation)
         result = watchlist_service.get_watchlist()
@@ -244,7 +253,7 @@ class TestDatabaseErrorScenarios:
 class TestNetworkErrorScenarios:
     """Test network error handling scenarios."""
 
-    @patch('yfinance.Ticker')
+    @patch("yfinance.Ticker")
     def test_stock_price_network_timeout_recovery(self, mock_ticker):
         """Test stock price service recovery from network timeouts."""
         stock_service = StockPriceService(max_retries=3)
@@ -257,12 +266,14 @@ class TestNetworkErrorScenarios:
         # Create a proper mock for the successful history call
         successful_hist = Mock()
         successful_hist.empty = False
-        successful_hist.__getitem__ = Mock(return_value=Mock(iloc=Mock(__getitem__=lambda x, y: 150.0)))
+        successful_hist.__getitem__ = Mock(
+            return_value=Mock(iloc=Mock(__getitem__=lambda x, y: 150.0))
+        )
 
         mock_ticker_instance.history.side_effect = [
             Exception("Connection timeout"),
             Exception("Read timeout"),
-            successful_hist
+            successful_hist,
         ]
         mock_ticker.return_value = mock_ticker_instance
 
@@ -271,7 +282,7 @@ class TestNetworkErrorScenarios:
         assert price == 150.0
         assert mock_ticker_instance.history.call_count == 3
 
-    @patch('yfinance.Ticker')
+    @patch("yfinance.Ticker")
     def test_stock_price_persistent_network_failure(self, mock_ticker):
         """Test stock price service with persistent network failure."""
         stock_service = StockPriceService(max_retries=2)
@@ -321,8 +332,8 @@ class TestBoundaryConditions:
             created_date=datetime.now(),
             last_updated=datetime.now(),
             current_balance=1000.01,  # Total
-            cash_balance=500.005,     # These don't add up exactly due to floating point
-            investment_balance=500.005  # but should be within tolerance
+            cash_balance=500.005,  # These don't add up exactly due to floating point
+            investment_balance=500.005,  # but should be within tolerance
         )
 
         # Should succeed due to 0.01 tolerance in validation
@@ -341,7 +352,7 @@ class TestBoundaryConditions:
                 last_updated=datetime.now(),
                 current_balance=1000.0,
                 cash_balance=500.0,
-                investment_balance=500.02  # Exceeds 0.01 tolerance
+                investment_balance=500.02,  # Exceeds 0.01 tolerance
             )
 
     def test_watchlist_maximum_size_boundary(self):
@@ -352,12 +363,18 @@ class TestBoundaryConditions:
 
         # Mock watchlist at exactly the limit
         max_size = 50
-        existing_items = [WatchlistItem.create_new(f"STOCK{i:02d}", f"Stock {i}") for i in range(max_size)]
+        existing_items = [
+            WatchlistItem.create_new(f"STOCK{i:02d}", f"Stock {i}")
+            for i in range(max_size)
+        ]
         watchlist_service.get_watchlist = Mock(return_value=existing_items)
 
         from services.error_handler import WatchlistLimitExceededError
+
         with pytest.raises(WatchlistLimitExceededError):
-            watchlist_service.add_stock("NEWSTOCK", "New Stock", max_watchlist_size=max_size)
+            watchlist_service.add_stock(
+                "NEWSTOCK", "New Stock", max_watchlist_size=max_size
+            )
 
     def test_stock_symbol_length_boundaries(self):
         """Test stock symbol validation at length boundaries."""
@@ -367,7 +384,7 @@ class TestBoundaryConditions:
         stock_service._try_alternative_price_fetch = Mock(return_value=None)
 
         # Test minimum length (1 character) - should be valid format
-        with patch('yfinance.Ticker') as mock_ticker:
+        with patch("yfinance.Ticker") as mock_ticker:
             mock_ticker_instance = Mock()
             mock_ticker_instance.history.return_value.empty = True
             mock_ticker.return_value = mock_ticker_instance
@@ -378,7 +395,7 @@ class TestBoundaryConditions:
             assert "No valid price data available" in str(exc_info.value)
 
         # Test maximum length (10 characters) - should be valid format
-        with patch('yfinance.Ticker') as mock_ticker:
+        with patch("yfinance.Ticker") as mock_ticker:
             mock_ticker_instance = Mock()
             mock_ticker_instance.history.return_value.empty = True
             mock_ticker.return_value = mock_ticker_instance
@@ -429,22 +446,18 @@ class TestErrorMessageQuality:
 
     def test_error_context_preservation(self):
         """Test that error context is preserved through the stack."""
-        from services.error_handler import ErrorContext, SystemError
+        from services.error_handler import ErrorContext
 
         context = ErrorContext(
             user_id="test-user",
             operation="add_watchlist_stock",
-            additional_data={"symbol": "AAPL"}
+            additional_data={"symbol": "AAPL"},
         )
 
-        error = SystemError(
-            message="Test error",
-            code="TEST_001",
-            context=context
-        )
+        error = SystemError(message="Test error", code="TEST_001", context=context)
 
         error_dict = error.to_dict()
-        assert error_dict['context']['symbol'] == "AAPL"
+        assert error_dict["context"]["symbol"] == "AAPL"
 
 
 if __name__ == "__main__":

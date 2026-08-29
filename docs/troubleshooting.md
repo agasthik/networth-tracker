@@ -158,8 +158,8 @@ empty.
 The Backup password field is for generated demo backups. Use `demo123` for the
 file produced by `scripts/create_demo_backup.py`.
 
-The UI downloads `.enc`; the API response uses `.nwb`. The file contents use
-the same format, but the browser file picker currently advertises `.enc`.
+The UI downloads `.nwb`. Import also accepts legacy `.enc` demo backups because
+both extensions use the same encrypted payload format.
 
 Normal exports omit the database salt and are not portable disaster-recovery
 backups. See [Security Guide](security.md#backups-and-recovery).

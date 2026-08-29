@@ -40,7 +40,9 @@ FONT_DESTINATIONS = {
 }
 
 
-def download(url: str, destination: Path, headers: dict[str, str] | None = None) -> None:
+def download(
+    url: str, destination: Path, headers: dict[str, str] | None = None
+) -> None:
     """Download URL contents after validating only http/https schemes are used (B310 mitigation)."""
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme not in ("http", "https"):

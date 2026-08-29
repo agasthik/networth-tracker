@@ -10,16 +10,17 @@ This test module covers:
 """
 
 import pytest
-import json
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, date
+from unittest.mock import Mock, patch
+from datetime import datetime
 
 from services.error_handler import (
-    HSAError, HSAContributionLimitError, HSABalanceValidationError,
-    HSABalanceMismatchError, HSAContributionValidationError,
-    WatchlistError, WatchlistDuplicateError, WatchlistNotFoundError,
-    WatchlistLimitExceededError, WatchlistPriceUpdateError,
-    StockValidationError, StockPriceUnavailableError, StockNotFoundError
+    HSAContributionLimitError,
+    HSABalanceValidationError,
+    HSABalanceMismatchError,
+    HSAContributionValidationError,
+    WatchlistDuplicateError,
+    WatchlistLimitExceededError,
+    StockValidationError,
 )
 from models.accounts import HSAAccount, AccountType
 from models.watchlist import WatchlistItem
@@ -42,7 +43,7 @@ class TestHSAErrorHandling:
                 last_updated=datetime.now(),
                 current_balance=-100.0,
                 cash_balance=-100.0,
-                investment_balance=0.0
+                investment_balance=0.0,
             )
 
         error = exc_info.value
@@ -62,7 +63,7 @@ class TestHSAErrorHandling:
                 last_updated=datetime.now(),
                 current_balance=1000.0,
                 cash_balance=500.0,
-                investment_balance=400.0  # Should be 500 to match total
+                investment_balance=400.0,  # Should be 500 to match total
             )
 
         error = exc_info.value
@@ -83,7 +84,7 @@ class TestHSAErrorHandling:
                 cash_balance=1000.0,
                 investment_balance=0.0,
                 annual_contribution_limit=3000.0,
-                current_year_contributions=3500.0  # Exceeds limit
+                current_year_contributions=3500.0,  # Exceeds limit
             )
 
         error = exc_info.value
@@ -103,7 +104,7 @@ class TestHSAErrorHandling:
             cash_balance=1000.0,
             investment_balance=0.0,
             annual_contribution_limit=3000.0,
-            current_year_contributions=1000.0
+            current_year_contributions=1000.0,
         )
 
         # Should not raise any exception
@@ -122,7 +123,7 @@ class TestHSAErrorHandling:
             cash_balance=1000.0,
             investment_balance=0.0,
             annual_contribution_limit=3000.0,
-            current_year_contributions=2500.0
+            current_year_contributions=2500.0,
         )
 
         with pytest.raises(HSAContributionLimitError) as exc_info:
@@ -143,7 +144,7 @@ class TestHSAErrorHandling:
             last_updated=datetime.now(),
             current_balance=1000.0,
             cash_balance=1000.0,
-            investment_balance=0.0
+            investment_balance=0.0,
         )
 
         # Should not raise any exception
@@ -160,7 +161,7 @@ class TestHSAErrorHandling:
             last_updated=datetime.now(),
             current_balance=1000.0,
             cash_balance=1000.0,
-            investment_balance=0.0
+            investment_balance=0.0,
         )
 
         with pytest.raises(HSABalanceMismatchError):
@@ -174,7 +175,9 @@ class TestWatchlistErrorHandling:
         """Set up test fixtures."""
         self.mock_db_service = Mock()
         self.mock_stock_service = Mock()
-        self.watchlist_service = WatchlistService(self.mock_db_service, self.mock_stock_service)
+        self.watchlist_service = WatchlistService(
+            self.mock_db_service, self.mock_stock_service
+        )
 
     def test_watchlist_duplicate_error(self):
         """Test adding duplicate stock to watchlist."""
@@ -192,11 +195,15 @@ class TestWatchlistErrorHandling:
     def test_watchlist_limit_exceeded_error(self):
         """Test watchlist size limit exceeded."""
         # Mock watchlist at capacity
-        existing_items = [WatchlistItem.create_new(f"STOCK{i}", f"Stock {i}") for i in range(50)]
+        existing_items = [
+            WatchlistItem.create_new(f"STOCK{i}", f"Stock {i}") for i in range(50)
+        ]
         self.watchlist_service.get_watchlist = Mock(return_value=existing_items)
 
         with pytest.raises(WatchlistLimitExceededError) as exc_info:
-            self.watchlist_service.add_stock("NEWSTOCK", "New Stock", max_watchlist_size=50)
+            self.watchlist_service.add_stock(
+                "NEWSTOCK", "New Stock", max_watchlist_size=50
+            )
 
         error = exc_info.value
         assert error.code == "WATCH_004"
@@ -207,7 +214,9 @@ class TestWatchlistErrorHandling:
         self.watchlist_service.get_watchlist = Mock(return_value=[])
 
         with pytest.raises(StockValidationError) as exc_info:
-            self.watchlist_service.add_stock("INVALID_SYMBOL_TOO_LONG", "Invalid symbol")
+            self.watchlist_service.add_stock(
+                "INVALID_SYMBOL_TOO_LONG", "Invalid symbol"
+            )
 
         error = exc_info.value
         assert error.code == "STOCK_005"
@@ -216,7 +225,9 @@ class TestWatchlistErrorHandling:
     def test_stock_validation_error_not_found(self):
         """Test stock symbol validation when symbol not found."""
         self.watchlist_service.get_watchlist = Mock(return_value=[])
-        self.mock_stock_service.get_current_price.side_effect = StockPriceServiceError("Symbol not found")
+        self.mock_stock_service.get_current_price.side_effect = StockPriceServiceError(
+            "Symbol not found"
+        )
 
         with pytest.raises(StockValidationError) as exc_info:
             self.watchlist_service.add_stock("NOTFOUND", "Non-existent stock")
@@ -231,16 +242,19 @@ class TestWatchlistErrorHandling:
         items = [
             WatchlistItem.create_new("AAPL", "Apple"),
             WatchlistItem.create_new("GOOGL", "Google"),
-            WatchlistItem.create_new("INVALID", "Invalid Stock")
+            WatchlistItem.create_new("INVALID", "Invalid Stock"),
         ]
         self.watchlist_service.get_watchlist = Mock(return_value=items)
 
         # Mock price service to return mixed results
         from services.stock_prices import PriceUpdateResult
+
         mock_results = {
             "AAPL": PriceUpdateResult("AAPL", True, 150.0, None, datetime.now()),
             "GOOGL": PriceUpdateResult("GOOGL", True, 2500.0, None, datetime.now()),
-            "INVALID": PriceUpdateResult("INVALID", False, None, "Symbol not found", datetime.now())
+            "INVALID": PriceUpdateResult(
+                "INVALID", False, None, "Symbol not found", datetime.now()
+            ),
         }
         self.mock_stock_service.get_batch_prices.return_value = mock_results
 
@@ -249,11 +263,11 @@ class TestWatchlistErrorHandling:
 
         result = self.watchlist_service.update_prices()
 
-        assert result['success'] is True
-        assert result['summary']['total_items'] == 3
-        assert result['summary']['successful_updates'] == 2
-        assert result['summary']['failed_updates'] == 1
-        assert "INVALID" in result['summary']['failed_symbols']
+        assert result["success"] is True
+        assert result["summary"]["total_items"] == 3
+        assert result["summary"]["successful_updates"] == 2
+        assert result["summary"]["failed_updates"] == 1
+        assert "INVALID" in result["summary"]["failed_symbols"]
 
     def test_watchlist_price_update_complete_failure(self):
         """Test watchlist price update with complete failure."""
@@ -261,7 +275,9 @@ class TestWatchlistErrorHandling:
         self.watchlist_service.get_watchlist = Mock(return_value=items)
 
         # Mock stock service to raise exception
-        self.mock_stock_service.get_batch_prices.side_effect = Exception("Network error")
+        self.mock_stock_service.get_batch_prices.side_effect = Exception(
+            "Network error"
+        )
 
         with pytest.raises(WatchlistServiceError) as exc_info:
             self.watchlist_service.update_prices()
@@ -279,7 +295,7 @@ class TestStockPriceErrorHandling:
         # deterministically exercise the mocked yfinance path.
         self.stock_service._try_alternative_price_fetch = Mock(return_value=None)
 
-    @patch('yfinance.Ticker')
+    @patch("yfinance.Ticker")
     def test_stock_not_found_error(self, mock_ticker):
         """Test stock price fetch for non-existent symbol."""
         # Mock yfinance to return empty history
@@ -293,7 +309,7 @@ class TestStockPriceErrorHandling:
 
         assert "No valid price data available" in str(exc_info.value)
 
-    @patch('yfinance.Ticker')
+    @patch("yfinance.Ticker")
     def test_stock_price_network_timeout(self, mock_ticker):
         """Test stock price fetch with network timeout."""
         # Mock yfinance to raise timeout exception
@@ -304,7 +320,7 @@ class TestStockPriceErrorHandling:
 
         assert "Network timeout while fetching price" in str(exc_info.value)
 
-    @patch('yfinance.Ticker')
+    @patch("yfinance.Ticker")
     def test_stock_price_invalid_symbol_format(self, mock_ticker):
         """Test stock price fetch with invalid symbol format."""
         with pytest.raises(StockPriceServiceError) as exc_info:
@@ -312,7 +328,7 @@ class TestStockPriceErrorHandling:
 
         assert "Invalid symbol format" in str(exc_info.value)
 
-    @patch('yfinance.Ticker')
+    @patch("yfinance.Ticker")
     def test_stock_price_retry_mechanism(self, mock_ticker):
         """Test stock price fetch retry mechanism."""
         # Mock yfinance to fail twice then succeed
@@ -320,12 +336,14 @@ class TestStockPriceErrorHandling:
         # Create a proper mock for the successful history call
         successful_hist = Mock()
         successful_hist.empty = False
-        successful_hist.__getitem__ = Mock(return_value=Mock(iloc=Mock(__getitem__=lambda x, y: 150.0)))
+        successful_hist.__getitem__ = Mock(
+            return_value=Mock(iloc=Mock(__getitem__=lambda x, y: 150.0))
+        )
 
         mock_ticker_instance.history.side_effect = [
             Exception("Temporary error"),
             Exception("Another temporary error"),
-            successful_hist
+            successful_hist,
         ]
         mock_ticker.return_value = mock_ticker_instance
 
@@ -355,7 +373,7 @@ class TestAPIErrorHandling:
         error = ValidationError(
             message="Request must be JSON",
             code="VAL_001",
-            user_action="Please send request with Content-Type: application/json"
+            user_action="Please send request with Content-Type: application/json",
         )
 
         assert error.code == "VAL_001"
@@ -366,7 +384,7 @@ class TestAPIErrorHandling:
         """Test watchlist API with missing symbol."""
         from services.error_handler import MissingFieldError
 
-        error = MissingFieldError('symbol')
+        error = MissingFieldError("symbol")
 
         assert error.code == "VAL_002"
         assert "symbol" in error.message
@@ -378,11 +396,11 @@ class TestAPIErrorHandling:
         error = HSAContributionLimitError(1000.0, 500.0)
         error_dict = error.to_dict()
 
-        assert error_dict['error'] is True
-        assert error_dict['type'] == "VALIDATION"
-        assert error_dict['code'] == "HSA_002"
-        assert error_dict['recoverable'] is True
-        assert "exceeds remaining capacity" in error_dict['message']
+        assert error_dict["error"] is True
+        assert error_dict["type"] == "VALIDATION"
+        assert error_dict["code"] == "HSA_002"
+        assert error_dict["recoverable"] is True
+        assert "exceeds remaining capacity" in error_dict["message"]
 
 
 class TestErrorRecoveryAndGracefulDegradation:
@@ -400,15 +418,18 @@ class TestErrorRecoveryAndGracefulDegradation:
         # Mock watchlist with items
         items = [
             WatchlistItem.create_new("AAPL", "Apple"),
-            WatchlistItem.create_new("FAIL", "Failing Stock")
+            WatchlistItem.create_new("FAIL", "Failing Stock"),
         ]
         watchlist_service.get_watchlist = Mock(return_value=items)
 
         # Mock mixed results
         from services.stock_prices import PriceUpdateResult
+
         mock_results = {
             "AAPL": PriceUpdateResult("AAPL", True, 150.0, None, datetime.now()),
-            "FAIL": PriceUpdateResult("FAIL", False, None, "Network error", datetime.now())
+            "FAIL": PriceUpdateResult(
+                "FAIL", False, None, "Network error", datetime.now()
+            ),
         }
         mock_stock_service.get_batch_prices.return_value = mock_results
 
@@ -418,11 +439,11 @@ class TestErrorRecoveryAndGracefulDegradation:
         result = watchlist_service.update_prices()
 
         # Should succeed overall but report partial failures
-        assert result['success'] is True
-        assert result['summary']['successful_updates'] == 1
-        assert result['summary']['failed_updates'] == 1
-        assert "AAPL" in result['summary']['successful_symbols']
-        assert "FAIL" in result['summary']['failed_symbols']
+        assert result["success"] is True
+        assert result["summary"]["successful_updates"] == 1
+        assert result["summary"]["failed_updates"] == 1
+        assert "AAPL" in result["summary"]["successful_symbols"]
+        assert "FAIL" in result["summary"]["failed_symbols"]
 
     def test_stock_price_service_graceful_degradation(self):
         """Test stock price service graceful degradation."""
@@ -432,14 +453,16 @@ class TestErrorRecoveryAndGracefulDegradation:
         stock_service._try_alternative_price_fetch = Mock(return_value=None)
 
         # Test batch operation with mixed results
-        with patch('yfinance.Ticker') as mock_ticker:
+        with patch("yfinance.Ticker") as mock_ticker:
             # Mock different behaviors for different symbols
             def ticker_side_effect(symbol, session=None):
                 mock_instance = Mock()
                 if symbol == "AAPL":
                     successful_hist = Mock()
                     successful_hist.empty = False
-                    successful_hist.__getitem__ = Mock(return_value=Mock(iloc=Mock(__getitem__=lambda x, y: 150.0)))
+                    successful_hist.__getitem__ = Mock(
+                        return_value=Mock(iloc=Mock(__getitem__=lambda x, y: 150.0))
+                    )
                     mock_instance.history.return_value = successful_hist
                 else:  # FAIL symbol
                     mock_instance.history.return_value.empty = True

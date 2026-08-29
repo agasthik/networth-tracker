@@ -11,16 +11,23 @@ Tests cover:
 """
 
 import pytest
-import json
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
 
 from models.watchlist import WatchlistItem
-from services.watchlist import WatchlistService, WatchlistServiceError
+from services.watchlist import WatchlistService
 from services.database import DatabaseService
-from services.stock_prices import StockPriceService, PriceUpdateResult, StockPriceServiceError
+from services.stock_prices import (
+    StockPriceService,
+    PriceUpdateResult,
+    StockPriceServiceError,
+)
 from services.encryption import EncryptionService
-from services.error_handler import ValidationError, WatchlistDuplicateError, StockValidationError
+from services.error_handler import (
+    ValidationError,
+    WatchlistDuplicateError,
+    StockValidationError,
+)
 
 
 class TestWatchlistService:
@@ -31,7 +38,7 @@ class TestWatchlistService:
         """Create mock database service."""
         mock_db = Mock(spec=DatabaseService)
         mock_db.encryption_service = Mock(spec=EncryptionService)
-        mock_db.encryption_service.encrypt.return_value = b'encrypted_data'
+        mock_db.encryption_service.encrypt.return_value = b"encrypted_data"
         mock_db.encryption_service.decrypt.return_value = '{"notes": "Test notes", "current_price": 150.0, "daily_change": 2.5, "daily_change_percent": 1.69}'
 
         # Mock database connection and cursor
@@ -101,22 +108,30 @@ class TestWatchlistService:
     def test_add_stock_invalid_symbol(self, watchlist_service, mock_stock_service):
         """Test adding invalid stock symbol."""
         watchlist_service.get_watchlist = Mock(return_value=[])
-        mock_stock_service.get_current_price.side_effect = StockPriceServiceError("Invalid symbol")
+        mock_stock_service.get_current_price.side_effect = StockPriceServiceError(
+            "Invalid symbol"
+        )
 
-        with pytest.raises(StockValidationError, match="Invalid stock symbol 'INVALID'"):
+        with pytest.raises(
+            StockValidationError, match="Invalid stock symbol 'INVALID'"
+        ):
             watchlist_service.add_stock("INVALID")
 
     def test_remove_stock_success(self, watchlist_service, mock_db_service):
         """Test successfully removing a stock from watchlist."""
         # Mock database operations
         mock_cursor = mock_db_service.connect.return_value.cursor.return_value
-        mock_cursor.fetchone.return_value = {'id': 'test-id'}
+        mock_cursor.fetchone.return_value = {"id": "test-id"}
 
         result = watchlist_service.remove_stock("AAPL")
 
         assert result is True
-        mock_cursor.execute.assert_any_call('SELECT id FROM watchlist WHERE symbol = ?', ('AAPL',))
-        mock_cursor.execute.assert_any_call('DELETE FROM watchlist WHERE symbol = ?', ('AAPL',))
+        mock_cursor.execute.assert_any_call(
+            "SELECT id FROM watchlist WHERE symbol = ?", ("AAPL",)
+        )
+        mock_cursor.execute.assert_any_call(
+            "DELETE FROM watchlist WHERE symbol = ?", ("AAPL",)
+        )
 
     def test_remove_stock_not_found(self, watchlist_service, mock_db_service):
         """Test removing non-existent stock."""
@@ -138,12 +153,12 @@ class TestWatchlistService:
         mock_cursor = mock_db_service.connect.return_value.cursor.return_value
         now_timestamp = int(datetime.now().timestamp())
         mock_row = {
-            'id': 'test-id',
-            'symbol': 'AAPL',
-            'encrypted_data': b'encrypted_data',
-            'added_date': now_timestamp,
-            'last_price_update': now_timestamp,
-            'is_demo': False
+            "id": "test-id",
+            "symbol": "AAPL",
+            "encrypted_data": b"encrypted_data",
+            "added_date": now_timestamp,
+            "last_price_update": now_timestamp,
+            "is_demo": False,
         }
         mock_cursor.fetchall.return_value = [mock_row]
 
@@ -154,7 +169,7 @@ class TestWatchlistService:
 
         assert len(result) == 1
         assert isinstance(result[0], WatchlistItem)
-        assert result[0].symbol == 'AAPL'
+        assert result[0].symbol == "AAPL"
 
     def test_get_watchlist_empty(self, watchlist_service, mock_db_service):
         """Test retrieving empty watchlist."""
@@ -208,19 +223,19 @@ class TestWatchlistService:
 
         # Mock successful price updates
         price_results = {
-            'AAPL': PriceUpdateResult('AAPL', True, 150.0, None, datetime.now()),
-            'GOOGL': PriceUpdateResult('GOOGL', True, 2800.0, None, datetime.now())
+            "AAPL": PriceUpdateResult("AAPL", True, 150.0, None, datetime.now()),
+            "GOOGL": PriceUpdateResult("GOOGL", True, 2800.0, None, datetime.now()),
         }
         mock_stock_service.get_batch_prices.return_value = price_results
 
         result = watchlist_service.update_prices()
 
-        assert result['success'] is True
-        assert result['summary']['successful_updates'] == 2
-        assert result['summary']['failed_updates'] == 0
-        assert result['results']['AAPL']['success'] is True
-        assert result['results']['GOOGL']['success'] is True
-        mock_stock_service.get_batch_prices.assert_called_once_with(['AAPL', 'GOOGL'])
+        assert result["success"] is True
+        assert result["summary"]["successful_updates"] == 2
+        assert result["summary"]["failed_updates"] == 0
+        assert result["results"]["AAPL"]["success"] is True
+        assert result["results"]["GOOGL"]["success"] is True
+        mock_stock_service.get_batch_prices.assert_called_once_with(["AAPL", "GOOGL"])
         assert watchlist_service._store_watchlist_item.call_count == 2
 
     def test_update_prices_partial_failure(self, watchlist_service, mock_stock_service):
@@ -233,19 +248,21 @@ class TestWatchlistService:
 
         # Mock mixed results
         price_results = {
-            'AAPL': PriceUpdateResult('AAPL', True, 150.0, None, datetime.now()),
-            'INVALID': PriceUpdateResult('INVALID', False, None, 'Invalid symbol', datetime.now())
+            "AAPL": PriceUpdateResult("AAPL", True, 150.0, None, datetime.now()),
+            "INVALID": PriceUpdateResult(
+                "INVALID", False, None, "Invalid symbol", datetime.now()
+            ),
         }
         mock_stock_service.get_batch_prices.return_value = price_results
 
         result = watchlist_service.update_prices()
 
-        assert result['success'] is True
-        assert result['summary']['successful_updates'] == 1
-        assert result['summary']['failed_updates'] == 1
-        assert result['results']['AAPL']['success'] is True
-        assert result['results']['INVALID']['success'] is False
-        assert 'INVALID' in result['summary']['failed_symbols']
+        assert result["success"] is True
+        assert result["summary"]["successful_updates"] == 1
+        assert result["summary"]["failed_updates"] == 1
+        assert result["results"]["AAPL"]["success"] is True
+        assert result["results"]["INVALID"]["success"] is False
+        assert "INVALID" in result["summary"]["failed_symbols"]
         # Only successful update should be stored
         watchlist_service._store_watchlist_item.assert_called_once()
 
@@ -255,9 +272,9 @@ class TestWatchlistService:
 
         result = watchlist_service.update_prices()
 
-        assert result['success'] is True
-        assert result['results'] == {}
-        assert result['summary']['total_items'] == 0
+        assert result["success"] is True
+        assert result["results"] == {}
+        assert result["summary"]["total_items"] == 0
 
     def test_validate_symbol_valid(self, watchlist_service, mock_stock_service):
         """Test validating a valid stock symbol."""
@@ -270,7 +287,9 @@ class TestWatchlistService:
 
     def test_validate_symbol_invalid(self, watchlist_service, mock_stock_service):
         """Test validating an invalid stock symbol."""
-        mock_stock_service.get_current_price.side_effect = StockPriceServiceError("Invalid symbol")
+        mock_stock_service.get_current_price.side_effect = StockPriceServiceError(
+            "Invalid symbol"
+        )
 
         result = watchlist_service.validate_symbol("INVALID")
 
@@ -297,16 +316,20 @@ class TestWatchlistService:
         # Make price data stale
         item4.last_price_update = datetime.now() - timedelta(hours=25)
 
-        watchlist_service.get_watchlist = Mock(return_value=[item1, item2, item3, item4])
+        watchlist_service.get_watchlist = Mock(
+            return_value=[item1, item2, item3, item4]
+        )
 
         result = watchlist_service.get_watchlist_summary()
 
-        assert result['total_items'] == 4
-        assert result['items_with_prices'] == 3
-        assert result['items_with_stale_prices'] == 2  # item3 (no price) + item4 (stale)
-        assert result['gainers'] == 1  # item1
-        assert result['losers'] == 1   # item2
-        assert 'last_updated' in result
+        assert result["total_items"] == 4
+        assert result["items_with_prices"] == 3
+        assert (
+            result["items_with_stale_prices"] == 2
+        )  # item3 (no price) + item4 (stale)
+        assert result["gainers"] == 1  # item1
+        assert result["losers"] == 1  # item2
+        assert "last_updated" in result
 
     def test_get_watchlist_summary_error_handling(self, watchlist_service):
         """Test watchlist summary with error."""
@@ -314,8 +337,8 @@ class TestWatchlistService:
 
         result = watchlist_service.get_watchlist_summary()
 
-        assert result['total_items'] == 0
-        assert 'error' in result
+        assert result["total_items"] == 0
+        assert "error" in result
 
     def test_clear_watchlist(self, watchlist_service, mock_db_service):
         """Test clearing all watchlist items."""
@@ -325,8 +348,8 @@ class TestWatchlistService:
         result = watchlist_service.clear_watchlist()
 
         assert result == 5
-        mock_cursor.execute.assert_any_call('SELECT COUNT(*) FROM watchlist')
-        mock_cursor.execute.assert_any_call('DELETE FROM watchlist')
+        mock_cursor.execute.assert_any_call("SELECT COUNT(*) FROM watchlist")
+        mock_cursor.execute.assert_any_call("DELETE FROM watchlist")
 
     def test_add_demo_watchlist_items(self, watchlist_service, mock_stock_service):
         """Test adding demo watchlist items."""
@@ -336,7 +359,7 @@ class TestWatchlistService:
 
         # Mock successful price fetches for some stocks
         def mock_get_price(symbol):
-            prices = {'AAPL': 150.0, 'GOOGL': 2800.0, 'MSFT': 300.0}
+            prices = {"AAPL": 150.0, "GOOGL": 2800.0, "MSFT": 300.0}
             if symbol in prices:
                 return prices[symbol]
             raise StockPriceServiceError("Price not available")
@@ -355,13 +378,19 @@ class TestWatchlistService:
         watchlist_service._ensure_watchlist_table()
 
         # Verify table creation SQL was executed
-        create_table_calls = [call for call in mock_cursor.execute.call_args_list
-                             if 'CREATE TABLE IF NOT EXISTS watchlist' in str(call)]
+        create_table_calls = [
+            call
+            for call in mock_cursor.execute.call_args_list
+            if "CREATE TABLE IF NOT EXISTS watchlist" in str(call)
+        ]
         assert len(create_table_calls) == 1
 
         # Verify index creation
-        create_index_calls = [call for call in mock_cursor.execute.call_args_list
-                             if 'CREATE INDEX IF NOT EXISTS' in str(call)]
+        create_index_calls = [
+            call
+            for call in mock_cursor.execute.call_args_list
+            if "CREATE INDEX IF NOT EXISTS" in str(call)
+        ]
         assert len(create_index_calls) == 1
 
     def test_store_watchlist_item(self, watchlist_service, mock_db_service):
@@ -378,8 +407,11 @@ class TestWatchlistService:
         mock_db_service.encryption_service.encrypt.assert_called_once()
 
         # Verify database insert was called
-        insert_calls = [call for call in mock_cursor.execute.call_args_list
-                       if 'INSERT OR REPLACE INTO watchlist' in str(call)]
+        insert_calls = [
+            call
+            for call in mock_cursor.execute.call_args_list
+            if "INSERT OR REPLACE INTO watchlist" in str(call)
+        ]
         assert len(insert_calls) == 1
 
     def test_store_demo_watchlist_item(self, watchlist_service, mock_db_service):
@@ -393,14 +425,20 @@ class TestWatchlistService:
 
         # Verify the item was stored with is_demo=True
         insert_calls = mock_cursor.execute.call_args_list
-        insert_call = next((call for call in insert_calls
-                           if 'INSERT OR REPLACE INTO watchlist' in str(call)), None)
+        insert_call = next(
+            (
+                call
+                for call in insert_calls
+                if "INSERT OR REPLACE INTO watchlist" in str(call)
+            ),
+            None,
+        )
 
         assert insert_call is not None
         # The last parameter should be True for demo flag
         assert insert_call[0][1][-1] is True  # is_demo parameter
 
-    @patch('services.watchlist.logging.getLogger')
+    @patch("services.watchlist.logging.getLogger")
     def test_logging_integration(self, mock_get_logger, watchlist_service):
         """Test that service integrates with logging properly."""
         mock_logger = Mock()

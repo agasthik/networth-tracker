@@ -75,9 +75,7 @@ def test_account_form_holdings_use_stock_positions_table(authenticated_client):
     assert listed_account["positions"] == account["positions"]
     assert listed_account["current_value"] == 1240.0
 
-    portfolio = authenticated_client.get(
-        "/api/portfolio/summary"
-    ).get_json()
+    portfolio = authenticated_client.get("/api/portfolio/summary").get_json()
     assert portfolio["total_networth"] == 1240.0
     assert portfolio["account_types"]["TRADING"]["value"] == 1240.0
 
@@ -89,8 +87,7 @@ def test_account_form_update_replaces_canonical_holdings(authenticated_client):
     ).get_json()["account"]
     account_id = created["id"]
     aapl = next(
-        position for position in created["positions"]
-        if position["symbol"] == "AAPL"
+        position for position in created["positions"] if position["symbol"] == "AAPL"
     )
     aapl.update({"shares": 3.0, "current_price": 130.0})
 
@@ -165,22 +162,32 @@ def test_v6_migration_merges_and_removes_embedded_positions(tmp_path):
     encryption.derive_key("TestPassword123!")
     db_service = DatabaseService(str(tmp_path / "migration.db"), encryption)
     db_service.connect()
-    account_id = db_service.create_account({
-        "name": "Legacy Brokerage",
-        "institution": "Test Broker",
-        "type": "TRADING",
-        "broker_name": "Test Broker",
-        "cash_balance": 1000.0,
-    })
+    account_id = db_service.create_account(
+        {
+            "name": "Legacy Brokerage",
+            "institution": "Test Broker",
+            "type": "TRADING",
+            "broker_name": "Test Broker",
+            "cash_balance": 1000.0,
+        }
+    )
     canonical = _position(current_price=175.0)
     db_service.replace_stock_positions(account_id, [canonical])
 
     account_data = db_service.get_account(account_id)
     sensitive_data = {
-        key: value for key, value in account_data.items()
-        if key not in {
-            "id", "name", "institution", "type", "created_date",
-            "last_updated", "schema_version", "is_demo",
+        key: value
+        for key, value in account_data.items()
+        if key
+        not in {
+            "id",
+            "name",
+            "institution",
+            "type",
+            "created_date",
+            "last_updated",
+            "schema_version",
+            "is_demo",
         }
     }
     sensitive_data["positions"] = [
@@ -195,9 +202,7 @@ def test_v6_migration_merges_and_removes_embedded_positions(tmp_path):
     )
     db_service.connection.commit()
 
-    DatabaseMigration(
-        db_service
-    )._migrate_to_v6_consolidate_stock_positions()
+    DatabaseMigration(db_service)._migrate_to_v6_consolidate_stock_positions()
 
     positions = db_service.get_stock_positions(account_id)
     assert {position["symbol"] for position in positions} == {"AAPL", "MSFT"}

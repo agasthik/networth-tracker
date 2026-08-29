@@ -129,16 +129,69 @@ function initializeApp() {
         return new bootstrap.Popover(popoverTriggerEl);
     });
 
+    if (!isDashboardPage()) {
+        return;
+    }
+
+    initializeDashboardControls();
+
     // Load initial data
     loadAccountData();
+    openRequestedAccountForm();
 
     // Set up auto-refresh for stock prices every 5 minutes
     setInterval(updateStockPrices, 5 * 60 * 1000);
 }
 
+function isDashboardPage() {
+    return document.getElementById('networthAmount') !== null;
+}
+
+function initializeDashboardControls() {
+    document.querySelectorAll('.account-type-card').forEach(card => {
+        card.addEventListener('click', function () {
+            const type = this.dataset.type;
+            if (type === 'summary') {
+                document.getElementById('summary-tab')?.click();
+                return;
+            }
+            showAccountTab(type);
+        });
+    });
+}
+
+function loadSimpleWatchlistSummary() {
+    const totalElement = document.getElementById('dashboardTotalStocks');
+    const gainersElement = document.getElementById('dashboardGainers');
+    if (!totalElement || !gainersElement) return;
+
+    totalElement.textContent = '...';
+    gainersElement.textContent = '...';
+
+    fetch('/api/watchlist')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const watchlist = Array.isArray(data.watchlist) ? data.watchlist : [];
+            totalElement.textContent = String(watchlist.length);
+            gainersElement.textContent = String(
+                watchlist.filter(stock => Number(stock.daily_change) > 0).length
+            );
+        })
+        .catch(error => {
+            console.error('Error loading watchlist summary:', error);
+            totalElement.textContent = '0';
+            gainersElement.textContent = '0';
+        });
+}
+
 // Account Form Management
 function showAccountForm(accountType, accountId = null) {
-    const modal = new bootstrap.Modal(document.getElementById('accountFormModal'));
+    const modalElement = document.getElementById('accountFormModal');
     const title = document.getElementById('accountFormTitle');
     const body = document.getElementById('accountFormBody');
 
@@ -152,6 +205,20 @@ function showAccountForm(accountType, accountId = null) {
         'HSA': 'HSA Account'
     };
 
+    if (!accountTypes[accountType]) {
+        return false;
+    }
+
+    if (!modalElement || !title || !body) {
+        if (!accountId) {
+            window.location.assign(
+                `/dashboard?add_account=${encodeURIComponent(accountType)}`
+            );
+        }
+        return false;
+    }
+
+    const modal = new bootstrap.Modal(modalElement);
     const isEdit = accountId !== null;
     title.textContent = `${isEdit ? 'Edit' : 'Add'} ${accountTypes[accountType]}`;
 
@@ -159,6 +226,23 @@ function showAccountForm(accountType, accountId = null) {
     loadAccountForm(accountType, body, accountId);
 
     modal.show();
+    return false;
+}
+
+function openRequestedAccountForm() {
+    const url = new URL(window.location.href);
+    const accountType = url.searchParams.get('add_account');
+    if (!accountType) {
+        return;
+    }
+
+    showAccountForm(accountType);
+    url.searchParams.delete('add_account');
+    window.history.replaceState(
+        {},
+        '',
+        `${url.pathname}${url.search}${url.hash}`
+    );
 }
 
 function loadAccountForm(accountType, container, accountId = null) {
@@ -551,34 +635,6 @@ function submitAccountForm(event, accountType) {
         });
 }
 
-// Utility Functions
-function showNotification(message, type = 'info') {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-
-    // Safely set text content to prevent XSS
-    alertDiv.textContent = message;
-
-    // Create and append close button safely
-    const closeButton = document.createElement('button');
-    closeButton.type = 'button';
-    closeButton.className = 'btn-close';
-    closeButton.setAttribute('data-bs-dismiss', 'alert');
-    closeButton.setAttribute('aria-label', 'Close');
-
-    alertDiv.appendChild(closeButton);
-
-    // Insert at the top of the container
-    const container = document.querySelector('.container');
-    container.insertBefore(alertDiv, container.firstChild);
-
-    // Auto-dismiss after 5 seconds
-    setTimeout(() => {
-        const bsAlert = new bootstrap.Alert(alertDiv);
-        bsAlert.close();
-    }, 5000);
-}
-
 function formatCurrency(amount) {
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
@@ -756,6 +812,7 @@ function showSessionInfo() {
 
 // Data Management Functions
 function loadAccountData() {
+    if (!isDashboardPage()) return;
     if (AppState.isLoading) return;
 
     AppState.isLoading = true;
@@ -806,6 +863,7 @@ function loadAccountData() {
 }
 
 function refreshNetworth() {
+    if (!isDashboardPage()) return;
     loadAccountData();
     showNotification('Networth data refreshed successfully!', 'success');
 }
@@ -1635,13 +1693,13 @@ function displayAccountDetailsModal(accountId, performanceData) {
                             <div class="col-md-6">
                                 <div class="card bg-light">
                                     <div class="card-body text-center">
-                                        <h4 class="${performanceData.gains_losses?.absolute_gain_loss >= 0 ? 'text-success' : 'text-danger'}">
+                                        <h4 class="${performanceData.gains_losses?.net_worth_change >= 0 ? 'text-success' : 'text-danger'}">
                                             ${performanceData.gains_losses ?
-            (performanceData.gains_losses.absolute_gain_loss >= 0 ? '+' : '') +
-            formatCurrency(performanceData.gains_losses.absolute_gain_loss) :
+            (performanceData.gains_losses.net_worth_change >= 0 ? '+' : '') +
+            formatCurrency(performanceData.gains_losses.net_worth_change) :
             '$0.00'}
                                         </h4>
-                                        <small class="text-muted">30-Day Change</small>
+                                        <small class="text-muted">30-Day Net Worth Change</small>
                                     </div>
                                 </div>
                             </div>
@@ -1650,14 +1708,26 @@ function displayAccountDetailsModal(accountId, performanceData) {
                         ${performanceData.performance ? `
                         <div class="row mb-4">
                             <div class="col-12">
-                                <h6>Performance Metrics</h6>
+                                <h6>Value Change Metrics</h6>
                                 <div class="table-responsive">
                                     <table class="table table-sm">
                                         <tr>
-                                            <td><strong>Percentage Change:</strong></td>
+                                            <td><strong>Net Worth Change:</strong></td>
                                             <td class="${performanceData.performance.percentage_change >= 0 ? 'text-success' : 'text-danger'}">
                                                 ${performanceData.performance.percentage_change.toFixed(2)}%
                                             </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Net Cash Flow:</strong></td>
+                                            <td>${formatCurrency(performanceData.performance.net_cash_flow || 0)}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Flow-Adjusted Gain:</strong></td>
+                                            <td>${formatCurrency(performanceData.performance.investment_gain || 0)}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Flow-Adjusted Return:</strong></td>
+                                            <td>${(performanceData.performance.investment_return_percentage || 0).toFixed(2)}%</td>
                                         </tr>
                                         <tr>
                                             <td><strong>Trend Direction:</strong></td>
@@ -2522,6 +2592,8 @@ function getNotificationIcon(type) {
 
 // Keyboard shortcuts
 document.addEventListener('keydown', function (event) {
+    if (!isDashboardPage()) return;
+
     // Ctrl/Cmd + R: Refresh data
     if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
         event.preventDefault();
@@ -2585,12 +2657,7 @@ function handleApiError(error, retryFunction = null) {
         showRetry = true;
     }
 
-    if (showRetry && retryFunction) {
-        const retryButton = `<button class="btn btn-sm btn-outline-primary ms-2" onclick="${retryFunction}">Retry</button>`;
-        showNotification(message + retryButton, 'danger', 0); // Don't auto-dismiss
-    } else {
-        showNotification(message, 'danger');
-    }
+    showNotification(message, 'danger', showRetry && retryFunction ? 0 : 5000);
 }
 
 // Performance monitoring
